@@ -14,8 +14,6 @@ import (
 
 // TODO's:
 //   * needs PRIVMSG (Msg?), ACTION (Me? Action?), NOTICE (Notice?), SendRaw?
-//   * ClearCallbacks()
-//   * ClearCallback(CODE)
 //   * RunCallbacks(Event)
 //   * track connection time (conntime? in state)
 //   * would be cool to track things like SERVERNAME, VERSION, UMODES, CMODES, etc.

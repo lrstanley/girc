@@ -1,5 +1,7 @@
 package girc
 
+// TODO: ClearCallback(code string)
+
 // handleEvent runs the necessary callbacks for the incoming event
 func (c *Client) handleEvent(event *Event) {
 	// log the event
@@ -27,6 +29,13 @@ func (c *Client) handleEvent(event *Event) {
 			go callbacks[i].Execute(c, *event)
 		}
 	}
+}
+
+// ClearCallbacks clears all callbacks currently setup within the client
+func (c *Client) ClearCallbacks() {
+	// registerHelpers should clean all callbacks and setup internal ones
+	// as necessary.
+	c.registerHelpers()
 }
 
 // AddCallbackHandler registers the callback for the given command
