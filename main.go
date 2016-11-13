@@ -59,7 +59,7 @@ type Config struct {
 func New(config Config) *Client {
 	client := &Client{
 		Config:    config,
-		Events:    make(chan *Event, 10), // buffer 10 events
+		Events:    make(chan *Event, 40), // buffer 40 events
 		quitChan:  make(chan bool),
 		callbacks: make(map[string][]Callback),
 		tries:     0,
@@ -67,9 +67,7 @@ func New(config Config) *Client {
 	}
 
 	// register builtin helpers
-	if !client.Config.DisableHelpers {
-		client.registerHelpers()
-	}
+	client.registerHelpers()
 
 	return client
 }
@@ -156,15 +154,13 @@ func (c *Client) Connect() error {
 
 // connectMessages is a list of IRC messages to send when attempting to
 // connect to the IRC server.
-func (c *Client) connectMessages() []*Event {
-	events := []*Event{}
-
+func (c *Client) connectMessages() (events []*Event) {
 	// passwords first
 	if c.Config.Password != "" {
 		events = append(events, &Event{Command: PASS, Params: []string{c.Config.Password}})
 	}
 
-	// send nickname
+	// then nickname
 	events = append(events, &Event{Command: NICK, Params: []string{c.Config.Nick}})
 
 	// then username and realname
@@ -194,7 +190,7 @@ func (c *Client) Reconnect() error {
 		var err error
 
 		// re-setup events
-		c.Events = make(chan *Event, 10)
+		c.Events = make(chan *Event, 40)
 
 		// sleep for 10 seconds so we're not slaughtering the server
 		c.log.Printf("reconnecting to %s in 10 seconds", c.Server())
@@ -226,9 +222,9 @@ func (c *Client) ReadLoop() error {
 	}
 }
 
-// Wait reads from the events channel and sends the events to be handled
+// Loop reads from the events channel and sends the events to be handled
 // for every message it receives.
-func (c *Client) Wait() {
+func (c *Client) Loop() {
 	for {
 		select {
 		case event := <-c.Events:
@@ -248,6 +244,8 @@ func (c *Client) IsConnected() bool {
 }
 
 // GetNick returns the current nickname of the active connection
+//
+// Helpers MUST be enabled for this to work.
 func (c *Client) GetNick() string {
 	c.State.m.RLock()
 	defer c.State.m.RUnlock()
@@ -269,6 +267,8 @@ func (c *Client) SetNick(name string) {
 }
 
 // GetChannels returns the active list of channels that the client is in
+//
+// Helpers MUST be enabled for this to work.
 func (c *Client) GetChannels() map[string]*Channel {
 	c.State.m.RLock()
 	defer c.State.m.RUnlock()

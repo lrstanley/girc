@@ -3,6 +3,12 @@ package girc
 import "time"
 
 func (c *Client) registerHelpers() {
+	c.callbacks = make(map[string][]Callback)
+
+	if !c.Config.DisableHelpers {
+		return
+	}
+
 	c.AddBgCallback(SUCCESS, handleWelcome)
 	c.AddCallback(PING, handlePING)
 

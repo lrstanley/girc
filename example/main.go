@@ -30,5 +30,5 @@ func main() {
 		log.Fatalf("an error occurred while attempting to connect: %s", err)
 	}
 
-	client.Wait()
+	client.Loop()
 }
