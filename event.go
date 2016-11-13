@@ -125,15 +125,12 @@ func (p *Prefix) writeTo(buffer *bytes.Buffer) {
 //                   CR or LF>
 //    <crlf>     :: CR LF
 type Event struct {
-	*Prefix
-	Command  string
-	Params   []string
-	Trailing string
-
-	// When set to true, the trailing prefix (:) will be added even if the trailing message is empty.
-	EmptyTrailing bool
-
-	Sensitive bool // if the message is sensitive (e.g. and should not be logged)
+	*Prefix                // The source of the event
+	Command       string   // the IRC command, e.g. JOIN, PRIVMSG, KILL
+	Params        []string // parameters to the command. Commonly nickname, channel, etc
+	Trailing      string   // any trailing data. e.g. with a PRIVMSG, this is the message text
+	EmptyTrailing bool     // if true, trailing prefix (:) will be added even if Event.Trailing is empty
+	Sensitive     bool     // if the message is sensitive (e.g. and should not be logged)
 }
 
 // ParseEvent takes a string and attempts to create a Event struct.
@@ -145,7 +142,6 @@ func ParseEvent(raw string) (e *Event) {
 	}
 
 	i, j := 0, 0
-
 	e = new(Event)
 
 	if raw[0] == prefix {
@@ -159,24 +155,20 @@ func ParseEvent(raw string) (e *Event) {
 
 		e.Prefix = ParsePrefix(raw[1:i])
 
-		// skip space at the end of the prefix
-		i++
+		i++ // skip space at the end of the prefix
 	}
 
 	// find end of command
 	j = i + indexByte(raw[i:], space)
 
 	// extract command
-	if j > i {
-		e.Command = strings.ToUpper(raw[i:j])
-	} else {
+	if j < i {
 		e.Command = strings.ToUpper(raw[i:])
-
 		return e
 	}
 
-	// skip space after command
-	j++
+	e.Command = strings.ToUpper(raw[i:j])
+	j++ // skip space after command
 
 	// find prefix for trailer
 	i = indexByte(raw[j:], prefix)
@@ -184,7 +176,6 @@ func ParseEvent(raw string) (e *Event) {
 	if i < 0 || raw[j+i-1] != space {
 		// no trailing argument
 		e.Params = strings.Split(raw[j:], string(space))
-
 		return e
 	}
 
@@ -207,7 +198,7 @@ func ParseEvent(raw string) (e *Event) {
 
 }
 
-// Len calculates the length of the string representation of this event
+// Len calculates the length of the string representation of event
 func (e *Event) Len() (length int) {
 	if e.Prefix != nil {
 		length = e.Prefix.Len() + 2 // include prefix and trailing space
@@ -218,8 +209,8 @@ func (e *Event) Len() (length int) {
 	if len(e.Params) > 0 {
 		length = length + len(e.Params)
 
-		for _, param := range e.Params {
-			length = length + len(param)
+		for i := 0; i < len(e.Params); i++ {
+			length = length + len(e.Params[i])
 		}
 	}
 
@@ -230,9 +221,9 @@ func (e *Event) Len() (length int) {
 	return
 }
 
-// Bytes returns a []byte representation of this event
+// Bytes returns a []byte representation of event
 //
-// as noted in RFC2812 section 2.3, messages should not exceed 512 characters
+// per RFC2812 section 2.3, messages should not exceed 512 characters
 // in length. this method forces that limit by discarding any characters
 // exceeding the length limit.
 func (e *Event) Bytes() []byte {
