@@ -20,6 +20,7 @@ import (
 //       -- https://github.com/Liamraystanley/Code/blob/master/core/triggers.py#L40-L67
 //   * client should support ping tracking (sending PING's to the server)
 //   * users need to be exposed in state somehow (other than GetChannels())
+//   * ip/host binding?
 
 // Client contains all of the information necessary to run a single IRC client
 type Client struct {
