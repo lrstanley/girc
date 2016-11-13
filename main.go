@@ -14,7 +14,6 @@ import (
 
 // TODO's:
 //   * NOTICE (Notice?), SendRaw?
-//   * RunCallbacks(Event)
 //   * track connection time (conntime? in state)
 //   * with conntime, find lag. Client.Lag() would be useful
 //   * would be cool to track things like SERVERNAME, VERSION, UMODES, CMODES, etc.

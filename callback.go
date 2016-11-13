@@ -38,7 +38,13 @@ func (c *Client) ClearCallbacks() {
 	c.registerHelpers()
 }
 
-// AddCallbackHandler registers the callback for the given command
+// RunCallbacks manually runs callbacks for a given event
+func (c *Client) RunCallbacks(event *Event) {
+	c.handleEvent(event)
+}
+
+// AddCallbackHandler registers a callback (matching the Callback interface)
+// for the given command
 func (c *Client) AddCallbackHandler(cmd string, callback Callback) {
 	c.callbacks[cmd] = append(c.callbacks[cmd], callback)
 }

@@ -40,7 +40,7 @@ func handleWelcome(c *Client, e Event) {
 		c.State.nick = e.Params[0]
 	}
 
-	time.Sleep(2 * time.Second)
+	time.Sleep(1500 * time.Millisecond)
 
 	c.Events <- &Event{Command: CONNECTED}
 }
