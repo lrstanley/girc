@@ -13,7 +13,7 @@ import (
 )
 
 // TODO's:
-//   * needs ACTION (Me? Action?), NOTICE (Notice?), SendRaw?
+//   * NOTICE (Notice?), SendRaw?
 //   * RunCallbacks(Event)
 //   * track connection time (conntime? in state)
 //   * with conntime, find lag. Client.Lag() would be useful
@@ -308,4 +308,14 @@ func (c *Client) Message(target, message string) {
 // Messagef sends a formated PRIVMSG to target (either channel, service, or user)
 func (c *Client) Messagef(target, format string, a ...interface{}) {
 	c.Message(target, fmt.Sprintf(format, a...))
+}
+
+// Action sends a PRIVMSG ACTION (/me) to target (either channel, service, or user)
+func (c *Client) Action(target, message string) {
+	c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: fmt.Sprintf("\001ACTION %s\001", message)})
+}
+
+// Actionf sends a formated PRIVMSG ACTION (/me) to target (either channel, service, or user)
+func (c *Client) Actionf(target, format string, a ...interface{}) {
+	c.Action(target, fmt.Sprintf(format, a...))
 }
