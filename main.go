@@ -49,7 +49,7 @@ type Config struct {
 func New(config Config) *Client {
 	client := &Client{
 		Config:    config,
-		Events:    make(chan *Event, 10), // buffer 10 events
+		Events:    make(chan *Event), // buffer 10 events
 		quitChan:  make(chan bool),
 		callbacks: make(map[string][]Callback),
 		tries:     0,
@@ -173,7 +173,11 @@ func (c *Client) connectMessages() []*Event {
 func (c *Client) Reconnect() error {
 	if c.Config.MaxRetries > 0 {
 		c.conn.Close()
+
 		var err error
+
+		// re-setup events
+		c.Events = make(chan *Event)
 
 		// sleep for 10 seconds so we're not slaughtering the server
 		c.log.Printf("reconnecting to %s in 10 seconds", c.Server())
@@ -202,6 +206,7 @@ func (c *Client) ReadLoop() error {
 		}
 
 		// TODO: not adding PRIVMSG entries?
+		c.log.Printf("sending event: %#v\n", event)
 		c.Events <- event
 	}
 }
@@ -213,6 +218,7 @@ func (c *Client) Wait() {
 	for {
 		select {
 		case e = <-c.Events:
+			c.log.Printf("received event: %#v\n", e)
 			c.handleEvent(e)
 		case <-c.quitChan:
 			return
