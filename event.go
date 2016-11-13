@@ -31,8 +31,8 @@ type Prefix struct {
 func ParsePrefix(raw string) (p *Prefix) {
 	p = new(Prefix)
 
-	user := indexByte(raw, prefixUser)
-	host := indexByte(raw, prefixHost)
+	user := strings.IndexByte(raw, prefixUser)
+	host := strings.IndexByte(raw, prefixHost)
 
 	switch {
 	case user > 0 && host > user:
@@ -94,7 +94,7 @@ func (p *Prefix) IsHostmask() bool {
 
 // IsServer returns true if this prefix looks like a server name.
 func (p *Prefix) IsServer() bool {
-	return len(p.User) <= 0 && len(p.Host) <= 0 // && indexByte(p.Name, '.') > 0
+	return len(p.User) <= 0 && len(p.Host) <= 0 // && strings.IndexByte(p.Name, '.') > 0
 }
 
 // writeTo is an utility function to write the prefix to the bytes.Buffer in Event.String()
@@ -146,7 +146,7 @@ func ParseEvent(raw string) (e *Event) {
 
 	if raw[0] == prefix {
 		// prefix ends with a space
-		i = indexByte(raw, space)
+		i = strings.IndexByte(raw, space)
 
 		// prefix string must not be empty if the indicator is present
 		if i < 2 {
@@ -159,7 +159,7 @@ func ParseEvent(raw string) (e *Event) {
 	}
 
 	// find end of command
-	j = i + indexByte(raw[i:], space)
+	j = i + strings.IndexByte(raw[i:], space)
 
 	// extract command
 	if j < i {
@@ -171,7 +171,7 @@ func ParseEvent(raw string) (e *Event) {
 	j++ // skip space after command
 
 	// find prefix for trailer
-	i = indexByte(raw[j:], prefix)
+	i = strings.IndexByte(raw[j:], prefix)
 
 	if i < 0 || raw[j+i-1] != space {
 		// no trailing argument
@@ -284,10 +284,6 @@ func (e *Event) StripAction() string {
 // String returns a string representation of this event
 func (e *Event) String() string {
 	return string(e.Bytes())
-}
-
-func indexByte(s string, c byte) int {
-	return strings.IndexByte(s, c)
 }
 
 // contains '*', even though this isn't RFC compliant, it's commonly used
