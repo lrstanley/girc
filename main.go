@@ -29,6 +29,7 @@ type Client struct {
 	tries     int                   // number of attempts to connect to the server
 	log       *log.Logger           // package logger
 	quitChan  chan bool             // channel used for disconnect/quitting
+	hasQuit   bool                  // used to let the reconnect functionality know a manual quit has been completed
 }
 
 // Config contains configuration options for an IRC client
@@ -49,7 +50,7 @@ type Config struct {
 func New(config Config) *Client {
 	client := &Client{
 		Config:    config,
-		Events:    make(chan *Event), // buffer 10 events
+		Events:    make(chan *Event, 10), // buffer 10 events
 		quitChan:  make(chan bool),
 		callbacks: make(map[string][]Callback),
 		tries:     0,
@@ -65,8 +66,11 @@ func New(config Config) *Client {
 }
 
 // Quit disconnects from the server
-func (c *Client) Quit() {
-	// TODO: sent QUIT?
+func (c *Client) Quit(message string) {
+	c.Send(&Event{Command: QUIT, Trailing: message})
+
+	c.hasQuit = true
+
 	if c.conn != nil {
 		c.conn.Close()
 	}
@@ -171,13 +175,17 @@ func (c *Client) connectMessages() []*Event {
 // Reconnect checks to make sure we want to, and then attempts to
 // reconnect to the server
 func (c *Client) Reconnect() error {
+	if c.hasQuit {
+		return nil
+	}
+
 	if c.Config.MaxRetries > 0 {
 		c.conn.Close()
 
 		var err error
 
 		// re-setup events
-		c.Events = make(chan *Event)
+		c.Events = make(chan *Event, 10)
 
 		// sleep for 10 seconds so we're not slaughtering the server
 		c.log.Printf("reconnecting to %s in 10 seconds", c.Server())
@@ -260,6 +268,6 @@ func (c *Client) GetChannels() map[string]*Channel {
 }
 
 // Who tells the client to update it's channel/user records
-func (c *Client) Who(channel string) {
-	c.Send(&Event{Command: WHO, Params: []string{channel, "%tcuhn,1"}})
+func (c *Client) Who(target string) {
+	c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhn,1"}})
 }

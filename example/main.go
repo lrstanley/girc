@@ -33,4 +33,10 @@ func main() {
 
 func registerConnect(c *girc.Client, e girc.Event) {
 	c.Send(&girc.Event{Command: girc.JOIN, Params: []string{"#dev"}})
+
+	// go func() {
+	// 	time.Sleep(5 * time.Second)
+
+	// 	c.Quit("This is a test!")
+	// }()
 }
