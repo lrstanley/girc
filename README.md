@@ -11,7 +11,7 @@
 - Focuses on simplicity, yet tries to still be flexible
 - Only requires standard packages
 - Event based triggering/responses
-- Documentation is actively being worked on
+- Documentation is mostly on par
 
 ## Installing
 

@@ -13,9 +13,10 @@ import (
 )
 
 // TODO's:
-//   * needs PRIVMSG (Msg?), ACTION (Me? Action?), NOTICE (Notice?), SendRaw?
+//   * needs ACTION (Me? Action?), NOTICE (Notice?), SendRaw?
 //   * RunCallbacks(Event)
 //   * track connection time (conntime? in state)
+//   * with conntime, find lag. Client.Lag() would be useful
 //   * would be cool to track things like SERVERNAME, VERSION, UMODES, CMODES, etc.
 //       -- https://github.com/Liamraystanley/Code/blob/master/core/triggers.py#L40-L67
 //   * client should support ping tracking (sending PING's to the server)
@@ -297,4 +298,14 @@ func (c *Client) Part(channel, message string) {
 	}
 
 	c.Send(&Event{Command: JOIN, Params: []string{channel}})
+}
+
+// Message sends a PRIVMSG to target (either channel, service, or user)
+func (c *Client) Message(target, message string) {
+	c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: message})
+}
+
+// Messagef sends a formated PRIVMSG to target (either channel, service, or user)
+func (c *Client) Messagef(target, format string, a ...interface{}) {
+	c.Message(target, fmt.Sprintf(format, a...))
 }
