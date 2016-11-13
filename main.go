@@ -207,7 +207,7 @@ func (c *Client) ReadLoop() error {
 }
 
 // Wait reads from the events channel and sends the events to be handled
-// for every message it recieves.
+// for every message it receives.
 func (c *Client) Wait() {
 	var e *Event
 	for {
@@ -249,6 +249,7 @@ func (c *Client) SetNick(name string) {
 	c.Send(&Event{Command: NICK, Params: []string{name}})
 }
 
+// GetChannels returns the active list of channels that the client is in
 func (c *Client) GetChannels() map[string]*Channel {
 	c.State.m.RLock()
 	defer c.State.m.RUnlock()
