@@ -21,6 +21,7 @@ import (
 //   * client should support ping tracking (sending PING's to the server)
 //   * users need to be exposed in state somehow (other than GetChannels())
 //   * ip/host binding?
+//   * IsValidNick?
 
 // Client contains all of the information necessary to run a single IRC client
 type Client struct {
