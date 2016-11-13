@@ -205,8 +205,6 @@ func (c *Client) ReadLoop() error {
 			return c.Reconnect()
 		}
 
-		// TODO: not adding PRIVMSG entries?
-		log.Printf("sending event: %#v\n", event)
 		c.Events <- event
 	}
 }
@@ -214,12 +212,14 @@ func (c *Client) ReadLoop() error {
 // Wait reads from the events channel and sends the events to be handled
 // for every message it receives.
 func (c *Client) Wait() {
-	var e *Event
 	for {
 		select {
-		case e = <-c.Events:
-			log.Printf("received event: %#v\n", e)
-			c.handleEvent(e)
+		case event := <-c.Events:
+			// log the event
+			c.log.Print(event.String())
+
+			// run in the background
+			go c.handleEvent(event)
 		case <-c.quitChan:
 			return
 		}

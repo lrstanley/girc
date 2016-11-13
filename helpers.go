@@ -1,10 +1,6 @@
 package girc
 
-import (
-	"time"
-
-	"github.com/y0ssar1an/q"
-)
+import "time"
 
 func (c *Client) registerHelpers() {
 	c.AddBgCallback(SUCCESS, handleWelcome)
@@ -29,7 +25,7 @@ func (c *Client) registerHelpers() {
 // that enough time has passed and now they can send commands
 //
 // should always run in separate thread
-func handleWelcome(c *Client, e *Event) {
+func handleWelcome(c *Client, e Event) {
 	// this should be the nick that the server gives us. 99% of the time, it's the
 	// one we supplied during connection, but some networks will insta-rename users.
 	if len(e.Params) > 0 {
@@ -43,18 +39,18 @@ func handleWelcome(c *Client, e *Event) {
 
 // nickCollisionHandler helps prevent the client from having conflicting
 // nicknames with another bot, user, etc
-func nickCollisionHandler(c *Client, e *Event) {
+func nickCollisionHandler(c *Client, e Event) {
 	c.SetNick(c.GetNick() + "_")
 }
 
 // handlePING helps respond to ping requests from the server
-func handlePING(c *Client, e *Event) {
+func handlePING(c *Client, e Event) {
 	// TODO: we should be sending pings too.
 	c.Send(&Event{Command: PONG, Params: e.Params, Trailing: e.Trailing})
 }
 
 // handleJOIN ensures that the state has updated users and channels
-func handleJOIN(c *Client, e *Event) {
+func handleJOIN(c *Client, e Event) {
 	if len(e.Params) == 0 {
 		return
 	}
@@ -66,7 +62,7 @@ func handleJOIN(c *Client, e *Event) {
 }
 
 // handlePART ensures that the state is clean of old user and channel entries
-func handlePART(c *Client, e *Event) {
+func handlePART(c *Client, e Event) {
 	if len(e.Params) == 0 {
 		return
 	}
@@ -79,7 +75,7 @@ func handlePART(c *Client, e *Event) {
 	c.State.deleteUser(e.Params[0], e.Prefix.Name)
 }
 
-func handleWHO(c *Client, e *Event) {
+func handleWHO(c *Client, e Event) {
 	var channel, user, host, nick string
 
 	// assume WHOX related
@@ -104,11 +100,9 @@ func handleWHO(c *Client, e *Event) {
 	c.State.createUserIfNotExists(channel, nick, user, host)
 }
 
-func handleKICK(c *Client, e *Event) {
+func handleKICK(c *Client, e Event) {
 	if len(e.Params) < 2 {
 		// needs at least channel and user
 		return
 	}
-
-	q.Q(e)
 }

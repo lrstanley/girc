@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+
 	"os"
 
 	"github.com/Liamraystanley/girc"
@@ -9,13 +10,14 @@ import (
 
 func main() {
 	conf := girc.Config{
-		Server:     "irc.byteirc.org",
-		Port:       6667,
-		Nick:       "test",
-		User:       "test1",
-		Name:       "Example bot",
-		MaxRetries: 3,
-		Logger:     os.Stdout,
+		Server:         "irc.byteirc.org",
+		Port:           6667,
+		Nick:           "test",
+		User:           "test1",
+		Name:           "Example bot",
+		MaxRetries:     3,
+		Logger:         os.Stdout,
+		DisableHelpers: false,
 	}
 
 	client := girc.New(conf)
@@ -29,6 +31,6 @@ func main() {
 	client.Wait()
 }
 
-func registerConnect(c *girc.Client, e *girc.Event) {
+func registerConnect(c *girc.Client, e girc.Event) {
 	c.Send(&girc.Event{Command: girc.JOIN, Params: []string{"#dev"}})
 }

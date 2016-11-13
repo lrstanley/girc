@@ -25,13 +25,9 @@ type Conn struct {
 // NewConn returns a new Conn using rwc for i/o
 func NewConn(rwc io.ReadWriteCloser) *Conn {
 	return &Conn{
-		Encoder: Encoder{
-			writer: rwc,
-		},
-		Decoder: Decoder{
-			reader: bufio.NewReader(rwc),
-		},
-		conn: rwc,
+		Encoder: Encoder{writer: rwc},
+		Decoder: Decoder{reader: bufio.NewReader(rwc)},
+		conn:    rwc,
 	}
 }
 
@@ -70,6 +66,7 @@ func (dec *Decoder) Decode() (e *Event, err error) {
 	dec.mu.Lock()
 	dec.line, err = dec.reader.ReadString(delim)
 	dec.mu.Unlock()
+
 	if err != nil {
 		return nil, err
 	}
@@ -99,14 +96,14 @@ func (enc *Encoder) Encode(e *Event) (err error) {
 // Write writes len(p) bytes from p followed by CR+LF. goroutine safe.
 func (enc *Encoder) Write(p []byte) (n int, err error) {
 	enc.mu.Lock()
+	defer enc.mu.Unlock()
+
 	n, err = enc.writer.Write(p)
 	if err != nil {
-		enc.mu.Unlock()
 		return
 	}
 
 	_, err = enc.writer.Write(endline)
-	enc.mu.Unlock()
 
 	return
 }
