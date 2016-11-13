@@ -22,21 +22,13 @@ func main() {
 
 	client := girc.New(conf)
 
-	client.AddCallback(girc.CONNECTED, registerConnect)
+	client.AddCallback(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
+		c.Join("#dev", "")
+	})
 
 	if err := client.Connect(); err != nil {
 		log.Fatalf("an error occurred while attempting to connect: %s", err)
 	}
 
 	client.Wait()
-}
-
-func registerConnect(c *girc.Client, e girc.Event) {
-	c.Send(&girc.Event{Command: girc.JOIN, Params: []string{"#dev"}})
-
-	// go func() {
-	// 	time.Sleep(5 * time.Second)
-
-	// 	c.Quit("This is a test!")
-	// }()
 }

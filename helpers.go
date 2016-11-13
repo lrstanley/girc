@@ -2,9 +2,6 @@ package girc
 
 import "time"
 
-// TODO: would be cool to track things like SERVERNAME, VERSION, UMODES, CMODES, etc.
-//   -- https://github.com/Liamraystanley/Code/blob/master/core/triggers.py#L40-L67
-
 func (c *Client) registerHelpers() {
 	c.AddBgCallback(SUCCESS, handleWelcome)
 	c.AddCallback(PING, handlePING)
@@ -50,7 +47,6 @@ func nickCollisionHandler(c *Client, e Event) {
 
 // handlePING helps respond to ping requests from the server
 func handlePING(c *Client, e Event) {
-	// TODO: we should be sending pings too.
 	c.Send(&Event{Command: PONG, Params: e.Params, Trailing: e.Trailing})
 }
 

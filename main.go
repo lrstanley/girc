@@ -12,7 +12,16 @@ import (
 	"time"
 )
 
-// TODO: See all todos!
+// TODO's:
+//   * needs PRIVMSG (Msg?), ACTION (Me? Action?), NOTICE (Notice?), SendRaw?
+//   * ClearCallbacks()
+//   * ClearCallback(CODE)
+//   * RunCallbacks(Event)
+//   * track connection time (conntime? in state)
+//   * would be cool to track things like SERVERNAME, VERSION, UMODES, CMODES, etc.
+//       -- https://github.com/Liamraystanley/Code/blob/master/core/triggers.py#L40-L67
+//   * client should support ping tracking (sending PING's to the server)
+//   * users need to be exposed in state somehow (other than GetChannels())
 
 // Client contains all of the information necessary to run a single IRC client
 type Client struct {
@@ -270,4 +279,24 @@ func (c *Client) GetChannels() map[string]*Channel {
 // Who tells the client to update it's channel/user records
 func (c *Client) Who(target string) {
 	c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhn,1"}})
+}
+
+// Join attempts to enter an IRC channel with an optional password
+func (c *Client) Join(channel, password string) {
+	if password != "" {
+		c.Send(&Event{Command: JOIN, Params: []string{channel, password}})
+		return
+	}
+
+	c.Send(&Event{Command: JOIN, Params: []string{channel}})
+}
+
+// Part leaves an IRC channel with an optional leave message
+func (c *Client) Part(channel, message string) {
+	if message != "" {
+		c.Send(&Event{Command: JOIN, Params: []string{channel}, Trailing: message})
+		return
+	}
+
+	c.Send(&Event{Command: JOIN, Params: []string{channel}})
 }

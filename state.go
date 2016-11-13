@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-// TODO: conntime, uptime
-
 // State represents the actively-changing variables within the client runtime
 type State struct {
 	m         sync.RWMutex        // lock, primarily used for writing things in state
@@ -26,7 +24,6 @@ type User struct {
 
 // Channel represents an IRC channel and the state attached to it
 type Channel struct {
-	// TODO: users needs to be exposed
 	Name   string // name of the channel, always lowercase
 	users  map[string]*User
 	Joined time.Time // when the channel was joined
