@@ -215,11 +215,7 @@ func (c *Client) Wait() {
 	for {
 		select {
 		case event := <-c.Events:
-			// log the event
-			c.log.Print(event.String())
-
-			// run in the background
-			go c.handleEvent(event)
+			c.handleEvent(event)
 		case <-c.quitChan:
 			return
 		}

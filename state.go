@@ -44,43 +44,43 @@ func NewState() *State {
 
 // createChanIfNotExists creates the channel in state, if not already done
 func (s *State) createChanIfNotExists(channel string) {
-	s.m.Lock()
-	defer s.m.Unlock()
+	channel = strings.ToLower(channel)
 
 	// not a valid channel
 	if !IsValidChannel(channel) {
 		return
 	}
 
+	s.m.Lock()
 	if _, ok := s.channels[channel]; !ok {
 		s.channels[channel] = &Channel{
-			Name:   strings.ToLower(channel),
+			Name:   channel,
 			users:  make(map[string]*User),
 			Joined: time.Now(),
 		}
 	}
+	s.m.Unlock()
 }
 
 // deleteChannel removes the channel from state, if not already done
 func (s *State) deleteChannel(channel string) {
-	s.m.Lock()
-	defer s.m.Unlock()
-
+	channel = strings.ToLower(channel)
 	s.createChanIfNotExists(channel)
 
+	s.m.Lock()
 	if _, ok := s.channels[channel]; ok {
 		delete(s.channels, channel)
 	}
+	s.m.Unlock()
 }
 
 // createUserIfNotExists creates the channel and user in state,
 // if not already done
 func (s *State) createUserIfNotExists(channel, nick, ident, host string) {
-	s.m.Lock()
-	defer s.m.Unlock()
-
+	channel = strings.ToLower(channel)
 	s.createChanIfNotExists(channel)
 
+	s.m.Lock()
 	if _, ok := s.channels[channel].users[nick]; !ok {
 		s.channels[channel].users[nick] = &User{
 			Nick:      nick,
@@ -89,18 +89,19 @@ func (s *State) createUserIfNotExists(channel, nick, ident, host string) {
 			FirstSeen: time.Now(),
 		}
 	}
+	s.m.Unlock()
 }
 
 // deleteUser removes the user from channel state
 func (s *State) deleteUser(channel, nick string) {
-	s.m.Lock()
-	defer s.m.Unlock()
-
+	channel = strings.ToLower(channel)
 	s.createChanIfNotExists(channel)
 
+	s.m.Lock()
 	if _, ok := s.channels[channel].users[nick]; ok {
 		delete(s.channels[channel].users, nick)
 	}
+	s.m.Unlock()
 }
 
 // renameUser renames the user in state, in all locations where
