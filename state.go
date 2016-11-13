@@ -93,13 +93,15 @@ func (s *State) createUserIfNotExists(channel, nick, ident, host string) {
 }
 
 // deleteUser removes the user from channel state
-func (s *State) deleteUser(channel, nick string) {
-	channel = strings.ToLower(channel)
-	s.createChanIfNotExists(channel)
-
+func (s *State) deleteUser(nick string) {
 	s.m.Lock()
-	if _, ok := s.channels[channel].users[nick]; ok {
-		delete(s.channels[channel].users, nick)
+	for k := range s.channels {
+		// check to see if they're in this channel
+		if _, ok := s.channels[k].users[nick]; !ok {
+			continue
+		}
+
+		delete(s.channels[k].users, nick)
 	}
 	s.m.Unlock()
 }
@@ -113,7 +115,7 @@ func (s *State) renameUser(from, to string) {
 	for k := range s.channels {
 		// check to see if they're in this channel
 		if _, ok := s.channels[k].users[from]; !ok {
-			return
+			continue
 		}
 
 		// take the actual reference to the pointer

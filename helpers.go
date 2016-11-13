@@ -1,19 +1,20 @@
 package girc
 
-import (
-	"time"
+import "time"
 
-	"github.com/y0ssar1an/q"
-)
+// TODO: would be cool to track things like SERVERNAME, VERSION, UMODES, CMODES, etc.
+//   -- https://github.com/Liamraystanley/Code/blob/master/core/triggers.py#L40-L67
 
 func (c *Client) registerHelpers() {
 	c.AddBgCallback(SUCCESS, handleWelcome)
 	c.AddCallback(PING, handlePING)
 
-	// joins/parts/anything that may add/remove users
+	// joins/parts/anything that may add/remove/rename users
 	c.AddCallback(JOIN, handleJOIN)
 	c.AddCallback(PART, handlePART)
 	c.AddCallback(KICK, handleKICK)
+	c.AddCallback(QUIT, handleKICK)
+	c.AddCallback(NICK, handleNICK)
 
 	// WHO/WHOX responses
 	c.AddCallback(RPL_WHOREPLY, handleWHO)
@@ -55,14 +56,22 @@ func handlePING(c *Client, e Event) {
 
 // handleJOIN ensures that the state has updated users and channels
 func handleJOIN(c *Client, e Event) {
-	if len(e.Params) == 0 {
+	if len(e.Params) != 1 {
 		return
 	}
 
 	// create it in state
 	c.State.createChanIfNotExists(e.Params[0])
 
-	c.Who(e.Params[0])
+	if e.Prefix.Name == c.GetNick() {
+		// if it's us, don't just add our user to the list. run a WHO
+		// which will tell us who exactly is in the channel
+		c.Who(e.Params[0])
+		return
+	}
+
+	// create the user in state. only WHO the user, which is more efficient.
+	c.Who(e.Prefix.Name)
 }
 
 // handlePART ensures that the state is clean of old user and channel entries
@@ -76,7 +85,7 @@ func handlePART(c *Client, e Event) {
 		return
 	}
 
-	c.State.deleteUser(e.Params[0], e.Prefix.Name)
+	c.State.deleteUser(e.Prefix.Name)
 }
 
 func handleWHO(c *Client, e Event) {
@@ -102,7 +111,6 @@ func handleWHO(c *Client, e Event) {
 	}
 
 	c.State.createUserIfNotExists(channel, nick, user, host)
-	q.Q(c.State.channels)
 }
 
 func handleKICK(c *Client, e Event) {
@@ -113,11 +121,22 @@ func handleKICK(c *Client, e Event) {
 
 	if e.Params[1] == c.GetNick() {
 		c.State.deleteChannel(e.Params[0])
-		q.Q(c.State.channels)
 		return
 	}
 
 	// assume it's just another user
-	c.State.deleteUser(e.Params[0], e.Params[1])
-	q.Q(c.State.channels)
+	c.State.deleteUser(e.Params[1])
+}
+
+func handleNICK(c *Client, e Event) {
+	if len(e.Params) != 1 {
+		// something erronous was sent to us
+		return
+	}
+
+	c.State.renameUser(e.Prefix.Name, e.Params[0])
+}
+
+func handleQUIT(c *Client, e Event) {
+	c.State.deleteUser(e.Prefix.Name)
 }
