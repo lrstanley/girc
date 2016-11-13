@@ -206,7 +206,7 @@ func (c *Client) ReadLoop() error {
 		}
 
 		// TODO: not adding PRIVMSG entries?
-		c.log.Printf("sending event: %#v\n", event)
+		log.Printf("sending event: %#v\n", event)
 		c.Events <- event
 	}
 }
@@ -218,7 +218,7 @@ func (c *Client) Wait() {
 	for {
 		select {
 		case e = <-c.Events:
-			c.log.Printf("received event: %#v\n", e)
+			log.Printf("received event: %#v\n", e)
 			c.handleEvent(e)
 		case <-c.quitChan:
 			return
