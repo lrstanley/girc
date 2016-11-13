@@ -1,6 +1,10 @@
 package girc
 
-import "time"
+import (
+	"time"
+
+	"github.com/y0ssar1an/q"
+)
 
 func (c *Client) registerHelpers() {
 	c.AddBgCallback(SUCCESS, handleWelcome)
@@ -98,6 +102,7 @@ func handleWHO(c *Client, e Event) {
 	}
 
 	c.State.createUserIfNotExists(channel, nick, user, host)
+	q.Q(c.State.channels)
 }
 
 func handleKICK(c *Client, e Event) {
@@ -105,4 +110,14 @@ func handleKICK(c *Client, e Event) {
 		// needs at least channel and user
 		return
 	}
+
+	if e.Params[1] == c.GetNick() {
+		c.State.deleteChannel(e.Params[0])
+		q.Q(c.State.channels)
+		return
+	}
+
+	// assume it's just another user
+	c.State.deleteUser(e.Params[0], e.Params[1])
+	q.Q(c.State.channels)
 }
