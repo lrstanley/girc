@@ -268,6 +268,28 @@ func (e *Event) Bytes() []byte {
 	return buffer.Bytes()
 }
 
+// IsAction checks to see if the event is a PRIVMSG, and is an ACTION (/me)
+func (e *Event) IsAction() bool {
+	if len(e.Trailing) == 0 || e.Command != PRIVMSG {
+		return false
+	}
+
+	if !strings.HasPrefix(e.Trailing, "\001ACTION") || !strings.HasSuffix(e.Trailing, "\001") {
+		return false
+	}
+
+	return true
+}
+
+// StripAction strips the action encoding from a PRIVMSG ACTION (/me)
+func (e *Event) StripAction() string {
+	if !e.IsAction() || len(e.Trailing) < 9 {
+		return e.Trailing
+	}
+
+	return e.Trailing[8 : len(e.Trailing)-1]
+}
+
 // String returns a string representation of this event
 func (e *Event) String() string {
 	return string(e.Bytes())
