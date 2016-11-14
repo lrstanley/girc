@@ -99,7 +99,7 @@ func (c *Client) Server() string {
 func (c *Client) Send(event *Event) error {
 	// log the event
 	if !event.Sensitive {
-		c.log.Print("[write] ", event.String())
+		c.log.Print("--> ", event.String())
 	}
 
 	return c.Sender.Send(event)

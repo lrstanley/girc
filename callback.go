@@ -5,7 +5,7 @@ package girc
 // handleEvent runs the necessary callbacks for the incoming event
 func (c *Client) handleEvent(event *Event) {
 	// log the event
-	c.log.Print(event.String())
+	c.log.Print("<-- " + event.String())
 
 	// wildcard callbacks first
 	if callbacks, ok := c.callbacks[ALLEVENTS]; ok {
