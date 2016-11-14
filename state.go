@@ -1,3 +1,7 @@
+// Copyright 2016 Liam Stanley <me@liamstanley.io>. All rights reserved.
+// Use of this source code is governed by the MIT license that can be
+// found in the LICENSE file.
+
 package girc
 
 import (
@@ -6,30 +10,51 @@ import (
 	"time"
 )
 
-// State represents the actively-changing variables within the client runtime
+// State represents the actively-changing variables within the client
+// runtime.
 type State struct {
-	m         sync.RWMutex        // lock, primarily used for writing things in state
-	connected bool                // if we're connected to the server or not
-	nick      string              // internal tracker for our nickname
-	channels  map[string]*Channel // map of channels that the client is in
+	// m is a RW mutex lock, used to guard the state from goroutines causing
+	// corruption.
+	m sync.RWMutex
+	// connected is true if we're actively connected to a server.
+	connected bool
+	// nick is the tracker for our nickname on the server.
+	nick string
+	// channels represents all channels we're active in.
+	channels map[string]*Channel
 }
 
-// User represents an IRC user and the state attached to them
+// User represents an IRC user and the state attached to them.
 type User struct {
-	Nick      string    // nickname of the user
-	Ident     string    // ident (often referred to as "user") of the user
-	Host      string    // host that server is providing for the user, may not always be accurate
-	FirstSeen time.Time // the first time they were seen by the client
+	// Nick is the users current nickname.
+	Nick string
+	// Ident is the users username/ident. Ident is commonly prefixed with a
+	// "~", which indicates that they do not have a identd server setup for
+	// authentication.
+	Ident string
+	// Host is the visible host of the users connection that the server has
+	// provided to us for their connection. May not always be accurate due to
+	// many networks spoofing/hiding parts of the hostname for privacy
+	// reasons.
+	Host string
+	// FirstSeen represents the first time that the user was seen by the
+	// client for the given channel.
+	FirstSeen time.Time
 }
 
-// Channel represents an IRC channel and the state attached to it
+// Channel represents an IRC channel and the state attached to it.
 type Channel struct {
-	Name   string // name of the channel, always lowercase
-	users  map[string]*User
-	Joined time.Time // when the channel was joined
+	// Name of the channel. Must be rfc compliant. Always represented as
+	// lower-case, to ensure that the channel is only being tracked once.
+	Name string
+	// users represents the users that we can currently see within the
+	// channel.
+	users map[string]*User
+	// Joined represents the first time that the client joined the channel.
+	Joined time.Time
 }
 
-// NewState returns a clean state
+// NewState returns a clean client state.
 func NewState() *State {
 	s := &State{}
 
@@ -39,11 +64,11 @@ func NewState() *State {
 	return s
 }
 
-// createChanIfNotExists creates the channel in state, if not already done
+// createChanIfNotExists creates the channel in state, if not already done.
 func (s *State) createChanIfNotExists(channel string) {
 	channel = strings.ToLower(channel)
 
-	// not a valid channel
+	// Not a valid channel.
 	if !IsValidChannel(channel) {
 		return
 	}
@@ -59,7 +84,7 @@ func (s *State) createChanIfNotExists(channel string) {
 	s.m.Unlock()
 }
 
-// deleteChannel removes the channel from state, if not already done
+// deleteChannel removes the channel from state, if not already done.
 func (s *State) deleteChannel(channel string) {
 	channel = strings.ToLower(channel)
 	s.createChanIfNotExists(channel)
@@ -71,8 +96,8 @@ func (s *State) deleteChannel(channel string) {
 	s.m.Unlock()
 }
 
-// createUserIfNotExists creates the channel and user in state,
-// if not already done
+// createUserIfNotExists creates the channel and user in state, if not already
+// done.
 func (s *State) createUserIfNotExists(channel, nick, ident, host string) {
 	channel = strings.ToLower(channel)
 	s.createChanIfNotExists(channel)
@@ -89,11 +114,11 @@ func (s *State) createUserIfNotExists(channel, nick, ident, host string) {
 	s.m.Unlock()
 }
 
-// deleteUser removes the user from channel state
+// deleteUser removes the user from channel state.
 func (s *State) deleteUser(nick string) {
 	s.m.Lock()
 	for k := range s.channels {
-		// check to see if they're in this channel
+		// Check to see if they're in this channel.
 		if _, ok := s.channels[k].users[nick]; !ok {
 			continue
 		}
@@ -103,29 +128,28 @@ func (s *State) deleteUser(nick string) {
 	s.m.Unlock()
 }
 
-// renameUser renames the user in state, in all locations where
-// relevant
+// renameUser renames the user in state, in all locations where relevant.
 func (s *State) renameUser(from, to string) {
 	s.m.Lock()
 	defer s.m.Unlock()
 
 	for k := range s.channels {
-		// check to see if they're in this channel
+		// Check to see if they're in this channel.
 		if _, ok := s.channels[k].users[from]; !ok {
 			continue
 		}
 
-		// take the actual reference to the pointer
+		// Take the actual reference to the pointer.
 		source := *s.channels[k].users[from]
 
-		// update the nick field (as we not only have a key, but a
-		// matching struct field)
+		// Update the nick field (as we not only have a key, but a matching
+		// struct field).
 		source.Nick = to
 
-		// delete the old
+		// Delete the old reference.
 		delete(s.channels[k].users, from)
 
-		// in with the new
+		// In with the new.
 		s.channels[k].users[to] = &source
 	}
 }

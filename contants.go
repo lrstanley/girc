@@ -1,13 +1,17 @@
+// Copyright 2016 Liam Stanley <me@liamstanley.io>. All rights reserved.
+// Use of this source code is governed by the MIT license that can be
+// found in the LICENSE file.
+
 package girc
 
-// misc constants for use with the client
+// Misc constants for use with the client.
 const (
 	ALLEVENTS = "*"         // trigger on all events
 	CONNECTED = "CONNECTED" // event command which can be used to start responding, after SUCCESS
 	SUCCESS   = "001"       // RPL_WELCOME alias, assumes successful connection
 )
 
-// user/channel prefixes :: RFC1459
+// User/channel prefixes :: RFC1459
 const (
 	ChannelPrefix      = "#" // regular channel
 	DistributedPrefix  = "&" // distributed channel
@@ -18,7 +22,7 @@ const (
 	VoicePrefix        = "+" // user has voice +v
 )
 
-// user modes :: RFC1459; section 4.2.3.2
+// User modes :: RFC1459; section 4.2.3.2
 const (
 	UserModeInvisible     = "i" // invisible
 	UserModeOperator      = "o" // server operator
@@ -26,7 +30,7 @@ const (
 	UserModeWallops       = "w" // user wants to receive wallops
 )
 
-// channel modes :: RFC1459; section 4.2.3.1
+// Channel modes :: RFC1459; section 4.2.3.1
 const (
 	ModeAdmin        = "a" // admin privileges (non-rfc)
 	ModeHalfOperator = "h" // half-operator privileges (non-rfc)
@@ -42,7 +46,7 @@ const (
 	ModeVoice        = "v" // speak during moderation mode
 )
 
-// irc commands :: RFC2812; section 3 :: RFC2813; section 4
+// IRC commands :: RFC2812; section 3 :: RFC2813; section 4
 const (
 	ADMIN    = "ADMIN"
 	AWAY     = "AWAY"
@@ -93,7 +97,7 @@ const (
 	WHOWAS   = "WHOWAS"
 )
 
-// numeric IRC reply mapping :: RFC2812; section 5
+// Numeric IRC reply mapping :: RFC2812; section 5
 const (
 	RPL_WELCOME           = "001"
 	RPL_YOURHOST          = "002"
@@ -235,7 +239,7 @@ const (
 	ERR_USERSDONTMATCH    = "502"
 )
 
-// ircv3 commands :: http://ircv3.net/irc/
+// IRCv3 commands :: http://ircv3.net/irc/
 const (
 	AUTHENTICATE = "AUTHENTICATE"
 	CAP          = "CAP"
@@ -248,7 +252,7 @@ const (
 	CAP_REQ      = "REQ"
 )
 
-// numeric IRC reply mapping for ircv3 :: http://ircv3.net/irc/
+// Numeric IRC reply mapping for ircv3 :: http://ircv3.net/irc/
 const (
 	RPL_LOGGEDIN    = "900"
 	RPL_LOGGEDOUT   = "901"
@@ -261,7 +265,7 @@ const (
 	RPL_SASLMECHS   = "908"
 )
 
-// numeric IRC event mapping :: RFC2812; section 5.3
+// Numeric IRC event mapping :: RFC2812; section 5.3
 const (
 	RPL_STATSCLINE    = "213"
 	RPL_STATSNLINE    = "214"
@@ -289,7 +293,7 @@ const (
 	ERR_NOSERVICEHOST = "492"
 )
 
-// misc.
+// Misc.
 const (
 	ERR_TOOMANYMATCHES = "416" // IRCNet
 	RPL_GLOBALUSERS    = "266" // aircd/hybrid/bahamut, used on freenode

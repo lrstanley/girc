@@ -1,41 +1,49 @@
+// Copyright 2016 Liam Stanley <me@liamstanley.io>. All rights reserved.
+// Use of this source code is governed by the MIT license that can be
+// found in the LICENSE file.
+
 package girc
 
 import "time"
 
+// registerHelpers sets up built-in callbacks/helpers, based on client
+// configuration.
 func (c *Client) registerHelpers() {
 	c.callbacks = make(map[string][]Callback)
 
-	if c.Config.DisableHelpers {
-		return
-	}
-
+	// Built-in things that should always be supported.
 	c.AddBgCallback(SUCCESS, handleWelcome)
 	c.AddCallback(PING, handlePING)
 
-	// joins/parts/anything that may add/remove/rename users
-	c.AddCallback(JOIN, handleJOIN)
-	c.AddCallback(PART, handlePART)
-	c.AddCallback(KICK, handleKICK)
-	c.AddCallback(QUIT, handleQUIT)
-	c.AddCallback(NICK, handleNICK)
+	if !c.Config.DisableTracking {
+		// Joins/parts/anything that may add/remove/rename users.
+		c.AddCallback(JOIN, handleJOIN)
+		c.AddCallback(PART, handlePART)
+		c.AddCallback(KICK, handleKICK)
+		c.AddCallback(QUIT, handleQUIT)
+		c.AddCallback(NICK, handleNICK)
 
-	// WHO/WHOX responses
-	c.AddCallback(RPL_WHOREPLY, handleWHO)
-	c.AddCallback(RPL_WHOSPCRPL, handleWHO)
+		// WHO/WHOX responses.
+		c.AddCallback(RPL_WHOREPLY, handleWHO)
+		c.AddCallback(RPL_WHOSPCRPL, handleWHO)
+	}
 
-	// nickname collisions
-	c.AddCallback(ERR_NICKNAMEINUSE, nickCollisionHandler)
-	c.AddCallback(ERR_NICKCOLLISION, nickCollisionHandler)
-	c.AddCallback(ERR_UNAVAILRESOURCE, nickCollisionHandler)
+	// Nickname collisions.
+	if !c.Config.DisableNickCollision {
+		c.AddCallback(ERR_NICKNAMEINUSE, nickCollisionHandler)
+		c.AddCallback(ERR_NICKCOLLISION, nickCollisionHandler)
+		c.AddCallback(ERR_UNAVAILRESOURCE, nickCollisionHandler)
+	}
 }
 
-// handleWelcome is a helper function which lets the client know
-// that enough time has passed and now they can send commands
+// handleWelcome is a helper function which lets the client know that enough
+// time has passed and now they can send commands.
 //
-// should always run in separate thread
+// Should always run in separate thread due to blocking delay.
 func handleWelcome(c *Client, e Event) {
-	// this should be the nick that the server gives us. 99% of the time, it's the
-	// one we supplied during connection, but some networks will insta-rename users.
+	// This should be the nick that the server gives us. 99% of the time, it's
+	// the one we supplied during connection, but some networks will rename
+	// users on connect.
 	if len(e.Params) > 0 {
 		c.State.nick = e.Params[0]
 	}
@@ -46,37 +54,36 @@ func handleWelcome(c *Client, e Event) {
 }
 
 // nickCollisionHandler helps prevent the client from having conflicting
-// nicknames with another bot, user, etc
+// nicknames with another bot, user, etc.
 func nickCollisionHandler(c *Client, e Event) {
 	c.SetNick(c.GetNick() + "_")
 }
 
-// handlePING helps respond to ping requests from the server
+// handlePING helps respond to ping requests from the server.
 func handlePING(c *Client, e Event) {
 	c.Send(&Event{Command: PONG, Params: e.Params, Trailing: e.Trailing})
 }
 
-// handleJOIN ensures that the state has updated users and channels
+// handleJOIN ensures that the state has updated users and channels.
 func handleJOIN(c *Client, e Event) {
 	if len(e.Params) != 1 {
 		return
 	}
 
-	// create it in state
 	c.State.createChanIfNotExists(e.Params[0])
 
 	if e.Prefix.Name == c.GetNick() {
-		// if it's us, don't just add our user to the list. run a WHO
-		// which will tell us who exactly is in the channel
+		// If it's us, don't just add our user to the list. Run a WHO which
+		// will tell us who exactly is in the channel.
 		c.Who(e.Params[0])
 		return
 	}
 
-	// create the user in state. only WHO the user, which is more efficient.
+	// Create the user in state. Only WHO the user, which is more efficient.
 	c.Who(e.Prefix.Name)
 }
 
-// handlePART ensures that the state is clean of old user and channel entries
+// handlePART ensures that the state is clean of old user and channel entries.
 func handlePART(c *Client, e Event) {
 	if len(e.Params) == 0 {
 		return
@@ -90,18 +97,20 @@ func handlePART(c *Client, e Event) {
 	c.State.deleteUser(e.Prefix.Name)
 }
 
+// handlWHO updates our internal tracking of users/channels with WHO/WHOX
+// information.
 func handleWHO(c *Client, e Event) {
 	var channel, user, host, nick string
 
-	// assume WHOX related
+	// Assume WHOX related.
 	if e.Command == RPL_WHOSPCRPL {
 		if len(e.Params) != 6 {
-			// assume there was some form of error or invalid WHOX response
+			// Assume there was some form of error or invalid WHOX response.
 			return
 		}
 
 		if e.Params[1] != "1" {
-			// we should always be sending 1, and we should receive 1. if this
+			// We should always be sending 1, and we should receive 1. If this
 			// is anything but, then we didn't send the request and we can
 			// ignore it.
 			return
@@ -115,9 +124,11 @@ func handleWHO(c *Client, e Event) {
 	c.State.createUserIfNotExists(channel, nick, user, host)
 }
 
+// handleKICK ensures that users are cleaned up after being kicked from the
+// channel
 func handleKICK(c *Client, e Event) {
 	if len(e.Params) < 2 {
-		// needs at least channel and user
+		// Needs at least channel and user.
 		return
 	}
 
@@ -126,13 +137,15 @@ func handleKICK(c *Client, e Event) {
 		return
 	}
 
-	// assume it's just another user
+	// Assume it's just another user.
 	c.State.deleteUser(e.Params[1])
 }
 
+// handleNICK ensures that users are renamed in state, or the client name is
+// up to date.
 func handleNICK(c *Client, e Event) {
 	if len(e.Params) != 1 {
-		// something erronous was sent to us
+		// Something erronous was sent to us.
 		return
 	}
 

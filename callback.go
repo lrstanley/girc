@@ -1,29 +1,32 @@
-package girc
+// Copyright 2016 Liam Stanley <me@liamstanley.io>. All rights reserved.
+// Use of this source code is governed by the MIT license that can be
+// found in the LICENSE file.
 
-// TODO: ClearCallback(code string)
+package girc
 
 // handleEvent runs the necessary callbacks for the incoming event
 func (c *Client) handleEvent(event *Event) {
-	// log the event
+	// Log the event.
 	c.log.Print("<-- " + event.String())
 
-	// wildcard callbacks first
+	// Wildcard callbacks first.
 	if callbacks, ok := c.callbacks[ALLEVENTS]; ok {
 		for i := 0; i < len(callbacks); i++ {
 			callbacks[i].Execute(c, *event)
 		}
 	}
 
-	// regular non-threaded callbacks
+	// Regular non-threaded callbacks.
 	if callbacks, ok := c.callbacks[event.Command]; ok {
 		for i := 0; i < len(callbacks); i++ {
 			callbacks[i].Execute(c, *event)
 		}
 	}
 
-	// callbacks that should be ran concurrently
-	// callbacks which should be ran in a go-routine should be prefixed with
-	// "routine_". e.g. "routine_JOIN".
+	// Callbacks that should be ran concurrently.
+	//
+	// Callbacks which should be ran in a go-routine should be prefixed
+	// with "routine_". E.g. "routine_JOIN".
 	if callbacks, ok := c.callbacks["routine_"+event.Command]; ok {
 		for i := 0; i < len(callbacks); i++ {
 			go callbacks[i].Execute(c, *event)
@@ -31,44 +34,48 @@ func (c *Client) handleEvent(event *Event) {
 	}
 }
 
-// ClearCallbacks clears all callbacks currently setup within the client
+// ClearCallbacks clears all callbacks currently setup within the
+// client.
 func (c *Client) ClearCallbacks() {
-	// registerHelpers should clean all callbacks and setup internal ones
-	// as necessary.
+	// registerHelpers should clean all callbacks and setup internal
+	// ones as necessary.
 	c.registerHelpers()
 }
 
-// RunCallbacks manually runs callbacks for a given event
+// RunCallbacks manually runs callbacks for a given event.
 func (c *Client) RunCallbacks(event *Event) {
 	c.handleEvent(event)
 }
 
-// AddCallbackHandler registers a callback (matching the Callback interface)
-// for the given command
+// AddCallbackHandler registers a callback (matching the Callback
+// interface) for the given command.
 func (c *Client) AddCallbackHandler(cmd string, callback Callback) {
 	c.callbacks[cmd] = append(c.callbacks[cmd], callback)
 }
 
-// AddCallback registers the callback function for the given command
+// AddCallback registers the callback function for the given command.
 func (c *Client) AddCallback(cmd string, callback func(c *Client, e Event)) {
 	c.callbacks[cmd] = append(c.callbacks[cmd], CallbackFunc(callback))
 }
 
 // AddBgCallback registers the callback function for the given command
-// and executes it in a go-routine, after all other callbacks have been ran
+// and executes it in a go-routine.
+//
+// Runs after all other callbacks have been ran.
 func (c *Client) AddBgCallback(cmd string, callback func(c *Client, e Event)) {
 	c.callbacks["routine_"+cmd] = append(c.callbacks["routine_"+cmd], CallbackFunc(callback))
 }
 
-// Callback is an interface to handle IRC events
+// Callback is lower level implementation of Client.AddCallback().
 type Callback interface {
 	Execute(*Client, Event)
 }
 
-// CallbackFunc is a type that represents the function necessary to implement Callback
+// CallbackFunc is a type that represents the function necessary to
+// implement Callback.
 type CallbackFunc func(c *Client, e Event)
 
-// Execute calls the CallbackFunc with the sender and irc message
+// Execute calls the CallbackFunc with the sender and irc message.
 func (f CallbackFunc) Execute(c *Client, e Event) {
 	f(c, e)
 }
