@@ -1,4 +1,4 @@
-## girc
+## girc is a flexible IRC library for Go
 
 [![Build Status](https://travis-ci.org/Liamraystanley/girc.svg?branch=master)](https://travis-ci.org/Liamraystanley/girc)
 [![GoDoc](https://godoc.org/github.com/Liamraystanley/girc?status.png)](https://godoc.org/github.com/Liamraystanley/girc)
@@ -7,8 +7,6 @@
 [![IRC Chat](https://img.shields.io/badge/ByteIRC-%23L-blue.svg)](http://byteirc.org/channel/L)
 [![GitHub Issues](https://img.shields.io/github/issues/Liamraystanley/girc.svg)](https://github.com/Liamraystanley/girc/issues)
 [![license](https://img.shields.io/github/license/Liamraystanley/girc.svg)](https://raw.githubusercontent.com/Liamraystanley/girc/master/LICENSE)
-
-> girc is a flexible IRC library for Go
 
 ## Features
 
