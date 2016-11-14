@@ -45,7 +45,7 @@ func handleWelcome(c *Client, e Event) {
 	// the one we supplied during connection, but some networks will rename
 	// users on connect.
 	if len(e.Params) > 0 {
-		c.State.nick = e.Params[0]
+		c.state.nick = e.Params[0]
 	}
 
 	time.Sleep(1500 * time.Millisecond)
@@ -70,7 +70,7 @@ func handleJOIN(c *Client, e Event) {
 		return
 	}
 
-	c.State.createChanIfNotExists(e.Params[0])
+	c.state.createChanIfNotExists(e.Params[0])
 
 	if e.Prefix.Name == c.GetNick() {
 		// If it's us, don't just add our user to the list. Run a WHO which
@@ -90,11 +90,11 @@ func handlePART(c *Client, e Event) {
 	}
 
 	if e.Prefix.Name == c.GetNick() {
-		c.State.deleteChannel(e.Params[0])
+		c.state.deleteChannel(e.Params[0])
 		return
 	}
 
-	c.State.deleteUser(e.Prefix.Name)
+	c.state.deleteUser(e.Prefix.Name)
 }
 
 // handlWHO updates our internal tracking of users/channels with WHO/WHOX
@@ -121,7 +121,7 @@ func handleWHO(c *Client, e Event) {
 		channel, user, host, nick = e.Params[1], e.Params[2], e.Params[3], e.Params[5]
 	}
 
-	c.State.createUserIfNotExists(channel, nick, user, host)
+	c.state.createUserIfNotExists(channel, nick, user, host)
 }
 
 // handleKICK ensures that users are cleaned up after being kicked from the
@@ -133,12 +133,12 @@ func handleKICK(c *Client, e Event) {
 	}
 
 	if e.Params[1] == c.GetNick() {
-		c.State.deleteChannel(e.Params[0])
+		c.state.deleteChannel(e.Params[0])
 		return
 	}
 
 	// Assume it's just another user.
-	c.State.deleteUser(e.Params[1])
+	c.state.deleteUser(e.Params[1])
 }
 
 // handleNICK ensures that users are renamed in state, or the client name is
@@ -149,9 +149,9 @@ func handleNICK(c *Client, e Event) {
 		return
 	}
 
-	c.State.renameUser(e.Prefix.Name, e.Params[0])
+	c.state.renameUser(e.Prefix.Name, e.Params[0])
 }
 
 func handleQUIT(c *Client, e Event) {
-	c.State.deleteUser(e.Prefix.Name)
+	c.state.deleteUser(e.Prefix.Name)
 }

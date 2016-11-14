@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-// State represents the actively-changing variables within the client
+// state represents the actively-changing variables within the client
 // runtime.
-type State struct {
+type state struct {
 	// m is a RW mutex lock, used to guard the state from goroutines causing
 	// corruption.
 	m sync.RWMutex
@@ -54,9 +54,9 @@ type Channel struct {
 	Joined time.Time
 }
 
-// NewState returns a clean client state.
-func NewState() *State {
-	s := &State{}
+// newState returns a clean client state.
+func newState() *state {
+	s := &state{}
 
 	s.channels = make(map[string]*Channel)
 	s.connected = false
@@ -65,7 +65,7 @@ func NewState() *State {
 }
 
 // createChanIfNotExists creates the channel in state, if not already done.
-func (s *State) createChanIfNotExists(channel string) {
+func (s *state) createChanIfNotExists(channel string) {
 	channel = strings.ToLower(channel)
 
 	// Not a valid channel.
@@ -85,7 +85,7 @@ func (s *State) createChanIfNotExists(channel string) {
 }
 
 // deleteChannel removes the channel from state, if not already done.
-func (s *State) deleteChannel(channel string) {
+func (s *state) deleteChannel(channel string) {
 	channel = strings.ToLower(channel)
 	s.createChanIfNotExists(channel)
 
@@ -98,7 +98,7 @@ func (s *State) deleteChannel(channel string) {
 
 // createUserIfNotExists creates the channel and user in state, if not already
 // done.
-func (s *State) createUserIfNotExists(channel, nick, ident, host string) {
+func (s *state) createUserIfNotExists(channel, nick, ident, host string) {
 	channel = strings.ToLower(channel)
 	s.createChanIfNotExists(channel)
 
@@ -115,7 +115,7 @@ func (s *State) createUserIfNotExists(channel, nick, ident, host string) {
 }
 
 // deleteUser removes the user from channel state.
-func (s *State) deleteUser(nick string) {
+func (s *state) deleteUser(nick string) {
 	s.m.Lock()
 	for k := range s.channels {
 		// Check to see if they're in this channel.
@@ -129,7 +129,7 @@ func (s *State) deleteUser(nick string) {
 }
 
 // renameUser renames the user in state, in all locations where relevant.
-func (s *State) renameUser(from, to string) {
+func (s *state) renameUser(from, to string) {
 	s.m.Lock()
 	defer s.m.Unlock()
 

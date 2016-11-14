@@ -39,7 +39,6 @@ import (
 //   * ip/host binding?
 //   * IsValidNick?
 //   * User.Age()? (FirstActive()?) (time since first seen)
-//   * State -> state
 //   * cleanup docs in conn.go & event.go.
 
 // Client contains all of the information necessary to run a single IRC
@@ -47,12 +46,13 @@ import (
 type Client struct {
 	// Config represents the configuration
 	Config Config
-	// State represents the internal state
-	State *State
 	// Events is a buffer of events waiting to be processed.
 	Events chan *Event
 	// Sender is a Sender{} interface implementation.
 	Sender Sender
+
+	// state represents the internal state
+	state *state
 	// initTime represents the creation time of the client.
 	initTime time.Time
 	// callbacks is an internal mapping of COMMAND -> callback.
@@ -178,7 +178,7 @@ func (c *Client) Connect() error {
 	}
 
 	// Reset the state.
-	c.State = NewState()
+	c.state = newState()
 
 	if c.Config.Logger == nil {
 		c.Config.Logger = ioutil.Discard
@@ -209,7 +209,7 @@ func (c *Client) Connect() error {
 	go c.ReadLoop()
 
 	// Consider the connection a success at this point.
-	c.State.connected = true
+	c.state.connected = true
 
 	return nil
 }
@@ -303,10 +303,10 @@ func (c *Client) Loop() {
 
 // IsConnected returns true if the client is connected to the server.
 func (c *Client) IsConnected() bool {
-	c.State.m.RLock()
-	defer c.State.m.RUnlock()
+	c.state.m.RLock()
+	defer c.state.m.RUnlock()
 
-	return c.State.connected
+	return c.state.connected
 }
 
 // GetNick returns the current nickname of the active connection.
@@ -317,22 +317,22 @@ func (c *Client) GetNick() string {
 		return ""
 	}
 
-	c.State.m.RLock()
-	defer c.State.m.RUnlock()
+	c.state.m.RLock()
+	defer c.state.m.RUnlock()
 
-	if c.State.nick == "" {
+	if c.state.nick == "" {
 		return c.Config.Nick
 	}
 
-	return c.State.nick
+	return c.state.nick
 }
 
 // SetNick changes the client nickname.
 func (c *Client) SetNick(name string) {
-	c.State.m.Lock()
-	defer c.State.m.Unlock()
+	c.state.m.Lock()
+	defer c.state.m.Unlock()
 
-	c.State.nick = name
+	c.state.nick = name
 	c.Send(&Event{Command: NICK, Params: []string{name}})
 }
 
@@ -345,10 +345,10 @@ func (c *Client) GetChannels() map[string]*Channel {
 		return nil
 	}
 
-	c.State.m.RLock()
-	defer c.State.m.RUnlock()
+	c.state.m.RLock()
+	defer c.state.m.RUnlock()
 
-	return c.State.channels
+	return c.state.channels
 }
 
 // Who tells the client to update it's channel/user records.
