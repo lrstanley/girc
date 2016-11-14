@@ -14,6 +14,7 @@
 - Only requires standard packages
 - Event based triggering/responses
 - Documentation is mostly on par
+- At this time, **expect breaking changes to occur frequently**.
 
 ## Installing
 
