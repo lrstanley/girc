@@ -87,7 +87,7 @@ func (c *Client) Quit(message string) {
 
 // Uptime returns the amount of time that has passed since the client was created
 func (c *Client) Uptime() time.Duration {
-	return time.Now().Sub(c.initTime)
+	return time.Since(c.initTime)
 }
 
 // Server returns the string representation of host+port pair for net.Conn
