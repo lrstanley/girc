@@ -16,7 +16,7 @@ func (c *Client) registerHelpers() {
 	c.AddCallback(JOIN, handleJOIN)
 	c.AddCallback(PART, handlePART)
 	c.AddCallback(KICK, handleKICK)
-	c.AddCallback(QUIT, handleKICK)
+	c.AddCallback(QUIT, handleQUIT)
 	c.AddCallback(NICK, handleNICK)
 
 	// WHO/WHOX responses
