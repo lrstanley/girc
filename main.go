@@ -28,7 +28,7 @@ import (
 
 // TODO's:
 //   * ClearCallbacks(CODE)?
-//   * NOTICE (Notice?), SendRaw?
+//   * SendRaw?
 //   * track connection time (conntime? in state)
 //   * with conntime, find lag. Client.Lag() would be useful
 //   * would be cool to track things like SERVERNAME, VERSION, UMODES,
@@ -400,4 +400,14 @@ func (c *Client) Action(target, message string) {
 // channel, service, or user).
 func (c *Client) Actionf(target, format string, a ...interface{}) {
 	c.Action(target, fmt.Sprintf(format, a...))
+}
+
+// Notice sends a NOTICE to target (either channel, service, or user).
+func (c *Client) Notice(target, message string) {
+	c.Send(&Event{Command: NOTICE, Params: []string{target}, Trailing: message})
+}
+
+// Noticef sends a formated NOTICE to target (either channel, service, or user).
+func (c *Client) Noticef(target, format string, a ...interface{}) {
+	c.Notice(target, fmt.Sprintf(format, a...))
 }
