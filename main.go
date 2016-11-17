@@ -70,7 +70,7 @@ type Client struct {
 	// log is used if a writer is supplied for Client.Config.Logger.
 	log *log.Logger
 	// quitChan is used to close the connection to the IRC server.
-	quitChan chan bool
+	quitChan chan struct{}
 	// hasQuit is used to determine if we've finished quitting/cleaning up.
 	hasQuit bool
 }
@@ -122,7 +122,7 @@ func New(config Config) *Client {
 	client := &Client{
 		Config:    config,
 		Events:    make(chan *Event, 40), // buffer 40 events
-		quitChan:  make(chan bool),
+		quitChan:  make(chan struct{}),
 		callbacks: make(map[string][]Callback),
 		tries:     0,
 		initTime:  time.Now(),
@@ -144,7 +144,7 @@ func (c *Client) Quit(message string) {
 		c.conn.Close()
 	}
 
-	c.quitChan <- true
+	c.quitChan <- struct{}{}
 }
 
 // Uptime returns the amount of time that has passed since the
