@@ -98,7 +98,7 @@ func (p *Prefix) IsHostmask() bool {
 
 // IsServer returns true if this prefix looks like a server name.
 func (p *Prefix) IsServer() bool {
-	return len(p.User) <= 0 && len(p.Host) <= 0 // && strings.IndexByte(p.Name, '.') > 0
+	return len(p.User) <= 0 && len(p.Host) <= 0
 }
 
 // writeTo is an utility function to write the prefix to the bytes.Buffer in Event.String()
@@ -265,7 +265,7 @@ func (e *Event) Bytes() []byte {
 
 // IsAction checks to see if the event is a PRIVMSG, and is an ACTION (/me)
 func (e *Event) IsAction() bool {
-	if len(e.Trailing) == 0 || e.Command != PRIVMSG {
+	if len(e.Trailing) <= 0 || e.Command != PRIVMSG {
 		return false
 	}
 
@@ -295,7 +295,7 @@ var validChannelPrefixes = [...]string{"&", "#", "+", "!", "*"}
 
 // IsValidChannel checks if channel is an RFC complaint channel or not
 func IsValidChannel(channel string) bool {
-	if len(channel) < 1 || len(channel) > 50 {
+	if len(channel) <= 1 || len(channel) > 50 {
 		return false
 	}
 
@@ -306,7 +306,6 @@ func IsValidChannel(channel string) bool {
 			break
 		}
 	}
-
 	if !validprefix {
 		return false
 	}

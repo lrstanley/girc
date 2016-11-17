@@ -28,7 +28,9 @@ import (
 
 // TODO's:
 //   * ClearCallbacks(CODE)?
-//   * SendRaw?
+//   * Should Client.Message() an other similar methods support errors?
+//     * along with this, should we forcefully check to ensure that the target
+//       of the events are valid?
 //   * track connection time (conntime? in state)
 //   * with conntime, find lag. Client.Lag() would be useful
 //   * would be cool to track things like SERVERNAME, VERSION, UMODES,
@@ -410,4 +412,22 @@ func (c *Client) Notice(target, message string) {
 // Noticef sends a formated NOTICE to target (either channel, service, or user).
 func (c *Client) Noticef(target, format string, a ...interface{}) {
 	c.Notice(target, fmt.Sprintf(format, a...))
+}
+
+// SendRaw sends a raw string back to the server, without carriage returns or
+// newlines.
+func (c *Client) SendRaw(raw string) {
+	e := ParseEvent(raw)
+	if e == nil {
+		c.log.Printf("invalid event: %q", raw)
+		return
+	}
+
+	c.Send(e)
+}
+
+// SendRawf sends a formated string back to the server, without carriage
+// returns or newlines.
+func (c *Client) SendRawf(format string, a ...interface{}) {
+	c.SendRaw(fmt.Sprintf(format, a...))
 }
