@@ -26,23 +26,6 @@ import (
 	"time"
 )
 
-// TODO's:
-//   * ClearCallbacks(CODE)?
-//   * Should Client.Message() an other similar methods support errors?
-//     * along with this, should we forcefully check to ensure that the target
-//       of the events are valid?
-//   * track connection time (conntime? in state)
-//   * with conntime, find lag. Client.Lag() would be useful
-//   * would be cool to track things like SERVERNAME, VERSION, UMODES,
-//     CMODES, etc. also see Config.DisableCapTracking.
-//       -- https://github.com/Liamraystanley/Code/blob/master/core/triggers.py#L40-L67
-//   * client should support ping tracking (sending PING's to the server)
-//   * users need to be exposed in state somehow (other than GetChannels())
-//   * ip/host binding?
-//   * IsValidNick?
-//   * User.Age()? (FirstActive()?) (time since first seen)
-//   * cleanup docs in conn.go & event.go.
-
 // Client contains all of the information necessary to run a single IRC
 // client.
 type Client struct {
