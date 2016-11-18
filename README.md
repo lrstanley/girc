@@ -16,6 +16,21 @@
 - Documentation is mostly on par
 - At this time, **expect breaking changes to occur frequently**.
 
+## TODO
+
+- [ ] `ClearCallbacks(cmd string)`?
+- [ ] Should Client.Message() an other similar methods support errors?
+  - [ ] along with this, should we forcefully check to ensure that the target/events are valid?
+- [ ] track connection time (`conntime`? in state)
+- [ ] with conntime, find lag. `Client.Lag()` would be useful
+- [ ] would be cool to track things like `SERVERNAME`, `VERSION`, `UMODES`, `CMODES`, etc. also see `Config.DisableCapTracking`. [e.g. here](https://github.com/Liamraystanley/Code/blob/master/core/triggers.py#L40-L67)
+- [ ] client should support ping tracking (sending `PING`'s to the server)
+- [ ] users need to be exposed in state somehow (other than `GetChannels()`)
+- [ ] ip/host binding?
+- [ ] `IsValidNick(nick string)`?
+- [ ] `User.Age()`? (`FirstActive()`?) (time since first seen)
+- [ ] cleanup docs in conn.go & event.go.
+
 ## Installing
 
     $ go get -u github.com/Liamraystanley/girc
