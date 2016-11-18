@@ -289,6 +289,3 @@ func (e *Event) StripAction() string {
 func (e *Event) String() string {
 	return string(e.Bytes())
 }
-
-// contains '*', even though this isn't RFC compliant, it's commonly used
-var validChannelPrefixes = [...]string{"&", "#", "+", "!", "*"}
