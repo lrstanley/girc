@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -413,4 +414,52 @@ func (c *Client) SendRaw(raw string) {
 // returns or newlines.
 func (c *Client) SendRawf(format string, a ...interface{}) {
 	c.SendRaw(fmt.Sprintf(format, a...))
+}
+
+// IsValidChannel checks if channel is an RFC complaint channel or not
+func IsValidChannel(channel string) bool {
+	if len(channel) <= 1 || len(channel) > 50 {
+		return false
+	}
+
+	var validprefix bool
+	for i := 0; i < len(validChannelPrefixes); i++ {
+		if string(channel[0]) == validChannelPrefixes[i] {
+			validprefix = true
+			break
+		}
+	}
+	if !validprefix {
+		return false
+	}
+
+	if strings.Contains(channel, " ") || strings.Contains(channel, ",") {
+		return false
+	}
+
+	return true
+}
+
+// IsValidNick valids an IRC nickame. Note that this does not valid IRC
+// nickname length.
+func IsValidNick(nick string) bool {
+	if len(nick) <= 0 {
+		return false
+	}
+
+	// Check the first index. Some characters aren't allowed for the first
+	// index of an IRC nickname.
+	if nick[0] < 0x41 || nick[0] > 0x7D {
+		// a-z, A-Z, and _\[]{}^|
+		return false
+	}
+
+	for i := 1; i < len(nick); i++ {
+		if (nick[i] < 0x41 || nick[i] > 0x7D) && (nick[i] < 0x30 || nick[i] > 0x39) && nick[i] != 0x2D {
+			// a-z, A-Z, 0-9, -, and _\[]{}^|
+			return false
+		}
+	}
+
+	return true
 }

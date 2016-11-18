@@ -292,27 +292,3 @@ func (e *Event) String() string {
 
 // contains '*', even though this isn't RFC compliant, it's commonly used
 var validChannelPrefixes = [...]string{"&", "#", "+", "!", "*"}
-
-// IsValidChannel checks if channel is an RFC complaint channel or not
-func IsValidChannel(channel string) bool {
-	if len(channel) <= 1 || len(channel) > 50 {
-		return false
-	}
-
-	var validprefix bool
-	for i := 0; i < len(validChannelPrefixes); i++ {
-		if string(channel[0]) == validChannelPrefixes[i] {
-			validprefix = true
-			break
-		}
-	}
-	if !validprefix {
-		return false
-	}
-
-	if strings.Contains(channel, " ") || strings.Contains(channel, ",") {
-		return false
-	}
-
-	return true
-}

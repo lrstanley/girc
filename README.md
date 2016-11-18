@@ -27,13 +27,15 @@
 - [ ] client should support ping tracking (sending `PING`'s to the server)
 - [ ] users need to be exposed in state somehow (other than `GetChannels()`)
 - [ ] ip/host binding?
-- [ ] `IsValidNick(nick string)`?
 - [ ] `User.Age()`? (`FirstActive()`?) (time since first seen)
 - [ ] cleanup docs in conn.go & event.go
 - [ ] add `DISCONNECTED` command state
 - [ ] add `Client.IsInChannel()`? and/or basic channel list
 - [ ] add `Client.Topic(topic string)`
 - [ ] `MODE` tracking on a per-channel basis
+- [ ] `Event.PrettyString()`?
+- [ ] `Client.AddTmpCallback()` for one time use callbacks?
+- [ ] implement id's for callbacks, for allowance of removal?
 
 ## Installing
 
