@@ -13,7 +13,7 @@ import (
 // handleEvent runs the necessary callbacks for the incoming event
 func (c *Client) handleEvent(event *Event) {
 	// Log the event.
-	c.log.Print("<-- " + event.String())
+	c.log.Print("<-- " + event.Raw())
 
 	// Wildcard callbacks first.
 	if callbacks, ok := c.callbacks[ALLEVENTS]; ok {

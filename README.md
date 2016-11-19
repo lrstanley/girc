@@ -28,11 +28,9 @@
 - [ ] ip/host binding?
 - [ ] `User.Age()`? (`FirstActive()`?) (time since first seen)
 - [ ] cleanup docs in conn.go & event.go
-- [ ] add `DISCONNECTED` command state
 - [ ] add `Client.IsInChannel()`? and/or basic channel list
 - [ ] add `Client.Topic(topic string)`
 - [ ] `MODE` tracking on a per-channel basis
-- [ ] `Event.PrettyString()`?
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
 
 ## Installing

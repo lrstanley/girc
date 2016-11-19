@@ -6,9 +6,10 @@ package girc
 
 // Misc constants for use with the client.
 const (
-	ALLEVENTS = "*"         // trigger on all events
-	CONNECTED = "CONNECTED" // event command which can be used to start responding, after SUCCESS
-	SUCCESS   = "001"       // RPL_WELCOME alias, assumes successful connection
+	ALLEVENTS    = "*"            // trigger on all events
+	CONNECTED    = "CONNECTED"    // event command which can be used to start responding, after SUCCESS
+	DISCONNECTED = "DISCONNECTED" // event command which lets the client know it disconnected.
+	SUCCESS      = "001"          // RPL_WELCOME alias, assumes successful connection
 )
 
 // User/channel prefixes :: RFC1459

@@ -131,14 +131,22 @@ func New(config Config) *Client {
 
 // Quit disconnects from the server.s
 func (c *Client) Quit(message string) {
+	c.hasQuit = true
 	c.Send(&Event{Command: QUIT, Trailing: message})
 
-	c.hasQuit = true
+	// Send the disconnected event for anything broadcasting.
+	c.Events <- &Event{Command: DISCONNECTED}
 
 	if c.conn != nil {
 		c.conn.Close()
 	}
 
+	// Sleep for a second, to give enough time to the callbacks setup
+	// for the DISCONNECTED event to actually start running.
+	time.Sleep(1 * time.Second)
+
+	// Send to the quit channel, so if Client.Loop() is being used, this will
+	// return.
 	c.quitChan <- struct{}{}
 }
 
@@ -237,6 +245,9 @@ func (c *Client) Reconnect() (err error) {
 		return nil
 	}
 
+	// Send the disconnected event for anything broadcasting.
+	c.Events <- &Event{Command: DISCONNECTED}
+
 	if c.Config.ReconnectDelay < (10 * time.Second) {
 		c.Config.ReconnectDelay = 10 * time.Second
 	}
@@ -245,13 +256,14 @@ func (c *Client) Reconnect() (err error) {
 		var err error
 		c.conn.Close()
 
-		// Re-setup events.
-		c.Events = make(chan *Event, 40)
-
 		// Delay so we're not slaughtering the server with a bunch of
 		// connections.
 		c.log.Printf("reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
 		time.Sleep(c.Config.ReconnectDelay)
+
+		// Re-setup events. Do this after we've slept (giving callbacks enough time to
+		// finish their tasks.)
+		c.Events = make(chan *Event, 40)
 
 		for err = c.Connect(); err != nil && c.tries < c.Config.MaxRetries; c.tries++ {
 			c.log.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
