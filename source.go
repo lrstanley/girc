@@ -10,17 +10,21 @@ import (
 )
 
 const (
-	prefix     byte = 0x3A // prefix or last argument
-	prefixUser byte = 0x21 // username
-	prefixHost byte = 0x40 // hostname
+	prefix     byte = 0x3A // ":" -- prefix or last argument
+	prefixUser byte = 0x21 // "!" -- username
+	prefixHost byte = 0x40 // "@" -- hostname
 )
 
-// Source represents the sender of an IRC event, see RFC1459 section 2.3.1
+// Source represents the sender of an IRC event, see RFC1459 section 2.3.1.
 // <servername> | <nick> [ '!' <user> ] [ '@' <host> ]
 type Source struct {
-	Name string // Nick or servername
-	User string // Username
-	Host string // Hostname
+	// Name is the nickname, server name, or service name.
+	Name string
+	// User is commonly known as the ident.
+	User string
+	// Host is the hostname or IP address of the user/service. Is not accurate
+	// due to how IRC servers can spoof hostnames.
+	Host string
 }
 
 // ParseSource takes a string and attempts to create a Source struct.
@@ -43,7 +47,6 @@ func ParseSource(raw string) (src *Source) {
 		src.Host = raw[host+1:]
 	default:
 		src.Name = raw
-
 	}
 
 	return src
@@ -62,7 +65,7 @@ func (s *Source) Len() (length int) {
 	return
 }
 
-// Bytes returns a []byte representation of prefix
+// Bytes returns a []byte representation of source.
 func (s *Source) Bytes() []byte {
 	buffer := new(bytes.Buffer)
 	s.writeTo(buffer)
@@ -70,7 +73,7 @@ func (s *Source) Bytes() []byte {
 	return buffer.Bytes()
 }
 
-// String returns a string representation of prefix
+// String returns a string representation of source.
 func (s *Source) String() (out string) {
 	out = s.Name
 	if len(s.User) > 0 {
@@ -83,17 +86,18 @@ func (s *Source) String() (out string) {
 	return
 }
 
-// IsHostmask returns true if prefix looks like a user hostmask
+// IsHostmask returns true if source looks like a user hostmask.
 func (s *Source) IsHostmask() bool {
 	return len(s.User) > 0 && len(s.Host) > 0
 }
 
-// IsServer returns true if this prefix looks like a server name.
+// IsServer returns true if this source looks like a server name.
 func (s *Source) IsServer() bool {
 	return len(s.User) <= 0 && len(s.Host) <= 0
 }
 
-// writeTo is an utility function to write the prefix to the bytes.Buffer in Event.String()
+// writeTo is an utility function to write the source to the bytes.Buffer
+// in Event.String().
 func (s *Source) writeTo(buffer *bytes.Buffer) {
 	buffer.WriteString(s.Name)
 	if len(s.User) > 0 {
@@ -108,7 +112,7 @@ func (s *Source) writeTo(buffer *bytes.Buffer) {
 	return
 }
 
-// IsValidChannel checks if channel is an RFC complaint channel or not
+// IsValidChannel checks if channel is an RFC complaint channel or not.
 //
 // channel      =  ( "#" / "+" / ( "!" channelid ) / "&" ) chanstring
 //                 [ ":" chanstring ]
