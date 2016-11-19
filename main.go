@@ -50,9 +50,9 @@ type Client struct {
 	internalCallbacks []string
 
 	// reader is the socket buffer reader from the IRC server.
-	reader *Decoder
+	reader *ircDecoder
 	// reader is the socket buffer write to the IRC server.
-	writer *Encoder
+	writer *ircEncoder
 	// conn is a net.Conn reference to the IRC server.
 	conn net.Conn
 	// tries represents the internal reconnect count to the IRC server.
@@ -195,8 +195,8 @@ func (c *Client) Connect() error {
 	}
 
 	c.conn = conn
-	c.reader = NewDecoder(conn)
-	c.writer = NewEncoder(conn)
+	c.reader = newDecoder(conn)
+	c.writer = newEncoder(conn)
 	c.Sender = serverSender{writer: c.writer}
 	for _, event := range c.connectMessages() {
 		if err := c.Send(event); err != nil {

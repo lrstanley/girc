@@ -32,6 +32,9 @@
 - [ ] add `Client.Topic(topic string)`
 - [ ] `MODE` tracking on a per-channel basis
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
+- [ ] add some form of color functions to:
+  - [ ] add colors to a string before it's sent
+  - [ ] remove colors from a string after it's received
 
 ## Installing
 

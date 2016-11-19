@@ -13,7 +13,7 @@ type Sender interface {
 // serverSender is a barebones writer used as the default sender for all
 // callbacks.
 type serverSender struct {
-	writer *Encoder
+	writer *ircEncoder
 }
 
 // Send sends the specified event.

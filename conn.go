@@ -17,56 +17,53 @@ const delim byte = '\n'
 
 var endline = []byte("\r\n")
 
-// Conn represents an IRC network protocol connection, it consists of an
-// Encoder and Decoder to manage i/o
-type Conn struct {
-	Encoder
-	Decoder
+// conn represents an IRC network protocol connection, it consists of an
+// Encoder and Decoder to manage i/o.
+type ircConn struct {
+	ircEncoder
+	ircDecoder
 
-	conn io.ReadWriteCloser
+	c io.ReadWriteCloser
 }
 
-// NewConn returns a new Conn using rwc for i/o
-func NewConn(rwc io.ReadWriteCloser) *Conn {
-	return &Conn{
-		Encoder: Encoder{writer: rwc},
-		Decoder: Decoder{reader: bufio.NewReader(rwc)},
-		conn:    rwc,
-	}
-}
-
-// Dial connects to the given address using net.Dial and then returns a
-// new Conn for the connection
-func Dial(addr string) (*Conn, error) {
-	c, err := net.Dial("tcp", addr)
+// dial connects to the given address using net.Dial and then returns a
+// new Conn for the connection.
+func dial(addr string) (*ircConn, error) {
+	rwc, err := net.Dial("tcp", addr)
 
 	if err != nil {
 		return nil, err
 	}
 
-	return NewConn(c), nil
+	conn := &ircConn{
+		ircEncoder: ircEncoder{writer: rwc},
+		ircDecoder: ircDecoder{reader: bufio.NewReader(rwc)},
+		c:          rwc,
+	}
+
+	return conn, nil
 }
 
-// Close closes the underlying ReadWriteCloser
-func (c *Conn) Close() error {
-	return c.conn.Close()
+// Close closes the underlying ReadWriteCloser.
+func (c *ircConn) Close() error {
+	return c.c.Close()
 }
 
-// A Decoder reads Event objects from an input stream
-type Decoder struct {
+// ircDecoder reads Event objects from an input stream.
+type ircDecoder struct {
 	reader *bufio.Reader
 	line   string
 	mu     sync.Mutex
 }
 
-// NewDecoder returns a new Decoder that reads from r
-func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{reader: bufio.NewReader(r)}
+// newDecoder returns a new Decoder that reads from r.
+func newDecoder(r io.Reader) *ircDecoder {
+	return &ircDecoder{reader: bufio.NewReader(r)}
 }
 
 // Decode attempts to read a single Event from the stream, returns non-nil
-// error if read failed
-func (dec *Decoder) Decode() (e *Event, err error) {
+// error if read failed.
+func (dec *ircDecoder) Decode() (e *Event, err error) {
 	dec.mu.Lock()
 	dec.line, err = dec.reader.ReadString(delim)
 	dec.mu.Unlock()
@@ -78,27 +75,27 @@ func (dec *Decoder) Decode() (e *Event, err error) {
 	return ParseEvent(dec.line), nil
 }
 
-// Encoder writes Event objects to an output stream
-type Encoder struct {
+// ircEncoder writes Event objects to an output stream.
+type ircEncoder struct {
 	writer io.Writer
 	mu     sync.Mutex
 }
 
-// NewEncoder returns a new Encoder that writes to w
-func NewEncoder(w io.Writer) *Encoder {
-	return &Encoder{writer: w}
+// newEncoder returns a new Encoder that writes to w.
+func newEncoder(w io.Writer) *ircEncoder {
+	return &ircEncoder{writer: w}
 }
 
-// Encode writes the IRC encoding of m to the stream. goroutine safe.
+// Encode writes the IRC encoding of m to the stream. Goroutine safe.
 // returns non-nil error if the write to the underlying stream stopped early.
-func (enc *Encoder) Encode(e *Event) (err error) {
+func (enc *ircEncoder) Encode(e *Event) (err error) {
 	_, err = enc.Write(e.Bytes())
 
 	return
 }
 
-// Write writes len(p) bytes from p followed by CR+LF. goroutine safe.
-func (enc *Encoder) Write(p []byte) (n int, err error) {
+// Write writes len(p) bytes from p followed by CR+LF. Goroutine safe.
+func (enc *ircEncoder) Write(p []byte) (n int, err error) {
 	enc.mu.Lock()
 	defer enc.mu.Unlock()
 
