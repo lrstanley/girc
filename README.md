@@ -18,7 +18,6 @@
 
 ## TODO
 
-- [ ] `ClearCallbacks(cmd string)`?
 - [ ] Should Client.Message() an other similar methods support errors?
   - [ ] along with this, should we forcefully check to ensure that the target/events are valid?
 - [ ] track connection time (`conntime`? in state)
@@ -35,7 +34,6 @@
 - [ ] `MODE` tracking on a per-channel basis
 - [ ] `Event.PrettyString()`?
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
-- [ ] implement id's for callbacks, for allowance of removal?
 
 ## Installing
 

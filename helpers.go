@@ -12,27 +12,27 @@ func (c *Client) registerHelpers() {
 	c.callbacks = make(map[string][]Callback)
 
 	// Built-in things that should always be supported.
-	c.AddBgCallback(SUCCESS, handleWelcome)
-	c.AddCallback(PING, handlePING)
+	c.trackIntCallback(c.AddBgCallback(SUCCESS, handleWelcome))
+	c.trackIntCallback(c.AddCallback(PING, handlePING))
 
 	if !c.Config.DisableTracking {
 		// Joins/parts/anything that may add/remove/rename users.
-		c.AddCallback(JOIN, handleJOIN)
-		c.AddCallback(PART, handlePART)
-		c.AddCallback(KICK, handleKICK)
-		c.AddCallback(QUIT, handleQUIT)
-		c.AddCallback(NICK, handleNICK)
+		c.trackIntCallback(c.AddCallback(JOIN, handleJOIN))
+		c.trackIntCallback(c.AddCallback(PART, handlePART))
+		c.trackIntCallback(c.AddCallback(KICK, handleKICK))
+		c.trackIntCallback(c.AddCallback(QUIT, handleQUIT))
+		c.trackIntCallback(c.AddCallback(NICK, handleNICK))
 
 		// WHO/WHOX responses.
-		c.AddCallback(RPL_WHOREPLY, handleWHO)
-		c.AddCallback(RPL_WHOSPCRPL, handleWHO)
+		c.trackIntCallback(c.AddCallback(RPL_WHOREPLY, handleWHO))
+		c.trackIntCallback(c.AddCallback(RPL_WHOSPCRPL, handleWHO))
 	}
 
 	// Nickname collisions.
 	if !c.Config.DisableNickCollision {
-		c.AddCallback(ERR_NICKNAMEINUSE, nickCollisionHandler)
-		c.AddCallback(ERR_NICKCOLLISION, nickCollisionHandler)
-		c.AddCallback(ERR_UNAVAILRESOURCE, nickCollisionHandler)
+		c.trackIntCallback(c.AddCallback(ERR_NICKNAMEINUSE, nickCollisionHandler))
+		c.trackIntCallback(c.AddCallback(ERR_NICKCOLLISION, nickCollisionHandler))
+		c.trackIntCallback(c.AddCallback(ERR_UNAVAILRESOURCE, nickCollisionHandler))
 	}
 }
 
@@ -48,7 +48,7 @@ func handleWelcome(c *Client, e Event) {
 		c.state.nick = e.Params[0]
 	}
 
-	time.Sleep(1500 * time.Millisecond)
+	time.Sleep(1 * time.Second)
 
 	c.Events <- &Event{Command: CONNECTED}
 }

@@ -47,6 +47,8 @@ type Client struct {
 	cbMux sync.Mutex
 	// callbacks is an internal mapping of COMMAND -> callback.
 	callbacks map[string][]Callback
+	// internalCallbacks is a list of callbacks used internally.
+	internalCallbacks []string
 
 	// reader is the socket buffer reader from the IRC server.
 	reader *Decoder
@@ -117,6 +119,11 @@ func New(config Config) *Client {
 		initTime:  time.Now(),
 	}
 
+	if client.Config.Logger == nil {
+		client.Config.Logger = ioutil.Discard
+	}
+	client.log = log.New(client.Config.Logger, "", log.Ldate|log.Ltime|log.Lshortfile)
+
 	// Register builtin helpers.
 	client.registerHelpers()
 
@@ -170,12 +177,6 @@ func (c *Client) Connect() error {
 
 	// Reset the state.
 	c.state = newState()
-
-	if c.Config.Logger == nil {
-		c.Config.Logger = ioutil.Discard
-	}
-
-	c.log = log.New(c.Config.Logger, "", log.Ldate|log.Ltime|log.Lshortfile)
 
 	if c.Config.TLSConfig == nil {
 		conn, err = net.Dial("tcp", c.Server())
