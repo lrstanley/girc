@@ -197,7 +197,7 @@ func (c *Client) Connect() error {
 	}
 
 	c.tries = 0
-	go c.ReadLoop()
+	go c.readLoop()
 
 	// Consider the connection a success at this point.
 	c.state.connected = true
@@ -205,8 +205,8 @@ func (c *Client) Connect() error {
 	return nil
 }
 
-// connectMessages is a list of IRC messages to send when attempting
-// to connect to the IRC server.
+// connectMessages is a list of IRC messages to send when attempting to
+// connect to the IRC server.
 func (c *Client) connectMessages() (events []*Event) {
 	// Passwords first.
 	if c.Config.Password != "" {
@@ -230,8 +230,8 @@ func (c *Client) connectMessages() (events []*Event) {
 	return events
 }
 
-// Reconnect checks to make sure we want to, and then attempts to
-// reconnect to the server.
+// Reconnect checks to make sure we want to, and then attempts to reconnect
+// to the server.
 func (c *Client) Reconnect() (err error) {
 	if c.hasQuit {
 		return nil
@@ -265,9 +265,9 @@ func (c *Client) Reconnect() (err error) {
 	return nil
 }
 
-// ReadLoop sets a timeout of 300 seconds, and then attempts to read
-// from the IRC server. If there is an error, it calls Reconnect.
-func (c *Client) ReadLoop() error {
+// readLoop sets a timeout of 300 seconds, and then attempts to read from the
+// IRC server. If there is an error, it calls Reconnect.
+func (c *Client) readLoop() error {
 	for {
 		c.conn.SetDeadline(time.Now().Add(300 * time.Second))
 		event, err := c.reader.Decode()
@@ -279,8 +279,8 @@ func (c *Client) ReadLoop() error {
 	}
 }
 
-// Loop reads from the events channel and sends the events to be
-// handled for every message it receives.
+// Loop reads from the events channel and sends the events to be handled for
+// every message it receives.
 func (c *Client) Loop() {
 	for {
 		select {
