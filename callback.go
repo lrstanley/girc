@@ -50,12 +50,16 @@ func (c *Client) RunCallbacks(event *Event) {
 // AddCallbackHandler registers a callback (matching the Callback
 // interface) for the given command.
 func (c *Client) AddCallbackHandler(cmd string, callback Callback) {
+	c.cbMux.Lock()
 	c.callbacks[cmd] = append(c.callbacks[cmd], callback)
+	c.cbMux.Unlock()
 }
 
 // AddCallback registers the callback function for the given command.
 func (c *Client) AddCallback(cmd string, callback func(c *Client, e Event)) {
+	c.cbMux.Lock()
 	c.callbacks[cmd] = append(c.callbacks[cmd], CallbackFunc(callback))
+	c.cbMux.Unlock()
 }
 
 // AddBgCallback registers the callback function for the given command
@@ -63,7 +67,9 @@ func (c *Client) AddCallback(cmd string, callback func(c *Client, e Event)) {
 //
 // Runs after all other callbacks have been ran.
 func (c *Client) AddBgCallback(cmd string, callback func(c *Client, e Event)) {
+	c.cbMux.Lock()
 	c.callbacks["routine_"+cmd] = append(c.callbacks["routine_"+cmd], CallbackFunc(callback))
+	c.cbMux.Unlock()
 }
 
 // Callback is lower level implementation of Client.AddCallback().

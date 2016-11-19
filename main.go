@@ -24,6 +24,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -37,12 +38,16 @@ type Client struct {
 	// Sender is a Sender{} interface implementation.
 	Sender Sender
 
-	// state represents the internal state
+	// state represents the throw-away state for the irc session.
 	state *state
 	// initTime represents the creation time of the client.
 	initTime time.Time
+
+	// cbLock is the internal locking mechanism for the callbacks map.
+	cbMux sync.Mutex
 	// callbacks is an internal mapping of COMMAND -> callback.
 	callbacks map[string][]Callback
+
 	// reader is the socket buffer reader from the IRC server.
 	reader *Decoder
 	// reader is the socket buffer write to the IRC server.
