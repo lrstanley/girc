@@ -12,7 +12,7 @@ func (c *Client) registerHelpers() {
 	c.callbacks = make(map[string][]Callback)
 
 	// Built-in things that should always be supported.
-	c.trackIntCallback(c.AddBgCallback(SUCCESS, handleWelcome))
+	c.trackIntCallback(c.AddBgCallback(SUCCESS, handleConnect))
 	c.trackIntCallback(c.AddCallback(PING, handlePING))
 
 	if !c.Config.DisableTracking {
@@ -36,11 +36,11 @@ func (c *Client) registerHelpers() {
 	}
 }
 
-// handleWelcome is a helper function which lets the client know that enough
+// handleConnect is a helper function which lets the client know that enough
 // time has passed and now they can send commands.
 //
 // Should always run in separate thread due to blocking delay.
-func handleWelcome(c *Client, e Event) {
+func handleConnect(c *Client, e Event) {
 	// This should be the nick that the server gives us. 99% of the time, it's
 	// the one we supplied during connection, but some networks will rename
 	// users on connect.

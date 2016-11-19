@@ -59,10 +59,8 @@ type Client struct {
 	tries int
 	// log is used if a writer is supplied for Client.Config.Logger.
 	log *log.Logger
-	// quitChan is used to close the connection to the IRC server.
+	// quitChan is used to stop the client loop. See Client.Stop().
 	quitChan chan struct{}
-	// hasQuit is used to determine if we've finished quitting/cleaning up.
-	hasQuit bool
 }
 
 // Config contains configuration options for an IRC client
@@ -129,13 +127,15 @@ func New(config Config) *Client {
 	return client
 }
 
-// Quit disconnects from the server.s
+// Quit disconnects from the server.
 func (c *Client) Quit(message string) {
-	c.hasQuit = true
-	c.Send(&Event{Command: QUIT, Trailing: message})
+	c.state.hasQuit = true
+	defer func() {
+		// aaaand, unset c.hasQuit, so we can reconnect if we want to.
+		c.state.hasQuit = false
+	}()
 
-	// Send the disconnected event for anything broadcasting.
-	c.Events <- &Event{Command: DISCONNECTED}
+	c.Send(&Event{Command: QUIT, Trailing: message})
 
 	if c.conn != nil {
 		c.conn.Close()
@@ -144,7 +144,11 @@ func (c *Client) Quit(message string) {
 	// Sleep for a second, to give enough time to the callbacks setup
 	// for the DISCONNECTED event to actually start running.
 	time.Sleep(1 * time.Second)
+}
 
+// Stop exits the clients main loop. Use Client.Quit() if you want to disconnect
+// the client from the server/connection.
+func (c *Client) Stop() {
 	// Send to the quit channel, so if Client.Loop() is being used, this will
 	// return.
 	c.quitChan <- struct{}{}
@@ -241,20 +245,29 @@ func (c *Client) connectMessages() (events []*Event) {
 // Reconnect checks to make sure we want to, and then attempts to reconnect
 // to the server.
 func (c *Client) Reconnect() (err error) {
-	if c.hasQuit {
-		return nil
+	if c.state.reconnecting {
+		return errors.New("a reconnect is already occurring")
 	}
 
-	// Send the disconnected event for anything broadcasting.
-	c.Events <- &Event{Command: DISCONNECTED}
+	c.state.reconnecting = true
+	defer func() {
+		c.state.reconnecting = false
+	}()
+
+	if c.state.hasQuit {
+		return nil
+	}
 
 	if c.Config.ReconnectDelay < (10 * time.Second) {
 		c.Config.ReconnectDelay = 10 * time.Second
 	}
 
+	if c.conn != nil {
+		c.conn.Close()
+	}
+
 	if c.Config.MaxRetries > 0 {
 		var err error
-		c.conn.Close()
 
 		// Delay so we're not slaughtering the server with a bunch of
 		// connections.
@@ -270,6 +283,8 @@ func (c *Client) Reconnect() (err error) {
 			time.Sleep(c.Config.ReconnectDelay)
 		}
 
+		// Too many errors. Stop the client.
+		c.Stop()
 		return err
 	}
 
@@ -284,6 +299,7 @@ func (c *Client) readLoop() error {
 		c.conn.SetDeadline(time.Now().Add(300 * time.Second))
 		event, err := c.reader.Decode()
 		if err != nil {
+			// And attempt a reconnect (if applicable).
 			return c.Reconnect()
 		}
 

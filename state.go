@@ -18,6 +18,10 @@ type state struct {
 	m sync.RWMutex
 	// connected is true if we're actively connected to a server.
 	connected bool
+	// hasQuit is used to determine if we've finished quitting/cleaning up.
+	hasQuit bool
+	// reconnecting lets the internal state know a reconnect is occurring.
+	reconnecting bool
 	// nick is the tracker for our nickname on the server.
 	nick string
 	// channels represents all channels we're active in.
