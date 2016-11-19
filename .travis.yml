@@ -3,7 +3,7 @@ go:
 - 1.7.1
 - tip
 script:
-- go test
+- go test -v
 - go tool vet -v -all .
 branches:
   only:

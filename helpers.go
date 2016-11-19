@@ -72,7 +72,7 @@ func handleJOIN(c *Client, e Event) {
 
 	c.state.createChanIfNotExists(e.Params[0])
 
-	if e.Prefix.Name == c.GetNick() {
+	if e.Source.Name == c.GetNick() {
 		// If it's us, don't just add our user to the list. Run a WHO which
 		// will tell us who exactly is in the channel.
 		c.Who(e.Params[0])
@@ -80,7 +80,7 @@ func handleJOIN(c *Client, e Event) {
 	}
 
 	// Create the user in state. Only WHO the user, which is more efficient.
-	c.Who(e.Prefix.Name)
+	c.Who(e.Source.Name)
 }
 
 // handlePART ensures that the state is clean of old user and channel entries.
@@ -89,12 +89,12 @@ func handlePART(c *Client, e Event) {
 		return
 	}
 
-	if e.Prefix.Name == c.GetNick() {
+	if e.Source.Name == c.GetNick() {
 		c.state.deleteChannel(e.Params[0])
 		return
 	}
 
-	c.state.deleteUser(e.Prefix.Name)
+	c.state.deleteUser(e.Source.Name)
 }
 
 // handlWHO updates our internal tracking of users/channels with WHO/WHOX
@@ -149,9 +149,9 @@ func handleNICK(c *Client, e Event) {
 		return
 	}
 
-	c.state.renameUser(e.Prefix.Name, e.Params[0])
+	c.state.renameUser(e.Source.Name, e.Params[0])
 }
 
 func handleQUIT(c *Client, e Event) {
-	c.state.deleteUser(e.Prefix.Name)
+	c.state.deleteUser(e.Source.Name)
 }

@@ -10,110 +10,13 @@ import (
 )
 
 const (
-	prefix     byte = 0x3A // prefix or last argument
-	prefixUser byte = 0x21 // username
-	prefixHost byte = 0x40 // hostname
-	space      byte = 0x20 // separator
-
-	maxLength = 510 // maximum length is 510 (2 for line endings)
+	space     byte = 0x20 // separator
+	maxLength      = 510  // maximum length is 510 (2 for line endings)
 )
 
-func cutsetFunc(r rune) bool {
-	// Characters to trim from prefixes/messages.
+// cutCRFunc is used to trim CR characters from prefixes/messages.
+func cutCRFunc(r rune) bool {
 	return r == '\r' || r == '\n'
-}
-
-// Prefix represents the sender of an IRC event, see RFC1459 section 2.3.1
-// <servername> | <nick> [ '!' <user> ] [ '@' <host> ]
-type Prefix struct {
-	Name string // Nick or servername
-	User string // Username
-	Host string // Hostname
-}
-
-// ParsePrefix takes a string and attempts to create a Prefix struct.
-func ParsePrefix(raw string) (p *Prefix) {
-	p = new(Prefix)
-
-	user := strings.IndexByte(raw, prefixUser)
-	host := strings.IndexByte(raw, prefixHost)
-
-	switch {
-	case user > 0 && host > user:
-		p.Name = raw[:user]
-		p.User = raw[user+1 : host]
-		p.Host = raw[host+1:]
-	case user > 0:
-		p.Name = raw[:user]
-		p.User = raw[user+1:]
-	case host > 0:
-		p.Name = raw[:host]
-		p.Host = raw[host+1:]
-	default:
-		p.Name = raw
-
-	}
-
-	return p
-}
-
-// Len calculates the length of the string representation of prefix
-func (p *Prefix) Len() (length int) {
-	length = len(p.Name)
-	if len(p.User) > 0 {
-		length = 1 + length + len(p.User)
-	}
-	if len(p.Host) > 0 {
-		length = 1 + length + len(p.Host)
-	}
-
-	return
-}
-
-// Bytes returns a []byte representation of prefix
-func (p *Prefix) Bytes() []byte {
-	buffer := new(bytes.Buffer)
-	p.writeTo(buffer)
-
-	return buffer.Bytes()
-}
-
-// String returns a string representation of prefix
-func (p *Prefix) String() (s string) {
-	s = p.Name
-	if len(p.User) > 0 {
-		s = s + string(prefixUser) + p.User
-	}
-	if len(p.Host) > 0 {
-		s = s + string(prefixHost) + p.Host
-	}
-
-	return
-}
-
-// IsHostmask returns true if prefix looks like a user hostmask
-func (p *Prefix) IsHostmask() bool {
-	return len(p.User) > 0 && len(p.Host) > 0
-}
-
-// IsServer returns true if this prefix looks like a server name.
-func (p *Prefix) IsServer() bool {
-	return len(p.User) <= 0 && len(p.Host) <= 0
-}
-
-// writeTo is an utility function to write the prefix to the bytes.Buffer in Event.String()
-func (p *Prefix) writeTo(buffer *bytes.Buffer) {
-	buffer.WriteString(p.Name)
-	if len(p.User) > 0 {
-		buffer.WriteByte(prefixUser)
-		buffer.WriteString(p.User)
-	}
-	if len(p.Host) > 0 {
-		buffer.WriteByte(prefixHost)
-		buffer.WriteString(p.Host)
-	}
-
-	return
 }
 
 // Event represents an IRC protocol message, see RFC1459 section 2.3.1
@@ -129,7 +32,7 @@ func (p *Prefix) writeTo(buffer *bytes.Buffer) {
 //                   CR or LF>
 //    <crlf>     :: CR LF
 type Event struct {
-	*Prefix                // The source of the event
+	*Source                // The source of the event
 	Command       string   // the IRC command, e.g. JOIN, PRIVMSG, KILL
 	Params        []string // parameters to the command. Commonly nickname, channel, etc
 	Trailing      string   // any trailing data. e.g. with a PRIVMSG, this is the message text
@@ -141,7 +44,7 @@ type Event struct {
 // Returns nil if the Event is invalid.
 func ParseEvent(raw string) (e *Event) {
 	// ignore empty events
-	if raw = strings.TrimFunc(raw, cutsetFunc); len(raw) < 2 {
+	if raw = strings.TrimFunc(raw, cutCRFunc); len(raw) < 2 {
 		return nil
 	}
 
@@ -157,7 +60,7 @@ func ParseEvent(raw string) (e *Event) {
 			return nil
 		}
 
-		e.Prefix = ParsePrefix(raw[1:i])
+		e.Source = ParseSource(raw[1:i])
 
 		i++ // skip space at the end of the prefix
 	}
@@ -204,8 +107,8 @@ func ParseEvent(raw string) (e *Event) {
 
 // Len calculates the length of the string representation of event
 func (e *Event) Len() (length int) {
-	if e.Prefix != nil {
-		length = e.Prefix.Len() + 2 // include prefix and trailing space
+	if e.Source != nil {
+		length = e.Source.Len() + 2 // include prefix and trailing space
 	}
 
 	length = length + len(e.Command)
@@ -234,9 +137,9 @@ func (e *Event) Bytes() []byte {
 	buffer := new(bytes.Buffer)
 
 	// event prefix
-	if e.Prefix != nil {
+	if e.Source != nil {
 		buffer.WriteByte(prefix)
-		e.Prefix.writeTo(buffer)
+		e.Source.writeTo(buffer)
 		buffer.WriteByte(space)
 	}
 
