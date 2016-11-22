@@ -184,15 +184,15 @@ func IsValidNick(nick string) bool {
 // The validation checks are much like what characters are allowed with an
 // IRC nickname (see IsValidNick()), however an ident/username can:
 //
-// 1. Must either start with alphanumberic char, or "~" then
-//    alphanumberic char.
-// 2. Contain a "." (period), for use with "first.last".
-//    Though, this may not be supported on all networks. Some limit this
-//    to only a single period.
+// 1. Must either start with alphanumberic char, or "~" then alphanumberic
+// char.
+//
+// 2. Contain a "." (period), for use with "first.last". Though, this may
+// not be supported on all networks. Some limit this to only a single period.
 //
 // Per RFC:
-//    user =  1*( %x01-09 / %x0B-0C / %x0E-1F / %x21-3F / %x41-FF )
-//            ; any octet except NUL, CR, LF, " " and "@"
+//   user =  1*( %x01-09 / %x0B-0C / %x0E-1F / %x21-3F / %x41-FF )
+//           ; any octet except NUL, CR, LF, " " and "@"
 func IsValidUser(name string) bool {
 	if len(name) <= 0 {
 		return false
