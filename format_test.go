@@ -180,20 +180,49 @@ func TestIsValidChannel(t *testing.T) {
 		{name: "invalid channel space", args: args{channel: "#inva lid"}, want: false},
 		{name: "valid channel with numerics", args: args{channel: "#1valid0"}, want: true},
 		{name: "valid channel with special", args: args{channel: "#valid[]test"}, want: true},
-		{name: "valid channel with special x2", args: args{channel: "#[]valid[]test[]"}, want: true},
+		{name: "valid channel with special", args: args{channel: "#[]valid[]test[]"}, want: true},
 		{name: "just hash", args: args{channel: "#"}, want: false},
 		{name: "empty", args: args{channel: ""}, want: false},
 		{name: "invalid prefix", args: args{channel: "$invalid"}, want: false},
 		{name: "too long", args: args{channel: "#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, want: false},
 		{name: "valid id prefix", args: args{channel: "!12345test"}, want: true},
 		{name: "invalid id length", args: args{channel: "!1234"}, want: false},
-		{name: "invalid id length x2", args: args{channel: "!12345"}, want: false},
+		{name: "invalid id length", args: args{channel: "!12345"}, want: false},
 		{name: "invalid id prefix", args: args{channel: "!test1invalid"}, want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := IsValidChannel(tt.args.channel); got != tt.want {
 				t.Errorf("IsValidChannel() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsValidUser(t *testing.T) {
+	type args struct {
+		name string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{name: "user without ident server", args: args{name: "~test"}, want: true},
+		{name: "user with ident server", args: args{name: "test"}, want: true},
+		{name: "non-alphanumeric first index", args: args{name: "-test"}, want: false},
+		{name: "non-alphanumeric first index", args: args{name: "[test]"}, want: false},
+		{name: "numeric first index", args: args{name: "0test"}, want: true},
+		{name: "blank", args: args{name: ""}, want: false},
+		{name: "just tilde", args: args{name: "~"}, want: false},
+		{name: "special chars", args: args{name: "test-----"}, want: true},
+		{name: "special chars", args: args{name: "test-[]-"}, want: true},
+		{name: "special chars", args: args{name: "test-----"}, want: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := IsValidUser(tt.args.name); got != tt.want {
+				t.Errorf("IsValidUser() = %v, want %v", got, tt.want)
 			}
 		})
 	}

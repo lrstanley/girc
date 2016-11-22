@@ -98,7 +98,7 @@ func StripColors(text string) string {
 	return text
 }
 
-// IsValidChannel checks if channel is an RFC complaint channel or not.
+// IsValidChannel validates if channel is an RFC complaint channel or not.
 //
 // channel      =  ( "#" / "+" / ( "!" channelid ) / "&" ) chanstring
 //                 [ ":" chanstring ]
@@ -145,8 +145,8 @@ func IsValidChannel(channel string) bool {
 	return true
 }
 
-// IsValidNick valids an IRC nickame. Note that this does not valid IRC
-// nickname length.
+// IsValidNick validates an IRC nickame. Note that this does not validate
+// IRC nickname length.
 //
 // nickname   =  ( letter / special ) *8( letter / digit / special / "-" )
 //   letter   =  0x41-0x5A / 0x61-0x7A
@@ -166,6 +166,51 @@ func IsValidNick(nick string) bool {
 
 	for i := 1; i < len(nick); i++ {
 		if (nick[i] < 0x41 || nick[i] > 0x7D) && (nick[i] < 0x30 || nick[i] > 0x39) && nick[i] != 0x2D {
+			// a-z, A-Z, 0-9, -, and _\[]{}^|
+			return false
+		}
+	}
+
+	return true
+}
+
+// IsValidUser validates an IRC ident/username. Note that this does not
+// validate IRC ident length.
+//
+// The validation checks are much like what characters are allowed with an
+// IRC nickname (see IsValidNick()), however an ident/username can:
+//
+//    1. Must either start with alphanumberic char, or "~" then
+//       alphanumberic char.
+//    2. Contain a "." (period), for use with "first.last".
+//       Though, this may not be supported on all networks. Some limit this
+//       to only a single period.
+//
+// Per RFC:
+// user       =  1*( %x01-09 / %x0B-0C / %x0E-1F / %x21-3F / %x41-FF )
+//               ; any octet except NUL, CR, LF, " " and "@"
+func IsValidUser(name string) bool {
+	if len(name) <= 0 {
+		return false
+	}
+
+	// "~" is prepended (commonly) if there was no ident server response.
+	if name[0] == 0x7E {
+		// Means name only contained "~".
+		if len(name) < 2 {
+			return false
+		}
+
+		name = name[1:]
+	}
+
+	// Check to see if the first index is alphanumeric.
+	if (name[0] < 0x41 || name[0] > 0x4A) && (name[0] < 0x61 || name[0] > 0x7A) && (name[0] < 0x30 || name[0] > 0x39) {
+		return false
+	}
+
+	for i := 1; i < len(name); i++ {
+		if (name[i] < 0x41 || name[i] > 0x7D) && (name[i] < 0x30 || name[i] > 0x39) && name[i] != 0x2D && name[i] != 0x2E {
 			// a-z, A-Z, 0-9, -, and _\[]{}^|
 			return false
 		}
