@@ -41,6 +41,10 @@ var colors = []*color{
 
 // Format takes color strings like "{red}" and turns them into the resulting
 // ASCII color code for IRC.
+//
+// For example:
+//
+//   client.Message("#channel", Format("{red}{bold}Hello World{c}"))
 func Format(text string) string {
 	for i := 0; i < len(colors); i++ {
 		for a := 0; a < len(colors[i].aliases); a++ {
