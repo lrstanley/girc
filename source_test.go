@@ -1,67 +1,63 @@
-// Copyright 2016 Liam Stanley <me@liamstanley.io>. All rights reserved.
-// Use of this source code is governed by the MIT license that can be
-// found in the LICENSE file.
-
 package girc
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
-func TestIsValidNick(t *testing.T) {
+func TestParseSource(t *testing.T) {
 	type args struct {
-		nick string
+		raw string
 	}
 	tests := []struct {
-		name string
-		args args
-		want bool
+		name    string
+		args    args
+		wantSrc *Source
 	}{
-		{name: "normal", args: args{nick: "test"}, want: true},
-		{name: "empty", args: args{nick: ""}, want: false},
-		{name: "hyphen and special", args: args{nick: "test[-]"}, want: true},
-		{name: "invalid middle", args: args{nick: "test!test"}, want: false},
-		{name: "invalid dot middle", args: args{nick: "test.test"}, want: false},
-		{name: "end", args: args{nick: "test!"}, want: false},
-		{name: "invalid start", args: args{nick: "!test"}, want: false},
-		{name: "backslash and numeric", args: args{nick: "test[\\0"}, want: true},
-		{name: "long", args: args{nick: "test123456789AZBKASDLASMDLKM"}, want: true},
-		{name: "index 0 dash", args: args{nick: "-test"}, want: false},
-		{name: "index 0 numeric", args: args{nick: "0test"}, want: false},
+		{name: "full", args: args{raw: "nick!user@hostname.com"}, wantSrc: &Source{
+			Name: "nick", User: "user", Host: "hostname.com",
+		}},
+		{name: "special chars", args: args{raw: "^[]nick!~user@test.host---name.com"}, wantSrc: &Source{
+			Name: "^[]nick", User: "~user", Host: "test.host---name.com",
+		}},
+		{name: "short", args: args{raw: "a!b@c"}, wantSrc: &Source{
+			Name: "a", User: "b", Host: "c",
+		}},
+		{name: "short", args: args{raw: "a!b"}, wantSrc: &Source{
+			Name: "a", User: "b", Host: "",
+		}},
+		{name: "short", args: args{raw: "a@b"}, wantSrc: &Source{
+			Name: "a", User: "", Host: "b",
+		}},
+		{name: "short", args: args{raw: "test"}, wantSrc: &Source{
+			Name: "test", User: "", Host: "",
+		}},
 	}
 	for _, tt := range tests {
-		if got := IsValidNick(tt.args.nick); got != tt.want {
-			t.Errorf("%q. IsValidNick() = %v, want %v", tt.name, got, tt.want)
+		gotSrc := ParseSource(tt.args.raw)
+
+		if !reflect.DeepEqual(gotSrc, tt.wantSrc) {
+			t.Errorf("ParseSource() = %v, want %v", gotSrc, tt.wantSrc)
 		}
-	}
-}
 
-func TestIsValidChannel(t *testing.T) {
-	type args struct {
-		channel string
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{name: "valid channel", args: args{channel: "#valid"}, want: true},
-		{name: "valid channel", args: args{channel: "#invalid,"}, want: false},
-		{name: "valid channel", args: args{channel: "#inva lid"}, want: false},
-		{name: "valid channel", args: args{channel: "#valid"}, want: true},
-		{name: "valid channel with numerics", args: args{channel: "#1valid0"}, want: true},
-		{name: "valid channel with special", args: args{channel: "#valid[]test"}, want: true},
-		{name: "valid channel with special x2", args: args{channel: "#[]valid[]test[]"}, want: true},
-		{name: "just hash", args: args{channel: "#"}, want: false},
-		{name: "empty", args: args{channel: ""}, want: false},
-		{name: "invalid prefix", args: args{channel: "$invalid"}, want: false},
-		{name: "too long", args: args{channel: "#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}, want: false},
-		{name: "valid id prefix", args: args{channel: "!12345test"}, want: true},
-		{name: "invalid id length", args: args{channel: "!1234"}, want: false},
-		{name: "invalid id length x2", args: args{channel: "!12345"}, want: false},
-		{name: "invalid id prefix", args: args{channel: "!test1invalid"}, want: false},
-	}
-	for _, tt := range tests {
-		if got := IsValidChannel(tt.args.channel); got != tt.want {
-			t.Errorf("%q. IsValidChannel() = %v, want %v", tt.name, got, tt.want)
+		if gotSrc.Len() != tt.wantSrc.Len() {
+			t.Errorf("ParseSource().Len() = %v, want %v", gotSrc.Len(), tt.wantSrc.Len())
+		}
+
+		if gotSrc.String() != tt.wantSrc.String() {
+			t.Errorf("ParseSource().String() = %v, want %v", gotSrc.String(), tt.wantSrc.String())
+		}
+
+		if gotSrc.IsServer() != tt.wantSrc.IsServer() {
+			t.Errorf("ParseSource().IsServer() = %v, want %v", gotSrc.IsServer(), tt.wantSrc.IsServer())
+		}
+
+		if gotSrc.IsHostmask() != tt.wantSrc.IsHostmask() {
+			t.Errorf("ParseSource().IsHostmask() = %v, want %v", gotSrc.IsHostmask(), tt.wantSrc.IsHostmask())
+		}
+
+		if !reflect.DeepEqual(gotSrc.Bytes(), tt.wantSrc.Bytes()) {
+			t.Errorf("ParseSource().Bytes() = %v, want %v", gotSrc, tt.wantSrc)
 		}
 	}
 }

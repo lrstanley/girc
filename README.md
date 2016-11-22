@@ -32,6 +32,8 @@
 - [ ] add `Client.Topic(topic string)`
 - [ ] `MODE` tracking on a per-channel basis
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
+- [ ] `IsValidUser()`?
+  - [ ] Once in place, we can potentially successfully allow error reporting for `ParseSource()`
 
 ## Installing
 
