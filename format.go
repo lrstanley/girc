@@ -107,6 +107,7 @@ func StripColors(text string) string {
 //                   ; any octet except NUL, BELL, CR, LF, " ", "," and ":"
 //   channelid  = 5( 0x41-0x5A / digit )   ; 5( A-Z / 0-9 )
 func IsValidChannel(channel string) bool {
+	// TODO: Proper validation is needed for this.
 	if len(channel) <= 1 || len(channel) > 50 {
 		return false
 	}
