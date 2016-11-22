@@ -111,7 +111,7 @@ type Config struct {
 func New(config Config) *Client {
 	client := &Client{
 		Config:    config,
-		Events:    make(chan *Event, 40), // buffer 40 events
+		Events:    make(chan *Event, 100), // buffer 100 events
 		quitChan:  make(chan struct{}),
 		callbacks: make(map[string][]Callback),
 		tries:     0,
@@ -292,7 +292,7 @@ func (c *Client) Reconnect() (err error) {
 
 		// Re-setup events. Do this after we've slept (giving callbacks enough time to
 		// finish their tasks.)
-		c.Events = make(chan *Event, 40)
+		c.Events = make(chan *Event, 100)
 
 		for err = c.Connect(); err != nil && c.tries < c.Config.MaxRetries; c.tries++ {
 			c.log.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
