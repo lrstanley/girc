@@ -333,7 +333,7 @@ func (c *Client) IsConnected() bool {
 // Returns empty string if tracking is disabled.
 func (c *Client) GetNick() string {
 	if c.Config.DisableTracking {
-		return ""
+		panic("GetNick() used when tracking is disabled")
 	}
 
 	c.state.m.RLock()
@@ -361,7 +361,7 @@ func (c *Client) SetNick(name string) {
 // Returns nil if tracking is disabled.
 func (c *Client) GetChannels() map[string]*Channel {
 	if c.Config.DisableTracking {
-		return nil
+		panic("GetChannels() used when tracking is disabled")
 	}
 
 	c.state.m.RLock()
