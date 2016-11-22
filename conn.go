@@ -7,7 +7,6 @@ package girc
 import (
 	"bufio"
 	"io"
-	"net"
 	"sync"
 )
 
@@ -24,24 +23,6 @@ type ircConn struct {
 	ircDecoder
 
 	c io.ReadWriteCloser
-}
-
-// dial connects to the given address using net.Dial and then returns a
-// new Conn for the connection.
-func dial(addr string) (*ircConn, error) {
-	rwc, err := net.Dial("tcp", addr)
-
-	if err != nil {
-		return nil, err
-	}
-
-	conn := &ircConn{
-		ircEncoder: ircEncoder{writer: rwc},
-		ircDecoder: ircDecoder{reader: bufio.NewReader(rwc)},
-		c:          rwc,
-	}
-
-	return conn, nil
 }
 
 // Close closes the underlying ReadWriteCloser.

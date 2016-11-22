@@ -78,6 +78,8 @@ type Config struct {
 	User string
 	// Name is the "realname" that's used during connect.
 	Name string
+	// Conn is an optional network connection to use (overrides TLSConfig).
+	Conn *net.Conn
 	// TLSConfig is an optional user-supplied tls configuration, used during
 	// socket creation to the server.
 	TLSConfig *tls.Config
@@ -182,25 +184,39 @@ func (c *Client) Connect() error {
 	var err error
 
 	// Sanity check a few options.
-	if c.Config.Server == "" || c.Config.Port == 0 || c.Config.Nick == "" || c.Config.User == "" {
-		return errors.New("invalid configuration (server/port/nick/user)")
+	if c.Config.Server == "" {
+		return errors.New("invalid server specified")
+	}
+
+	if c.Config.Port < 21 || c.Config.Port > 65535 {
+		return errors.New("invalid port (21-65535)")
+	}
+
+	if !IsValidNick(c.Config.Nick) || !IsValidUser(c.Config.User) {
+		return errors.New("invalid nickname or user")
 	}
 
 	// Reset the state.
 	c.state = newState()
 
-	if c.Config.TLSConfig == nil {
-		conn, err = net.Dial("tcp", c.Server())
+	// Allow the user to specify their own net.Conn.
+	if c.Config.Conn == nil {
+		if c.Config.TLSConfig == nil {
+			conn, err = net.Dial("tcp", c.Server())
+		} else {
+			conn, err = tls.Dial("tcp", c.Server(), c.Config.TLSConfig)
+		}
+		if err != nil {
+			return err
+		}
+
+		c.conn = conn
 	} else {
-		conn, err = tls.Dial("tcp", c.Server(), c.Config.TLSConfig)
-	}
-	if err != nil {
-		return err
+		c.conn = *c.Config.Conn
 	}
 
-	c.conn = conn
-	c.reader = newDecoder(conn)
-	c.writer = newEncoder(conn)
+	c.reader = newDecoder(c.conn)
+	c.writer = newEncoder(c.conn)
 	c.Sender = serverSender{writer: c.writer}
 	for _, event := range c.connectMessages() {
 		if err := c.Send(event); err != nil {
