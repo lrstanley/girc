@@ -105,7 +105,7 @@ func StripColors(text string) string {
 // all ASCII printable chars. This function will NOT do that for
 // compatibility reasons.
 //
-// channel      =  ( "#" / "+" / ( "!" channelid ) / "&" ) chanstring
+//   channel    =  ( "#" / "+" / ( "!" channelid ) / "&" ) chanstring
 //                 [ ":" chanstring ]
 //   chanstring =  0x01-0x07 / 0x08-0x09 / 0x0B-0x0C / 0x0E-0x1F / 0x21-0x2B
 //   chanstring =  / 0x2D-0x39 / 0x3B-0xFF
@@ -152,7 +152,7 @@ func IsValidChannel(channel string) bool {
 // IsValidNick validates an IRC nickame. Note that this does not validate
 // IRC nickname length.
 //
-// nickname   =  ( letter / special ) *8( letter / digit / special / "-" )
+//   nickname =  ( letter / special ) *8( letter / digit / special / "-" )
 //   letter   =  0x41-0x5A / 0x61-0x7A
 //   digit    =  0x30-0x39
 //   special  =  0x5B-0x60 / 0x7B-0x7D
@@ -184,15 +184,15 @@ func IsValidNick(nick string) bool {
 // The validation checks are much like what characters are allowed with an
 // IRC nickname (see IsValidNick()), however an ident/username can:
 //
-//    1. Must either start with alphanumberic char, or "~" then
-//       alphanumberic char.
-//    2. Contain a "." (period), for use with "first.last".
-//       Though, this may not be supported on all networks. Some limit this
-//       to only a single period.
+// 1. Must either start with alphanumberic char, or "~" then
+//    alphanumberic char.
+// 2. Contain a "." (period), for use with "first.last".
+//    Though, this may not be supported on all networks. Some limit this
+//    to only a single period.
 //
 // Per RFC:
-// user       =  1*( %x01-09 / %x0B-0C / %x0E-1F / %x21-3F / %x41-FF )
-//               ; any octet except NUL, CR, LF, " " and "@"
+//    user =  1*( %x01-09 / %x0B-0C / %x0E-1F / %x21-3F / %x41-FF )
+//            ; any octet except NUL, CR, LF, " " and "@"
 func IsValidUser(name string) bool {
 	if len(name) <= 0 {
 		return false
