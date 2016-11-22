@@ -100,6 +100,11 @@ func StripColors(text string) string {
 
 // IsValidChannel validates if channel is an RFC complaint channel or not.
 //
+// NOTE: If you do not need to validate against servers that support Unicode,
+// you may want to ensure that all channel chars are within the range of
+// all ASCII printable chars. This function will NOT do that for
+// compatibility reasons.
+//
 // channel      =  ( "#" / "+" / ( "!" channelid ) / "&" ) chanstring
 //                 [ ":" chanstring ]
 //   chanstring =  0x01-0x07 / 0x08-0x09 / 0x0B-0x0C / 0x0E-0x1F / 0x21-0x2B
@@ -107,7 +112,6 @@ func StripColors(text string) string {
 //                   ; any octet except NUL, BELL, CR, LF, " ", "," and ":"
 //   channelid  = 5( 0x41-0x5A / digit )   ; 5( A-Z / 0-9 )
 func IsValidChannel(channel string) bool {
-	// TODO: Proper validation is needed for this.
 	if len(channel) <= 1 || len(channel) > 50 {
 		return false
 	}

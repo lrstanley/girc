@@ -66,7 +66,7 @@ func handlePING(c *Client, e Event) {
 
 // handleJOIN ensures that the state has updated users and channels.
 func handleJOIN(c *Client, e Event) {
-	if len(e.Params) != 1 {
+	if len(e.Params) < 1 {
 		return
 	}
 
