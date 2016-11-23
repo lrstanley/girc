@@ -37,7 +37,7 @@
 
 ## Examples
 
-See [girc/examples/](https://github.com/Liamraystanley/girc/tree/master/example) for some examples.
+See [girc/examples/](https://github.com/Liamraystanley/girc/tree/master/examples) for some examples.
 
 ## Contributing
 

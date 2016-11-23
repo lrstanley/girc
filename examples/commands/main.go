@@ -18,25 +18,36 @@ func main() {
 		Server:     "irc.byteirc.org",
 		Port:       6667,
 		Nick:       "test",
-		User:       "test1",
+		User:       "user",
 		Name:       "Example bot",
 		MaxRetries: 3,
 		Logger:     os.Stdout,
 	}
+	channels := []string{"#dev"}
 
 	client := girc.New(conf)
 
 	client.AddCallback(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
-		c.Join("#dev", "")
+		for _, ircchan := range channels {
+			c.Join(ircchan, "")
+		}
 	})
 
 	client.AddCallback(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
-		if !e.IsAction() && strings.Contains(e.Trailing, "hello") {
-			c.Message(e.Params[0], "Hello World!")
+		if strings.HasPrefix(e.Trailing, "!hello") {
+			c.Message(e.Params[0], "hello world!")
+			return
 		}
 
-		if e.IsAction() && strings.Contains(e.Trailing, "hello") {
-			c.Action(e.Params[0], "says Hello World!")
+		if strings.HasPrefix(e.Trailing, "!stop") {
+			c.Quit("goodbye!")
+			c.Stop()
+			return
+		}
+
+		if strings.HasPrefix(e.Trailing, "!restart") {
+			go c.Reconnect()
+			return
 		}
 	})
 
