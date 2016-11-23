@@ -5,23 +5,9 @@
 package girc
 
 import (
-	"bytes"
 	"testing"
 	"time"
 )
-
-func TestSender(t *testing.T) {
-	bw := &bytes.Buffer{}
-	writer := newEncoder(bw)
-	s := serverSender{writer: writer}
-
-	e := &Event{Command: "TEST"}
-	s.Send(e)
-
-	if e.Raw()+"\r\n" != bw.String() {
-		t.Errorf("serverSender{writer: newEncoder(bytes.Buffer)} = %v, want %v", bw, e.String()+"\r\n")
-	}
-}
 
 func TestEventLimiter(t *testing.T) {
 	events := []*Event{}
