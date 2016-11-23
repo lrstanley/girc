@@ -10,13 +10,13 @@ import (
 	"sync"
 )
 
-// messages are delimited with CR and LF line endings, we're using the last
-// one to split the stream. both are removed during parsing of the message.
+// Messages are delimited with CR and LF line endings, we're using the last
+// one to split the stream. Both are removed during parsing of the message.
 const delim byte = '\n'
 
 var endline = []byte("\r\n")
 
-// conn represents an IRC network protocol connection, it consists of an
+// ircConn represents an IRC network protocol connection, it consists of an
 // Encoder and Decoder to manage i/o.
 type ircConn struct {
 	ircEncoder
