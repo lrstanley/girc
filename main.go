@@ -462,3 +462,79 @@ func (c *Client) SendRaw(raw string) {
 func (c *Client) SendRawf(format string, a ...interface{}) {
 	c.SendRaw(fmt.Sprintf(format, a...))
 }
+
+// Whowas sends and waits for a response to a WHOWAS query to the server.
+// Returns the list of users form the WHOWAS query.
+func (c *Client) Whowas(nick string) ([]*User, error) {
+	var mu sync.Mutex
+	var events []*Event
+	whoDone := make(chan struct{})
+
+	// One callback needs to be added to collect the WHOWAS lines.
+	// <nick> <user> <host> * :<real_name>
+	whoCb := c.AddBgCallback(RPL_WHOWASUSER, func(c *Client, e Event) {
+		if len(e.Params) != 5 {
+			return
+		}
+
+		// First check and make sure that this WHOWAS is for us.
+		if e.Params[1] != nick {
+			return
+		}
+
+		mu.Lock()
+		events = append(events, &e)
+		mu.Unlock()
+	})
+
+	// One more callback needs to be added to let us know when WHOWAS has
+	// finished.
+	// 	<nick> :<info>
+	whoDoneCb := c.AddBgCallback(RPL_ENDOFWHOWAS, func(c *Client, e Event) {
+		if len(e.Params) != 2 {
+			return
+		}
+
+		// First check and make sure that this WHOWAS is for us.
+		if e.Params[1] != nick {
+			return
+		}
+
+		mu.Lock()
+		whoDone <- struct{}{}
+		mu.Unlock()
+	})
+
+	// Send the WHOWAS query.
+	c.Send(&Event{Command: WHOWAS, Params: []string{nick, "10"}})
+
+	// Wait for everything to finish. Give the server 2 seconds to respond.
+	select {
+	case <-whoDone:
+		close(whoDone)
+	case <-time.After(time.Second * 2):
+		// Remove callbacks and return. Took too long.
+		c.RemoveCallback(whoCb)
+		c.RemoveCallback(whoDoneCb)
+
+		return nil, ErrCallbackTimedout
+	}
+
+	// Remove the temporary callbacks to ensure that nothing else is
+	// received.
+	c.RemoveCallback(whoCb)
+	c.RemoveCallback(whoDoneCb)
+
+	var users []*User
+
+	for i := 0; i < len(events); i++ {
+		users = append(users, &User{
+			Nick:  events[i].Params[1],
+			Ident: events[i].Params[2],
+			Host:  events[i].Params[3],
+			Name:  events[i].Trailing,
+		})
+	}
+
+	return users, nil
+}
