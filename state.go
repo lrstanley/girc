@@ -50,6 +50,10 @@ type User struct {
 	// many networks spoofing/hiding parts of the hostname for privacy
 	// reasons.
 	Host string
+	// Name is the users "realname" or full name. Commonly contains links
+	// to the IRC client being used, or something of non-importance. May also
+	// be empty.
+	Name string
 	// FirstSeen represents the first time that the user was seen by the
 	// client for the given channel.
 	FirstSeen time.Time
