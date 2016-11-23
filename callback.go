@@ -10,43 +10,46 @@ import (
 	"strings"
 )
 
-// handleEvent runs the necessary callbacks for the incoming event
-func (c *Client) handleEvent(event *Event) {
-	// Log the event.
-	c.log.Print("<-- " + event.Raw())
-
-	// Wildcard callbacks first.
-	if callbacks, ok := c.callbacks[ALLEVENTS]; ok {
+func (c *Client) execCallbacks(command string, event *Event) {
+	if callbacks, ok := c.callbacks["routine:"+command]; ok {
 		for i := 0; i < len(callbacks); i++ {
-			callbacks[i].Execute(c, *event)
-		}
-	}
+			if callbacks[i] == nil {
+				continue
+			}
 
-	// Regular non-threaded callbacks.
-	if callbacks, ok := c.callbacks[event.Command]; ok {
-		for i := 0; i < len(callbacks); i++ {
-			callbacks[i].Execute(c, *event)
-		}
-	}
-
-	// Callbacks that should be ran concurrently.
-	//
-	// Callbacks which should be ran in a go-routine should be prefixed
-	// with "routine:". E.g. "routine:JOIN".
-	if callbacks, ok := c.callbacks["routine:"+event.Command]; ok {
-		for i := 0; i < len(callbacks); i++ {
 			go callbacks[i].Execute(c, *event)
+		}
+	}
+
+	if callbacks, ok := c.callbacks[command]; ok {
+		for i := 0; i < len(callbacks); i++ {
+			if callbacks[i] == nil {
+				continue
+			}
+
+			callbacks[i].Execute(c, *event)
 		}
 	}
 }
 
-// ClearAllCallbacks clears all callbacks currently setup within the
-// client.
+// RunCallbacks manually runs callbacks for a given event.
+func (c *Client) RunCallbacks(event *Event) {
+	// Log the event.
+	c.log.Print("<-- " + event.Raw())
+
+	// Regular wildcard callbacks.
+	c.execCallbacks(ALLEVENTS, event)
+
+	// Then regular non-threaded callbacks.
+	c.execCallbacks(event.Command, event)
+}
+
+// ClearAllCallbacks clears all callbacks currently setup within the client.
 //
 // This ignores internal callbacks for the client.
 func (c *Client) ClearAllCallbacks() {
-	// registerHelpers should clean all callbacks and setup internal
-	// ones as necessary.
+	// registerHelpers should clean all callbacks and setup internal ones as
+	// necessary.
 	c.registerHelpers()
 }
 
@@ -55,42 +58,29 @@ func (c *Client) ClearAllCallbacks() {
 // This ignores internal callbacks for the client.
 func (c *Client) ClearCallbacks(cmd string) {
 	for i := 0; i < len(c.callbacks[cmd]); i++ {
-		isin := false
-		for _, cb := range c.internalCallbacks {
-			if fmt.Sprintf("%s:%d", cmd, i) == cb {
-				isin = true
-				break
-			}
-		}
-
-		if !isin {
-			c.RemoveCallback(fmt.Sprintf("%s:%d", cmd, i))
-		}
+		c.RemoveCallback(fmt.Sprintf("%s:%d", cmd, i))
 	}
 
 	for i := 0; i < len(c.callbacks["routine:"+cmd]); i++ {
-		isin := false
-		for _, cb := range c.internalCallbacks {
-			if fmt.Sprintf("routine:%s:%d", cmd, i) == cb {
-				isin = true
-				break
-			}
-		}
-
-		if !isin {
-			c.RemoveCallback(fmt.Sprintf("routine:%s:%d", cmd, i))
-		}
+		c.RemoveCallback(fmt.Sprintf("routine:%s:%d", cmd, i))
 	}
 }
 
 // RemoveCallback removes the callback with id from the callback stack.
 func (c *Client) RemoveCallback(id string) {
+	// Check to see if it's an internal callback.
+	for i := 0; i < len(c.internalCallbacks); i++ {
+		if id == c.internalCallbacks[i] {
+			return
+		}
+	}
+
 	var cmd string
 	var index int
 
 	parts := strings.Split(id, ":")
 	if len(parts) < 2 {
-		// needs to be at least CMD:INDEX
+		// Needs to be at least CMD:INDEX.
 		return
 	}
 
@@ -101,12 +91,17 @@ func (c *Client) RemoveCallback(id string) {
 	}
 
 	if len(c.callbacks[cmd]) > (index + 1) {
-		// index doesn't look to exist
+		// Index doesn't look to exist.
+		return
+	}
+
+	// Ignore if it's already been disabled.
+	if c.callbacks[cmd][index] == nil {
 		return
 	}
 
 	c.cbMux.Lock()
-	c.callbacks[cmd] = append(c.callbacks[cmd][:index], c.callbacks[cmd][index+1:]...)
+	c.callbacks[cmd][index] = nil
 	c.cbMux.Unlock()
 }
 
@@ -126,11 +121,6 @@ func (c *Client) untrackIntCallback(id string) {
 		}
 	}
 	c.cbMux.Unlock()
-}
-
-// RunCallbacks manually runs callbacks for a given event.
-func (c *Client) RunCallbacks(event *Event) {
-	c.handleEvent(event)
 }
 
 // AddCallbackHandler registers a callback (matching the Callback

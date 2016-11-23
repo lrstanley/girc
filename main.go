@@ -98,6 +98,9 @@ type Config struct {
 	DisableNickCollision bool
 }
 
+// ErrCallbackTimedout is used when we need to wait for temporary callbacks.
+var ErrCallbackTimedout = errors.New("callback timed out while waiting for response from the server")
+
 // New creates a new IRC client with the specified server, name and
 // config.
 func New(config Config) *Client {
@@ -324,7 +327,7 @@ func (c *Client) Loop() {
 	for {
 		select {
 		case event := <-c.Events:
-			c.handleEvent(event)
+			c.RunCallbacks(event)
 		case <-c.quitChan:
 			return
 		}
