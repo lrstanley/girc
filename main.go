@@ -34,8 +34,6 @@ type Client struct {
 	Config Config
 	// Events is a buffer of events waiting to be processed.
 	Events chan *Event
-	// Sender is a Sender{} interface implementation.
-	Sender Sender
 
 	// state represents the throw-away state for the irc session.
 	state *state
@@ -49,12 +47,6 @@ type Client struct {
 	// internalCallbacks is a list of callbacks used internally.
 	internalCallbacks []string
 
-	// reader is the socket buffer reader from the IRC server.
-	reader *ircDecoder
-	// reader is the socket buffer write to the IRC server.
-	writer *ircEncoder
-	// conn is a net.Conn reference to the IRC server.
-	conn net.Conn
 	// tries represents the internal reconnect count to the IRC server.
 	tries int
 	// log is used if a writer is supplied for Client.Config.Logger.
@@ -114,7 +106,6 @@ func New(config Config) *Client {
 		Events:    make(chan *Event, 100), // buffer 100 events
 		quitChan:  make(chan struct{}),
 		callbacks: make(map[string][]Callback),
-		tries:     0,
 		initTime:  time.Now(),
 	}
 
@@ -139,13 +130,13 @@ func (c *Client) Quit(message string) {
 
 	c.Send(&Event{Command: QUIT, Trailing: message})
 
-	if c.conn != nil {
-		c.conn.Close()
+	if c.state == nil {
+		return
 	}
 
-	// Sleep for a second, to give enough time to the callbacks setup
-	// for the DISCONNECTED event to actually start running.
-	time.Sleep(1 * time.Second)
+	if c.state.conn != nil {
+		c.state.conn.Close()
+	}
 }
 
 // Stop exits the clients main loop. Use Client.Quit() if you want to disconnect
@@ -175,7 +166,7 @@ func (c *Client) Send(event *Event) error {
 		c.log.Print("--> ", event.String())
 	}
 
-	return c.Sender.Send(event)
+	return c.state.writer.Encode(event)
 }
 
 // Connect attempts to connect to the given IRC server
@@ -199,6 +190,8 @@ func (c *Client) Connect() error {
 	// Reset the state.
 	c.state = newState()
 
+	c.log.Printf("connecting to %s...", c.Server())
+
 	// Allow the user to specify their own net.Conn.
 	if c.Config.Conn == nil {
 		if c.Config.TLSConfig == nil {
@@ -210,25 +203,24 @@ func (c *Client) Connect() error {
 			return err
 		}
 
-		c.conn = conn
+		c.state.conn = conn
 	} else {
-		c.conn = *c.Config.Conn
+		c.state.conn = *c.Config.Conn
 	}
 
-	c.reader = newDecoder(c.conn)
-	c.writer = newEncoder(c.conn)
-	c.Sender = serverSender{writer: c.writer}
+	c.state.reader = newDecoder(c.state.conn)
+	c.state.writer = newEncoder(c.state.conn)
 	for _, event := range c.connectMessages() {
 		if err := c.Send(event); err != nil {
 			return err
 		}
 	}
 
-	c.tries = 0
 	go c.readLoop()
 
 	// Consider the connection a success at this point.
 	c.state.connected = true
+	c.tries = 0
 
 	return nil
 }
@@ -278,8 +270,8 @@ func (c *Client) Reconnect() (err error) {
 		c.Config.ReconnectDelay = 10 * time.Second
 	}
 
-	if c.conn != nil {
-		c.conn.Close()
+	if c.state.connected {
+		c.Quit("reconnecting...")
 	}
 
 	if c.Config.MaxRetries > 0 {
@@ -290,8 +282,8 @@ func (c *Client) Reconnect() (err error) {
 		c.log.Printf("reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
 		time.Sleep(c.Config.ReconnectDelay)
 
-		// Re-setup events. Do this after we've slept (giving callbacks enough time to
-		// finish their tasks.)
+		// Re-setup events. Do this after we've slept (giving callbacks
+		// enough time to finish their tasks.)
 		c.Events = make(chan *Event, 100)
 
 		for err = c.Connect(); err != nil && c.tries < c.Config.MaxRetries; c.tries++ {
@@ -299,8 +291,11 @@ func (c *Client) Reconnect() (err error) {
 			time.Sleep(c.Config.ReconnectDelay)
 		}
 
-		// Too many errors. Stop the client.
-		c.Stop()
+		if err != nil {
+			// Too many errors. Stop the client.
+			c.Stop()
+		}
+
 		return err
 	}
 
@@ -312,8 +307,8 @@ func (c *Client) Reconnect() (err error) {
 // IRC server. If there is an error, it calls Reconnect.
 func (c *Client) readLoop() error {
 	for {
-		c.conn.SetDeadline(time.Now().Add(300 * time.Second))
-		event, err := c.reader.Decode()
+		c.state.conn.SetDeadline(time.Now().Add(300 * time.Second))
+		event, err := c.state.reader.Decode()
 		if err != nil {
 			// And attempt a reconnect (if applicable).
 			return c.Reconnect()
