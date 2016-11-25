@@ -27,6 +27,8 @@ type state struct {
 
 	// connected is true if we're actively connected to a server.
 	connected bool
+	// connTime is the time at which the client has connected to a server.
+	connTime *time.Time
 	// hasQuit is used to determine if we've finished quitting/cleaning up.
 	hasQuit bool
 	// reconnecting lets the internal state know a reconnect is occurring.

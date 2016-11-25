@@ -101,6 +101,13 @@ type Config struct {
 // ErrCallbackTimedout is used when we need to wait for temporary callbacks.
 var ErrCallbackTimedout = errors.New("callback timed out while waiting for response from the server")
 
+// ErrNotConnected is returned if a method is used when the client isn't
+// connected.
+var ErrNotConnected = errors.New("client is not connected")
+
+// ErrAlreadyConnecting implies that a connection attempt is already happening.
+var ErrAlreadyConnecting = errors.New("a connection attempt is alreayd occurring")
+
 // New creates a new IRC client with the specified server, name and
 // config.
 func New(config Config) *Client {
@@ -150,8 +157,8 @@ func (c *Client) Stop() {
 	c.quitChan <- struct{}{}
 }
 
-// Uptime returns the amount of time that has passed since the
-// client was created.
+// Uptime returns the amount of time that has passed since the client was
+// created.
 func (c *Client) Uptime() time.Duration {
 	return time.Since(c.initTime)
 }
@@ -222,10 +229,43 @@ func (c *Client) Connect() error {
 	go c.readLoop()
 
 	// Consider the connection a success at this point.
-	c.state.connected = true
 	c.tries = 0
 
+	c.state.m.Lock()
+	ctime := time.Now()
+	c.state.connTime = &ctime
+	c.state.connected = true
+	c.state.m.Unlock()
+
 	return nil
+}
+
+// ConnTime is the time at which the client successfully connected to the
+// server.
+func (c *Client) ConnTime() (*time.Time, error) {
+	c.state.m.RLock()
+	defer c.state.m.RUnlock()
+
+	if !c.state.connected {
+		return nil, ErrNotConnected
+	}
+
+	return c.state.connTime, nil
+}
+
+// ConnSince is the duration that has past since the client successfully
+// connected to the server.
+func (c *Client) ConnSince() (*time.Duration, error) {
+	c.state.m.RLock()
+	defer c.state.m.RUnlock()
+
+	if !c.state.connected {
+		return nil, ErrNotConnected
+	}
+
+	since := time.Since(*c.state.connTime)
+
+	return &since, nil
 }
 
 // connectMessages is a list of IRC messages to send when attempting to
@@ -257,7 +297,7 @@ func (c *Client) connectMessages() (events []*Event) {
 // to the server.
 func (c *Client) Reconnect() (err error) {
 	if c.state.reconnecting {
-		return errors.New("a reconnect is already occurring")
+		return ErrAlreadyConnecting
 	}
 
 	c.state.reconnecting = true
