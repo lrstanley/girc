@@ -401,12 +401,12 @@ func (c *Client) GetNick() string {
 }
 
 // SetNick changes the client nickname.
-func (c *Client) SetNick(name string) {
+func (c *Client) SetNick(name string) error {
 	c.state.m.Lock()
 	defer c.state.m.Unlock()
 
 	c.state.nick = name
-	c.Send(&Event{Command: NICK, Params: []string{name}})
+	return c.Send(&Event{Command: NICK, Params: []string{name}})
 }
 
 // GetChannels returns the active list of channels that the client
@@ -427,80 +427,81 @@ func (c *Client) GetChannels() map[string]*Channel {
 // Who tells the client to update it's channel/user records.
 //
 // Does not update internal state if tracking is disabled.
-func (c *Client) Who(target string) {
-	c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhn,1"}})
+func (c *Client) Who(target string) error {
+	return c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhn,1"}})
 }
 
 // Join attempts to enter an IRC channel with an optional password.
-func (c *Client) Join(channel, password string) {
+func (c *Client) Join(channel, password string) error {
 	if password != "" {
-		c.Send(&Event{Command: JOIN, Params: []string{channel, password}})
-		return
+		return c.Send(&Event{Command: JOIN, Params: []string{channel, password}})
 	}
 
-	c.Send(&Event{Command: JOIN, Params: []string{channel}})
+	return c.Send(&Event{Command: JOIN, Params: []string{channel}})
 }
 
 // Part leaves an IRC channel with an optional leave message.
-func (c *Client) Part(channel, message string) {
+func (c *Client) Part(channel, message string) error {
 	if message != "" {
-		c.Send(&Event{Command: JOIN, Params: []string{channel}, Trailing: message})
-		return
+		return c.Send(&Event{Command: JOIN, Params: []string{channel}, Trailing: message})
 	}
 
-	c.Send(&Event{Command: JOIN, Params: []string{channel}})
+	return c.Send(&Event{Command: JOIN, Params: []string{channel}})
 }
 
 // Message sends a PRIVMSG to target (either channel, service, or
 // user).
-func (c *Client) Message(target, message string) {
-	c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: message})
+func (c *Client) Message(target, message string) error {
+	return c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: message})
 }
 
 // Messagef sends a formated PRIVMSG to target (either channel,
 // service, or user).
-func (c *Client) Messagef(target, format string, a ...interface{}) {
-	c.Message(target, fmt.Sprintf(format, a...))
+func (c *Client) Messagef(target, format string, a ...interface{}) error {
+	return c.Message(target, fmt.Sprintf(format, a...))
 }
 
 // Action sends a PRIVMSG ACTION (/me) to target (either channel,
 // service, or user).
-func (c *Client) Action(target, message string) {
-	c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: fmt.Sprintf("\001ACTION %s\001", message)})
+func (c *Client) Action(target, message string) error {
+	return c.Send(&Event{
+		Command:  PRIVMSG,
+		Params:   []string{target},
+		Trailing: fmt.Sprintf("\001ACTION %s\001", message),
+	})
 }
 
 // Actionf sends a formated PRIVMSG ACTION (/me) to target (either
 // channel, service, or user).
-func (c *Client) Actionf(target, format string, a ...interface{}) {
-	c.Action(target, fmt.Sprintf(format, a...))
+func (c *Client) Actionf(target, format string, a ...interface{}) error {
+	return c.Action(target, fmt.Sprintf(format, a...))
 }
 
 // Notice sends a NOTICE to target (either channel, service, or user).
-func (c *Client) Notice(target, message string) {
-	c.Send(&Event{Command: NOTICE, Params: []string{target}, Trailing: message})
+func (c *Client) Notice(target, message string) error {
+	return c.Send(&Event{Command: NOTICE, Params: []string{target}, Trailing: message})
 }
 
 // Noticef sends a formated NOTICE to target (either channel, service, or user).
-func (c *Client) Noticef(target, format string, a ...interface{}) {
-	c.Notice(target, fmt.Sprintf(format, a...))
+func (c *Client) Noticef(target, format string, a ...interface{}) error {
+	return c.Notice(target, fmt.Sprintf(format, a...))
 }
 
 // SendRaw sends a raw string back to the server, without carriage returns or
 // newlines.
-func (c *Client) SendRaw(raw string) {
+func (c *Client) SendRaw(raw string) error {
 	e := ParseEvent(raw)
 	if e == nil {
-		c.log.Printf("invalid event: %q", raw)
-		return
+		return errors.New("invalid event: " + raw)
 	}
 
-	c.Send(e)
+	return c.Send(e)
 }
 
 // SendRawf sends a formated string back to the server, without carriage
 // returns or newlines.
-func (c *Client) SendRawf(format string, a ...interface{}) {
-	c.SendRaw(fmt.Sprintf(format, a...))
+func (c *Client) SendRawf(format string, a ...interface{}) error {
+	return c.SendRaw(fmt.Sprintf(format, a...))
 }
 
 // Whowas sends and waits for a response to a WHOWAS query to the server.
