@@ -106,7 +106,15 @@ var ErrCallbackTimedout = errors.New("callback timed out while waiting for respo
 var ErrNotConnected = errors.New("client is not connected")
 
 // ErrAlreadyConnecting implies that a connection attempt is already happening.
-var ErrAlreadyConnecting = errors.New("a connection attempt is alreayd occurring")
+var ErrAlreadyConnecting = errors.New("a connection attempt is already occurring")
+
+// ErrInvalidTarget should be returned if the target which you are
+// attempting to send an event to is invalid or doesn't match RFC spec.
+type ErrInvalidTarget struct {
+	Target string
+}
+
+func (e *ErrInvalidTarget) Error() string { return "invalid target: " + e.Target }
 
 // New creates a new IRC client with the specified server, name and
 // config.
@@ -402,6 +410,10 @@ func (c *Client) GetNick() string {
 
 // SetNick changes the client nickname.
 func (c *Client) SetNick(name string) error {
+	if !IsValidNick(name) {
+		return &ErrInvalidTarget{Target: name}
+	}
+
 	c.state.m.Lock()
 	defer c.state.m.Unlock()
 
@@ -428,11 +440,19 @@ func (c *Client) GetChannels() map[string]*Channel {
 //
 // Does not update internal state if tracking is disabled.
 func (c *Client) Who(target string) error {
+	if !IsValidNick(target) && !IsValidChannel(target) {
+		return &ErrInvalidTarget{Target: target}
+	}
+
 	return c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhn,1"}})
 }
 
 // Join attempts to enter an IRC channel with an optional password.
 func (c *Client) Join(channel, password string) error {
+	if !IsValidChannel(channel) {
+		return &ErrInvalidTarget{Target: channel}
+	}
+
 	if password != "" {
 		return c.Send(&Event{Command: JOIN, Params: []string{channel, password}})
 	}
@@ -442,6 +462,10 @@ func (c *Client) Join(channel, password string) error {
 
 // Part leaves an IRC channel with an optional leave message.
 func (c *Client) Part(channel, message string) error {
+	if !IsValidChannel(channel) {
+		return &ErrInvalidTarget{Target: channel}
+	}
+
 	if message != "" {
 		return c.Send(&Event{Command: JOIN, Params: []string{channel}, Trailing: message})
 	}
@@ -452,6 +476,10 @@ func (c *Client) Part(channel, message string) error {
 // Message sends a PRIVMSG to target (either channel, service, or
 // user).
 func (c *Client) Message(target, message string) error {
+	if !IsValidNick(target) && !IsValidChannel(target) {
+		return &ErrInvalidTarget{Target: target}
+	}
+
 	return c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: message})
 }
 
@@ -464,6 +492,10 @@ func (c *Client) Messagef(target, format string, a ...interface{}) error {
 // Action sends a PRIVMSG ACTION (/me) to target (either channel,
 // service, or user).
 func (c *Client) Action(target, message string) error {
+	if !IsValidNick(target) && !IsValidChannel(target) {
+		return &ErrInvalidTarget{Target: target}
+	}
+
 	return c.Send(&Event{
 		Command:  PRIVMSG,
 		Params:   []string{target},
@@ -479,6 +511,10 @@ func (c *Client) Actionf(target, format string, a ...interface{}) error {
 
 // Notice sends a NOTICE to target (either channel, service, or user).
 func (c *Client) Notice(target, message string) error {
+	if !IsValidNick(target) && !IsValidChannel(target) {
+		return &ErrInvalidTarget{Target: target}
+	}
+
 	return c.Send(&Event{Command: NOTICE, Params: []string{target}, Trailing: message})
 }
 
@@ -507,6 +543,10 @@ func (c *Client) SendRawf(format string, a ...interface{}) error {
 // Whowas sends and waits for a response to a WHOWAS query to the server.
 // Returns the list of users form the WHOWAS query.
 func (c *Client) Whowas(nick string) ([]*User, error) {
+	if !IsValidNick(nick) {
+		return nil, &ErrInvalidTarget{Target: nick}
+	}
+
 	var mu sync.Mutex
 	var events []*Event
 	whoDone := make(chan struct{})
