@@ -29,13 +29,13 @@ func main() {
 
 	client := girc.New(conf)
 
-	client.AddCallback(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
+	client.Callbacks.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
 		for _, ircchan := range channels {
 			c.Join(ircchan, "")
 		}
 	})
 
-	client.AddCallback(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
+	client.Callbacks.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
 		if strings.HasPrefix(e.Trailing, "!stop") {
 			c.Message(e.Params[0], "hello world!")
 			return
@@ -62,7 +62,7 @@ func main() {
 	// Everything after this line is just for fancy prompt stuff. Not needed.
 	reader := bufio.NewReader(os.Stdin)
 
-	client.AddCallback(girc.ALLEVENTS, func(c *girc.Client, e girc.Event) {
+	client.Callbacks.Add(girc.ALLEVENTS, func(c *girc.Client, e girc.Event) {
 		fmt.Print("\r>> ")
 	})
 

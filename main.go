@@ -40,12 +40,8 @@ type Client struct {
 	// initTime represents the creation time of the client.
 	initTime time.Time
 
-	// cbLock is the internal locking mechanism for the callbacks map.
-	cbMux sync.Mutex
-	// callbacks is an internal mapping of COMMAND -> callback.
-	callbacks map[string][]Callback
-	// internalCallbacks is a list of callbacks used internally.
-	internalCallbacks []string
+	// Callbacks is a handler which manages internal and external callbacks.
+	Callbacks *Caller
 
 	// tries represents the internal reconnect count to the IRC server.
 	tries int
@@ -132,7 +128,7 @@ func New(config Config) *Client {
 		Config:    config,
 		Events:    make(chan *Event, 100), // buffer 100 events
 		quitChan:  make(chan struct{}),
-		callbacks: make(map[string][]Callback),
+		Callbacks: newCaller(),
 		initTime:  time.Now(),
 	}
 
@@ -317,10 +313,8 @@ func (c *Client) Reconnect() (err error) {
 		return ErrAlreadyConnecting
 	}
 
+	// Doesn't need to be set to false because a connect should reset it.
 	c.state.reconnecting = true
-	defer func() {
-		c.state.reconnecting = false
-	}()
 
 	if c.state.hasQuit {
 		return nil
@@ -342,11 +336,8 @@ func (c *Client) Reconnect() (err error) {
 		c.log.Printf("reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
 		time.Sleep(c.Config.ReconnectDelay)
 
-		// Re-setup events. Do this after we've slept (giving callbacks
-		// enough time to finish their tasks.)
-		c.Events = make(chan *Event, 100)
-
 		for err = c.Connect(); err != nil && c.tries < c.Config.MaxRetries; c.tries++ {
+			c.state.reconnecting = true
 			c.log.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
 			time.Sleep(c.Config.ReconnectDelay)
 		}
@@ -367,6 +358,14 @@ func (c *Client) Reconnect() (err error) {
 // IRC server. If there is an error, it calls Reconnect.
 func (c *Client) readLoop() error {
 	for {
+		if c.state == nil {
+			return ErrNotConnected
+		}
+
+		if c.state.reconnecting || c.state.hasQuit {
+			return ErrNotConnected
+		}
+
 		c.state.conn.SetDeadline(time.Now().Add(300 * time.Second))
 		event, err := c.state.reader.Decode()
 		if err != nil {
@@ -598,7 +597,7 @@ func (c *Client) Whowas(nick string) ([]*User, error) {
 
 	// One callback needs to be added to collect the WHOWAS lines.
 	// <nick> <user> <host> * :<real_name>
-	whoCb := c.AddBgCallback(RPL_WHOWASUSER, func(c *Client, e Event) {
+	whoCb := c.Callbacks.AddBg(RPL_WHOWASUSER, func(c *Client, e Event) {
 		if len(e.Params) != 5 {
 			return
 		}
@@ -616,7 +615,7 @@ func (c *Client) Whowas(nick string) ([]*User, error) {
 	// One more callback needs to be added to let us know when WHOWAS has
 	// finished.
 	// 	<nick> :<info>
-	whoDoneCb := c.AddBgCallback(RPL_ENDOFWHOWAS, func(c *Client, e Event) {
+	whoDoneCb := c.Callbacks.AddBg(RPL_ENDOFWHOWAS, func(c *Client, e Event) {
 		if len(e.Params) != 2 {
 			return
 		}
@@ -640,8 +639,8 @@ func (c *Client) Whowas(nick string) ([]*User, error) {
 		close(whoDone)
 	case <-time.After(time.Second * 2):
 		// Remove callbacks and return. Took too long.
-		c.RemoveCallback(whoCb)
-		c.RemoveCallback(whoDoneCb)
+		c.Callbacks.Remove(whoCb)
+		c.Callbacks.Remove(whoDoneCb)
 
 		return nil, &ErrCallbackTimedout{
 			ID:      whoCb + " + " + whoDoneCb,
@@ -651,8 +650,8 @@ func (c *Client) Whowas(nick string) ([]*User, error) {
 
 	// Remove the temporary callbacks to ensure that nothing else is
 	// received.
-	c.RemoveCallback(whoCb)
-	c.RemoveCallback(whoDoneCb)
+	c.Callbacks.Remove(whoCb)
+	c.Callbacks.Remove(whoDoneCb)
 
 	var users []*User
 

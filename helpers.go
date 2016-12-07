@@ -9,30 +9,28 @@ import "time"
 // registerHelpers sets up built-in callbacks/helpers, based on client
 // configuration.
 func (c *Client) registerHelpers() {
-	c.callbacks = make(map[string][]Callback)
-
 	// Built-in things that should always be supported.
-	c.trackIntCallback(c.AddBgCallback(SUCCESS, handleConnect))
-	c.trackIntCallback(c.AddCallback(PING, handlePING))
+	c.Callbacks.register(true, "routine", SUCCESS, CallbackFunc(handleConnect))
+	c.Callbacks.register(true, "std", PING, CallbackFunc(handlePING))
 
 	if !c.Config.DisableTracking {
 		// Joins/parts/anything that may add/remove/rename users.
-		c.trackIntCallback(c.AddCallback(JOIN, handleJOIN))
-		c.trackIntCallback(c.AddCallback(PART, handlePART))
-		c.trackIntCallback(c.AddCallback(KICK, handleKICK))
-		c.trackIntCallback(c.AddCallback(QUIT, handleQUIT))
-		c.trackIntCallback(c.AddCallback(NICK, handleNICK))
+		c.Callbacks.register(true, "std", JOIN, CallbackFunc(handleJOIN))
+		c.Callbacks.register(true, "std", PART, CallbackFunc(handlePART))
+		c.Callbacks.register(true, "std", KICK, CallbackFunc(handleKICK))
+		c.Callbacks.register(true, "std", QUIT, CallbackFunc(handleQUIT))
+		c.Callbacks.register(true, "std", NICK, CallbackFunc(handleNICK))
 
 		// WHO/WHOX responses.
-		c.trackIntCallback(c.AddCallback(RPL_WHOREPLY, handleWHO))
-		c.trackIntCallback(c.AddCallback(RPL_WHOSPCRPL, handleWHO))
+		c.Callbacks.register(true, "std", RPL_WHOREPLY, CallbackFunc(handleWHO))
+		c.Callbacks.register(true, "std", RPL_WHOSPCRPL, CallbackFunc(handleWHO))
 	}
 
 	// Nickname collisions.
 	if !c.Config.DisableNickCollision {
-		c.trackIntCallback(c.AddCallback(ERR_NICKNAMEINUSE, nickCollisionHandler))
-		c.trackIntCallback(c.AddCallback(ERR_NICKCOLLISION, nickCollisionHandler))
-		c.trackIntCallback(c.AddCallback(ERR_UNAVAILRESOURCE, nickCollisionHandler))
+		c.Callbacks.register(true, "std", ERR_NICKNAMEINUSE, CallbackFunc(nickCollisionHandler))
+		c.Callbacks.register(true, "std", ERR_NICKCOLLISION, CallbackFunc(nickCollisionHandler))
+		c.Callbacks.register(true, "std", ERR_UNAVAILRESOURCE, CallbackFunc(nickCollisionHandler))
 	}
 }
 

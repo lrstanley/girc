@@ -27,13 +27,13 @@ func main() {
 
 	client := girc.New(conf)
 
-	client.AddCallback(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
+	client.Callbacks.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
 		for _, ircchan := range channels {
 			c.Join(ircchan, "")
 		}
 	})
 
-	client.AddCallback(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
+	client.Callbacks.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
 		if strings.HasPrefix(e.Trailing, "!hello") {
 			c.Message(e.Params[0], "hello world!")
 			return
