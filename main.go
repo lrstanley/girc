@@ -112,7 +112,7 @@ func (e *ErrCallbackTimedout) Error() string {
 
 // ErrNotConnected is returned if a method is used when the client isn't
 // connected.
-var ErrNotConnected = errors.New("client is not connected")
+var ErrNotConnected = errors.New("client is not connected to server")
 
 // ErrAlreadyConnecting implies that a connection attempt is already happening.
 var ErrAlreadyConnecting = errors.New("a connection attempt is already occurring")
