@@ -99,7 +99,16 @@ type Config struct {
 }
 
 // ErrCallbackTimedout is used when we need to wait for temporary callbacks.
-var ErrCallbackTimedout = errors.New("callback timed out while waiting for response from the server")
+type ErrCallbackTimedout struct {
+	// ID is the identified of the callback in the callback stack.
+	ID string
+	// Timeout is the time that past before the callback timed out.
+	Timeout time.Duration
+}
+
+func (e *ErrCallbackTimedout) Error() string {
+	return "callback [" + e.ID + "] timed out while waiting for response from the server"
+}
 
 // ErrNotConnected is returned if a method is used when the client isn't
 // connected.
@@ -598,7 +607,10 @@ func (c *Client) Whowas(nick string) ([]*User, error) {
 		c.RemoveCallback(whoCb)
 		c.RemoveCallback(whoDoneCb)
 
-		return nil, ErrCallbackTimedout
+		return nil, &ErrCallbackTimedout{
+			ID:      whoCb + " + " + whoDoneCb,
+			Timeout: time.Second * 2,
+		}
 	}
 
 	// Remove the temporary callbacks to ensure that nothing else is
