@@ -1,12 +1,12 @@
 ## girc is a flexible IRC library for Go
 
-[![Build Status](https://travis-ci.org/Liamraystanley/girc.svg?branch=master)](https://travis-ci.org/Liamraystanley/girc)
-[![GoDoc](https://godoc.org/github.com/Liamraystanley/girc?status.png)](https://godoc.org/github.com/Liamraystanley/girc)
+[![Build Status](https://travis-ci.org/lrstanley/girc.svg?branch=master)](https://travis-ci.org/lrstanley/girc)
+[![GoDoc](https://godoc.org/github.com/lrstanley/girc?status.png)](https://godoc.org/github.com/lrstanley/girc)
 [![codebeat badge](https://codebeat.co/badges/67d01d61-d5e9-4854-ae22-0ac262dd7690)](https://codebeat.co/projects/github-com-liamraystanley-girc)
-[![Go Report Card](https://goreportcard.com/badge/github.com/Liamraystanley/girc)](https://goreportcard.com/report/github.com/Liamraystanley/girc)
+[![Go Report Card](https://goreportcard.com/badge/github.com/lrstanley/girc)](https://goreportcard.com/report/github.com/lrstanley/girc)
 [![IRC Chat](https://img.shields.io/badge/ByteIRC-%23L-blue.svg)](http://byteirc.org/channel/L)
-[![GitHub Issues](https://img.shields.io/github/issues/Liamraystanley/girc.svg)](https://github.com/Liamraystanley/girc/issues)
-[![license](https://img.shields.io/github/license/Liamraystanley/girc.svg)](https://raw.githubusercontent.com/Liamraystanley/girc/master/LICENSE)
+[![GitHub Issues](https://img.shields.io/github/issues/lrstanley/girc.svg)](https://github.com/lrstanley/girc/issues)
+[![license](https://img.shields.io/github/license/lrstanley/girc.svg)](https://raw.githubusercontent.com/lrstanley/girc/master/LICENSE)
 
 ## Features
 
@@ -20,7 +20,7 @@
 
 - [ ] move callbacks to a more flexible storage system (e.g. maps over slices)
   - [ ] more unique ID's as well ("map-prefix:uid"?)
-- [ ] would be cool to track things like `SERVERNAME`, `VERSION`, `UMODES`, `CMODES`, etc. also see `Config.DisableCapTracking`. [e.g. here](https://github.com/Liamraystanley/Code/blob/master/core/triggers.py#L40-L67)
+- [ ] would be cool to track things like `SERVERNAME`, `VERSION`, `UMODES`, `CMODES`, etc. also see `Config.DisableCapTracking`. [e.g. here](https://github.com/lrstanley/Code/blob/master/core/triggers.py#L40-L67)
 - [ ] client should support ping tracking (sending `PING`'s to the server)
   - [ ] with this, we can potentially find lag. `Client.Lag()` would be useful
 - [ ] users need to be exposed in state somehow (other than `GetChannels()`)
@@ -32,11 +32,11 @@
 
 ## Installing
 
-    $ go get -u github.com/Liamraystanley/girc
+    $ go get -u github.com/lrstanley/girc
 
 ## Examples
 
-See [girc/examples/](https://github.com/Liamraystanley/girc/tree/master/examples) for some examples.
+See [girc/examples/](https://github.com/lrstanley/girc/tree/master/examples) for some examples.
 
 ## Contributing
 

@@ -12,7 +12,7 @@ import (
 
 	"os"
 
-	"github.com/Liamraystanley/girc"
+	"github.com/lrstanley/girc"
 )
 
 func main() {
