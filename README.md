@@ -18,7 +18,6 @@
 
 ## TODO
 
-- [ ] should we not allow methods like `Action()` and `SendRaw()` when not connected?
 - [ ] would be cool to track things like `SERVERNAME`, `VERSION`, `UMODES`, `CMODES`, etc. also see `Config.DisableCapTracking`. [e.g. here](https://github.com/Liamraystanley/Code/blob/master/core/triggers.py#L40-L67)
 - [ ] client should support ping tracking (sending `PING`'s to the server)
   - [ ] with this, we can potentially find lag. `Client.Lag()` would be useful
