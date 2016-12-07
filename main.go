@@ -107,7 +107,7 @@ type ErrCallbackTimedout struct {
 }
 
 func (e *ErrCallbackTimedout) Error() string {
-	return "callback [" + e.ID + "] timed out while waiting for response from the server"
+	return "callback [" + e.ID + "] timed out while waiting for response from the server: " + e.Timeout.String()
 }
 
 // ErrNotConnected is returned if a method is used when the client isn't
@@ -419,6 +419,10 @@ func (c *Client) GetNick() string {
 
 // SetNick changes the client nickname.
 func (c *Client) SetNick(name string) error {
+	if !c.state.connected {
+		return ErrNotConnected
+	}
+
 	if !IsValidNick(name) {
 		return &ErrInvalidTarget{Target: name}
 	}
@@ -453,6 +457,10 @@ func (c *Client) Who(target string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
+	if !c.state.connected {
+		return ErrNotConnected
+	}
+
 	return c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhn,1"}})
 }
 
@@ -460,6 +468,10 @@ func (c *Client) Who(target string) error {
 func (c *Client) Join(channel, password string) error {
 	if !IsValidChannel(channel) {
 		return &ErrInvalidTarget{Target: channel}
+	}
+
+	if !c.state.connected {
+		return ErrNotConnected
 	}
 
 	if password != "" {
@@ -473,6 +485,10 @@ func (c *Client) Join(channel, password string) error {
 func (c *Client) Part(channel, message string) error {
 	if !IsValidChannel(channel) {
 		return &ErrInvalidTarget{Target: channel}
+	}
+
+	if !c.state.connected {
+		return ErrNotConnected
 	}
 
 	if message != "" {
@@ -489,6 +505,10 @@ func (c *Client) Message(target, message string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
+	if !c.state.connected {
+		return ErrNotConnected
+	}
+
 	return c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: message})
 }
 
@@ -503,6 +523,10 @@ func (c *Client) Messagef(target, format string, a ...interface{}) error {
 func (c *Client) Action(target, message string) error {
 	if !IsValidNick(target) && !IsValidChannel(target) {
 		return &ErrInvalidTarget{Target: target}
+	}
+
+	if !c.state.connected {
+		return ErrNotConnected
 	}
 
 	return c.Send(&Event{
@@ -524,6 +548,10 @@ func (c *Client) Notice(target, message string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
+	if !c.state.connected {
+		return ErrNotConnected
+	}
+
 	return c.Send(&Event{Command: NOTICE, Params: []string{target}, Trailing: message})
 }
 
@@ -540,6 +568,10 @@ func (c *Client) SendRaw(raw string) error {
 		return errors.New("invalid event: " + raw)
 	}
 
+	if !c.state.connected {
+		return ErrNotConnected
+	}
+
 	return c.Send(e)
 }
 
@@ -554,6 +586,10 @@ func (c *Client) SendRawf(format string, a ...interface{}) error {
 func (c *Client) Whowas(nick string) ([]*User, error) {
 	if !IsValidNick(nick) {
 		return nil, &ErrInvalidTarget{Target: nick}
+	}
+
+	if !c.state.connected {
+		return nil, ErrNotConnected
 	}
 
 	var mu sync.Mutex
