@@ -18,6 +18,7 @@
 
 ## TODO
 
+- [ ] write more function-specific examples as the api becomes much more stable
 - [ ] would be cool to track things like `SERVERNAME`, `VERSION`, `UMODES`, `CMODES`, etc. also see `Config.DisableCapTracking`. [e.g. here](https://github.com/lrstanley/Code/blob/master/core/triggers.py#L40-L67)
 - [ ] client should support ping tracking (sending `PING`'s to the server)
   - [ ] with this, we can potentially find lag. `Client.Lag()` would be useful
