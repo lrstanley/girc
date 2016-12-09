@@ -66,14 +66,32 @@ func newCaller() *Caller {
 	return c
 }
 
-// Len returns the total amount of user-entered callbacks.
+// Len returns the total amount of user-entered registered callbacks.
 func (c *Caller) Len() int {
 	var total int
 
 	c.mu.RLock()
 	for ctype := range c.external {
-		for cmd := range c.external[ctype] {
-			total += len(c.external[ctype][cmd])
+		for command := range c.external[ctype] {
+			total += len(c.external[ctype][command])
+		}
+	}
+	c.mu.RUnlock()
+
+	return total
+}
+
+// Count is much like Caller.Len(), however it counts the number of
+// registered callbacks for a given command.
+func (c *Caller) Count(cmd string) int {
+	var total int
+
+	c.mu.RLock()
+	for ctype := range c.external {
+		for command := range c.external[ctype] {
+			if command == cmd {
+				total += len(c.external[ctype][command])
+			}
 		}
 	}
 	c.mu.RUnlock()
