@@ -42,7 +42,9 @@ func (f CallbackFunc) Execute(c *Client, e Event) {
 // Caller manages internal and external (user facing) callbacks.
 //
 // external/internal keys are of structure:
-//   map[CALLBACK_TYPE][COMMAND/EVENT][CUID]Callback
+//   map[CALLBACK_TYPE][COMMAND][CUID]Callback
+//
+// Also of note: "COMMAND" should always be uppercase for normalization.
 type Caller struct {
 	// mu is the mutex that should be used when accessing callbacks.
 	mu sync.RWMutex
@@ -85,6 +87,8 @@ func (c *Caller) Len() int {
 // registered callbacks for a given command.
 func (c *Caller) Count(cmd string) int {
 	var total int
+
+	cmd = strings.ToUpper(cmd)
 
 	c.mu.RLock()
 	for ctype := range c.external {
@@ -193,6 +197,8 @@ func (c *Caller) ClearAll() {
 // Clear clears all of the callbacks for the given event.
 // This ignores internal callbacks.
 func (c *Caller) Clear(cmd string) {
+	cmd = strings.ToUpper(cmd)
+
 	c.mu.Lock()
 	for ctype := range c.external {
 		if _, ok := c.external[ctype][cmd]; ok {
@@ -239,6 +245,8 @@ func (c *Caller) Remove(cuid string) (success bool) {
 
 func (c *Caller) register(internal bool, ctype, cmd string, callback Callback) (cuid string) {
 	var uid string
+
+	cmd = strings.ToUpper(cmd)
 
 	c.mu.Lock()
 	if internal {
