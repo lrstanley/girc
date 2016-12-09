@@ -186,24 +186,39 @@ func (c *Caller) Clear(cmd string) {
 	c.mu.Unlock()
 }
 
-// Remove removes the callback with cuid from the callback stack.
-func (c *Caller) Remove(cuid string) {
+// Remove removes the callback with cuid from the callback stack. success
+// indicates that it existed, and has been removed. If not success, it
+// wasn't a registered callback.
+func (c *Caller) Remove(cuid string) (success bool) {
 	ctype, cmd, uid := c.cuidToID(cuid)
 	if len(ctype) == 0 || len(cmd) == 0 || len(uid) == 0 {
-		return
+		return false
 	}
 
 	c.mu.Lock()
+	// Check if the callback type exists.
 	if _, ok := c.external[ctype]; !ok {
-		return
+		c.mu.Unlock()
+		return false
 	}
 
+	// Check if the irc command/event has any callbacks on it.
 	if _, ok := c.external[ctype][cmd]; !ok {
-		return
+		c.mu.Unlock()
+		return false
+	}
+
+	// Check to see if it's actually a registered callback.
+	if _, ok := c.external[ctype][cmd][cuid]; !ok {
+		c.mu.Unlock()
+		return false
 	}
 
 	delete(c.external[ctype][cmd], uid)
 	c.mu.Unlock()
+
+	// Assume success.
+	return true
 }
 
 func (c *Caller) register(internal bool, ctype, cmd string, callback Callback) (cuid string) {
@@ -241,24 +256,28 @@ func (c *Caller) register(internal bool, ctype, cmd string, callback Callback) (
 }
 
 // AddHandler registers a callback (matching the Callback interface) for the
-// given event.
+// given event. cuid is the callback uid which can be used to remove the
+// callback with Caller.Remove().
 func (c *Caller) AddHandler(cmd string, callback Callback) (cuid string) {
 	return c.register(false, "std", cmd, callback)
 }
 
 // AddBgHandler registers a callback (matching the Callback interface) for
-// the given event and executes it in a go-routine.
+// the given event and executes it in a go-routine. cuid is the callback uid
+// which can be used to remove the callback with Caller.Remove().
 func (c *Caller) AddBgHandler(cmd string, callback Callback) (cuid string) {
 	return c.register(false, "routine", cmd, callback)
 }
 
-// Add registers the callback function for the given event.
-func (c *Caller) Add(cmd string, callback func(c *Client, e Event)) (id string) {
+// Add registers the callback function for the given event. cuid is the
+// callback uid which can be used to remove the callback with Caller.Remove().
+func (c *Caller) Add(cmd string, callback func(c *Client, e Event)) (cuid string) {
 	return c.register(false, "std", cmd, CallbackFunc(callback))
 }
 
-// AddBg registers the callback function for the given event and
-// executes it in a go-routine.
-func (c *Caller) AddBg(cmd string, callback func(c *Client, e Event)) (id string) {
+// AddBg registers the callback function for the given event and executes it
+// in a go-routine. cuid is the callback uid which can be used to remove the
+// callback with Caller.Remove().
+func (c *Caller) AddBg(cmd string, callback func(c *Client, e Event)) (cuid string) {
 	return c.register(false, "routine", cmd, CallbackFunc(callback))
 }
