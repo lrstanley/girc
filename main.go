@@ -137,6 +137,9 @@ func New(config Config) *Client {
 	}
 	client.log = log.New(client.Config.Logger, "", log.Ldate|log.Ltime|log.Lshortfile)
 
+	// Give ourselves a new state.
+	client.state = newState()
+
 	// Register builtin helpers.
 	client.registerHelpers()
 
@@ -152,10 +155,6 @@ func (c *Client) Quit(message string) {
 	}()
 
 	c.Send(&Event{Command: QUIT, Trailing: message})
-
-	if c.state == nil {
-		return
-	}
 
 	if c.state.conn != nil {
 		c.state.conn.Close()
@@ -358,10 +357,6 @@ func (c *Client) Reconnect() (err error) {
 // IRC server. If there is an error, it calls Reconnect.
 func (c *Client) readLoop() error {
 	for {
-		if c.state == nil {
-			return ErrNotConnected
-		}
-
 		if c.state.reconnecting || c.state.hasQuit {
 			return ErrNotConnected
 		}
