@@ -170,9 +170,9 @@ func (c *Client) Stop() {
 	c.quitChan <- struct{}{}
 }
 
-// Uptime returns the amount of time that has passed since the client was
+// Lifetime returns the amount of time that has passed since the client was
 // created.
-func (c *Client) Uptime() time.Duration {
+func (c *Client) Lifetime() time.Duration {
 	return time.Since(c.initTime)
 }
 
@@ -253,9 +253,9 @@ func (c *Client) Connect() error {
 	return nil
 }
 
-// ConnTime is the time at which the client successfully connected to the
+// Uptime is the time at which the client successfully connected to the
 // server.
-func (c *Client) ConnTime() (*time.Time, error) {
+func (c *Client) Uptime() (*time.Time, error) {
 	c.state.m.RLock()
 	defer c.state.m.RUnlock()
 
@@ -454,10 +454,6 @@ func (c *Client) GetChannels() map[string]*Channel {
 func (c *Client) Who(target string) error {
 	if !IsValidNick(target) && !IsValidChannel(target) {
 		return &ErrInvalidTarget{Target: target}
-	}
-
-	if !c.state.connected {
-		return ErrNotConnected
 	}
 
 	return c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhn,1"}})
