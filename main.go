@@ -121,8 +121,7 @@ type ErrInvalidTarget struct {
 
 func (e *ErrInvalidTarget) Error() string { return "invalid target: " + e.Target }
 
-// New creates a new IRC client with the specified server, name and
-// config.
+// New creates a new IRC client with the specified server, name and config.
 func New(config Config) *Client {
 	client := &Client{
 		Config:    config,
@@ -161,8 +160,8 @@ func (c *Client) Quit(message string) {
 	}
 }
 
-// Stop exits the clients main loop. Use Client.Quit() if you want to disconnect
-// the client from the server/connection.
+// Stop exits the clients main loop. Use Client.Quit() if you want to
+// disconnect the client from the server/connection.
 func (c *Client) Stop() {
 	// Send to the quit channel, so if Client.Loop() is being used, this will
 	// return.
@@ -175,13 +174,13 @@ func (c *Client) Lifetime() time.Duration {
 	return time.Since(c.initTime)
 }
 
-// Server returns the string representation of host+port pair for net.Conn
+// Server returns the string representation of host+port pair for net.Conn.
 func (c *Client) Server() string {
 	return fmt.Sprintf("%s:%d", c.Config.Server, c.Config.Port)
 }
 
 // Send sends an event to the server. Use Client.RunCallback() if you are
-// are simply looking to trigger callbacks with an event.
+// simply looking to trigger callbacks with an event.
 func (c *Client) Send(event *Event) error {
 	// log the event
 	if !event.Sensitive {
@@ -393,9 +392,8 @@ func (c *Client) IsConnected() bool {
 	return c.state.connected
 }
 
-// GetNick returns the current nickname of the active connection.
-//
-// Returns empty string if tracking is disabled.
+// GetNick returns the current nickname of the active connection. Returns
+// empty string if tracking is disabled.
 func (c *Client) GetNick() string {
 	if c.Config.DisableTracking {
 		panic("GetNick() used when tracking is disabled")
@@ -429,9 +427,7 @@ func (c *Client) SetNick(name string) error {
 }
 
 // GetChannels returns the active list of channels that the client
-// is in.
-//
-// Returns nil if tracking is disabled.
+// is in. Returns nil if tracking is disabled.
 func (c *Client) GetChannels() map[string]*Channel {
 	if c.Config.DisableTracking {
 		panic("GetChannels() used when tracking is disabled")
@@ -443,9 +439,8 @@ func (c *Client) GetChannels() map[string]*Channel {
 	return c.state.channels
 }
 
-// Who tells the client to update it's channel/user records.
-//
-// Does not update internal state if tracking is disabled.
+// Who tells the client to update it's channel/user records. Does not update
+// internal state if tracking is disabled.
 func (c *Client) Who(target string) error {
 	if !IsValidNick(target) && !IsValidChannel(target) {
 		return &ErrInvalidTarget{Target: target}
@@ -488,8 +483,7 @@ func (c *Client) Part(channel, message string) error {
 	return c.Send(&Event{Command: JOIN, Params: []string{channel}})
 }
 
-// Message sends a PRIVMSG to target (either channel, service, or
-// user).
+// Message sends a PRIVMSG to target (either channel, service, or user).
 func (c *Client) Message(target, message string) error {
 	if !IsValidNick(target) && !IsValidChannel(target) {
 		return &ErrInvalidTarget{Target: target}
@@ -502,14 +496,14 @@ func (c *Client) Message(target, message string) error {
 	return c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: message})
 }
 
-// Messagef sends a formated PRIVMSG to target (either channel,
-// service, or user).
+// Messagef sends a formated PRIVMSG to target (either channel, service, or
+// user).
 func (c *Client) Messagef(target, format string, a ...interface{}) error {
 	return c.Message(target, fmt.Sprintf(format, a...))
 }
 
-// Action sends a PRIVMSG ACTION (/me) to target (either channel,
-// service, or user).
+// Action sends a PRIVMSG ACTION (/me) to target (either channel, service,
+// or user).
 func (c *Client) Action(target, message string) error {
 	if !IsValidNick(target) && !IsValidChannel(target) {
 		return &ErrInvalidTarget{Target: target}
@@ -526,8 +520,8 @@ func (c *Client) Action(target, message string) error {
 	})
 }
 
-// Actionf sends a formated PRIVMSG ACTION (/me) to target (either
-// channel, service, or user).
+// Actionf sends a formated PRIVMSG ACTION (/me) to target (either channel,
+// service, or user).
 func (c *Client) Actionf(target, format string, a ...interface{}) error {
 	return c.Action(target, fmt.Sprintf(format, a...))
 }
@@ -545,13 +539,14 @@ func (c *Client) Notice(target, message string) error {
 	return c.Send(&Event{Command: NOTICE, Params: []string{target}, Trailing: message})
 }
 
-// Noticef sends a formated NOTICE to target (either channel, service, or user).
+// Noticef sends a formated NOTICE to target (either channel, service, or
+// user).
 func (c *Client) Noticef(target, format string, a ...interface{}) error {
 	return c.Notice(target, fmt.Sprintf(format, a...))
 }
 
-// SendRaw sends a raw string back to the server, without carriage returns or
-// newlines.
+// SendRaw sends a raw string back to the server, without carriage returns
+// or newlines.
 func (c *Client) SendRaw(raw string) error {
 	e := ParseEvent(raw)
 	if e == nil {
