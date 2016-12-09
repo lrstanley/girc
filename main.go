@@ -253,30 +253,30 @@ func (c *Client) Connect() error {
 
 // Uptime is the time at which the client successfully connected to the
 // server.
-func (c *Client) Uptime() (*time.Time, error) {
-	c.state.m.RLock()
-	defer c.state.m.RUnlock()
-
-	if !c.state.connected {
+func (c *Client) Uptime() (up *time.Time, err error) {
+	if !c.IsConnected() {
 		return nil, ErrNotConnected
 	}
 
-	return c.state.connTime, nil
+	c.state.m.RLock()
+	up = c.state.connTime
+	c.state.m.RUnlock()
+
+	return up, nil
 }
 
 // ConnSince is the duration that has past since the client successfully
 // connected to the server.
-func (c *Client) ConnSince() (*time.Duration, error) {
-	c.state.m.RLock()
-	defer c.state.m.RUnlock()
-
-	if !c.state.connected {
+func (c *Client) ConnSince() (since *time.Duration, err error) {
+	if !c.IsConnected() {
 		return nil, ErrNotConnected
 	}
 
-	since := time.Since(*c.state.connTime)
+	c.state.m.RLock()
+	timeSince := time.Since(*c.state.connTime)
+	c.state.m.RUnlock()
 
-	return &since, nil
+	return &timeSince, nil
 }
 
 // connectMessages is a list of IRC messages to send when attempting to
@@ -322,7 +322,7 @@ func (c *Client) Reconnect() (err error) {
 		c.Config.ReconnectDelay = 10 * time.Second
 	}
 
-	if c.state.connected {
+	if c.IsConnected() {
 		c.Quit("reconnecting...")
 	}
 
@@ -385,33 +385,35 @@ func (c *Client) Loop() {
 }
 
 // IsConnected returns true if the client is connected to the server.
-func (c *Client) IsConnected() bool {
+func (c *Client) IsConnected() (connected bool) {
 	c.state.m.RLock()
-	defer c.state.m.RUnlock()
+	connected = c.state.connected
+	c.state.m.RUnlock()
 
-	return c.state.connected
+	return connected
 }
 
 // GetNick returns the current nickname of the active connection. Returns
 // empty string if tracking is disabled.
-func (c *Client) GetNick() string {
+func (c *Client) GetNick() (nick string) {
 	if c.Config.DisableTracking {
 		panic("GetNick() used when tracking is disabled")
 	}
 
 	c.state.m.RLock()
-	defer c.state.m.RUnlock()
-
 	if c.state.nick == "" {
-		return c.Config.Nick
+		nick = c.Config.Nick
+	} else {
+		nick = c.state.nick
 	}
+	c.state.m.RUnlock()
 
-	return c.state.nick
+	return nick
 }
 
 // SetNick changes the client nickname.
 func (c *Client) SetNick(name string) error {
-	if !c.state.connected {
+	if !c.IsConnected() {
 		return ErrNotConnected
 	}
 
@@ -420,10 +422,11 @@ func (c *Client) SetNick(name string) error {
 	}
 
 	c.state.m.Lock()
-	defer c.state.m.Unlock()
-
 	c.state.nick = name
-	return c.Send(&Event{Command: NICK, Params: []string{name}})
+	err := c.Send(&Event{Command: NICK, Params: []string{name}})
+	c.state.m.Unlock()
+
+	return err
 }
 
 // GetChannels returns the active list of channels that the client
@@ -455,7 +458,7 @@ func (c *Client) Join(channel, password string) error {
 		return &ErrInvalidTarget{Target: channel}
 	}
 
-	if !c.state.connected {
+	if !c.IsConnected() {
 		return ErrNotConnected
 	}
 
@@ -472,7 +475,7 @@ func (c *Client) Part(channel, message string) error {
 		return &ErrInvalidTarget{Target: channel}
 	}
 
-	if !c.state.connected {
+	if !c.IsConnected() {
 		return ErrNotConnected
 	}
 
@@ -489,7 +492,7 @@ func (c *Client) Message(target, message string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
-	if !c.state.connected {
+	if !c.IsConnected() {
 		return ErrNotConnected
 	}
 
@@ -509,7 +512,7 @@ func (c *Client) Action(target, message string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
-	if !c.state.connected {
+	if !c.IsConnected() {
 		return ErrNotConnected
 	}
 
@@ -532,7 +535,7 @@ func (c *Client) Notice(target, message string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
-	if !c.state.connected {
+	if !c.IsConnected() {
 		return ErrNotConnected
 	}
 
@@ -553,7 +556,7 @@ func (c *Client) SendRaw(raw string) error {
 		return errors.New("invalid event: " + raw)
 	}
 
-	if !c.state.connected {
+	if !c.IsConnected() {
 		return ErrNotConnected
 	}
 
@@ -573,7 +576,7 @@ func (c *Client) Whowas(nick string) ([]*User, error) {
 		return nil, &ErrInvalidTarget{Target: nick}
 	}
 
-	if !c.state.connected {
+	if !c.IsConnected() {
 		return nil, ErrNotConnected
 	}
 
