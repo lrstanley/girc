@@ -19,22 +19,22 @@ func TestParseSource(t *testing.T) {
 		wantSrc *Source
 	}{
 		{name: "full", args: args{raw: "nick!user@hostname.com"}, wantSrc: &Source{
-			Name: "nick", User: "user", Host: "hostname.com",
+			Name: "nick", Ident: "user", Host: "hostname.com",
 		}},
 		{name: "special chars", args: args{raw: "^[]nick!~user@test.host---name.com"}, wantSrc: &Source{
-			Name: "^[]nick", User: "~user", Host: "test.host---name.com",
+			Name: "^[]nick", Ident: "~user", Host: "test.host---name.com",
 		}},
 		{name: "short", args: args{raw: "a!b@c"}, wantSrc: &Source{
-			Name: "a", User: "b", Host: "c",
+			Name: "a", Ident: "b", Host: "c",
 		}},
 		{name: "short", args: args{raw: "a!b"}, wantSrc: &Source{
-			Name: "a", User: "b", Host: "",
+			Name: "a", Ident: "b", Host: "",
 		}},
 		{name: "short", args: args{raw: "a@b"}, wantSrc: &Source{
-			Name: "a", User: "", Host: "b",
+			Name: "a", Ident: "", Host: "b",
 		}},
 		{name: "short", args: args{raw: "test"}, wantSrc: &Source{
-			Name: "test", User: "", Host: "",
+			Name: "test", Ident: "", Host: "",
 		}},
 	}
 	for _, tt := range tests {

@@ -20,8 +20,8 @@ const (
 type Source struct {
 	// Name is the nickname, server name, or service name.
 	Name string
-	// User is commonly known as the ident.
-	User string
+	// Ident is commonly known as the "user".
+	Ident string
 	// Host is the hostname or IP address of the user/service. Is not accurate
 	// due to how IRC servers can spoof hostnames.
 	Host string
@@ -37,11 +37,11 @@ func ParseSource(raw string) (src *Source) {
 	switch {
 	case user > 0 && host > user:
 		src.Name = raw[:user]
-		src.User = raw[user+1 : host]
+		src.Ident = raw[user+1 : host]
 		src.Host = raw[host+1:]
 	case user > 0:
 		src.Name = raw[:user]
-		src.User = raw[user+1:]
+		src.Ident = raw[user+1:]
 	case host > 0:
 		src.Name = raw[:host]
 		src.Host = raw[host+1:]
@@ -55,8 +55,8 @@ func ParseSource(raw string) (src *Source) {
 // Len calculates the length of the string representation of prefix
 func (s *Source) Len() (length int) {
 	length = len(s.Name)
-	if len(s.User) > 0 {
-		length = 1 + length + len(s.User)
+	if len(s.Ident) > 0 {
+		length = 1 + length + len(s.Ident)
 	}
 	if len(s.Host) > 0 {
 		length = 1 + length + len(s.Host)
@@ -76,8 +76,8 @@ func (s *Source) Bytes() []byte {
 // String returns a string representation of source.
 func (s *Source) String() (out string) {
 	out = s.Name
-	if len(s.User) > 0 {
-		out = out + string(prefixUser) + s.User
+	if len(s.Ident) > 0 {
+		out = out + string(prefixUser) + s.Ident
 	}
 	if len(s.Host) > 0 {
 		out = out + string(prefixHost) + s.Host
@@ -88,21 +88,21 @@ func (s *Source) String() (out string) {
 
 // IsHostmask returns true if source looks like a user hostmask.
 func (s *Source) IsHostmask() bool {
-	return len(s.User) > 0 && len(s.Host) > 0
+	return len(s.Ident) > 0 && len(s.Host) > 0
 }
 
 // IsServer returns true if this source looks like a server name.
 func (s *Source) IsServer() bool {
-	return len(s.User) <= 0 && len(s.Host) <= 0
+	return len(s.Ident) <= 0 && len(s.Host) <= 0
 }
 
 // writeTo is an utility function to write the source to the bytes.Buffer
 // in Event.String().
 func (s *Source) writeTo(buffer *bytes.Buffer) {
 	buffer.WriteString(s.Name)
-	if len(s.User) > 0 {
+	if len(s.Ident) > 0 {
 		buffer.WriteByte(prefixUser)
-		buffer.WriteString(s.User)
+		buffer.WriteString(s.Ident)
 	}
 	if len(s.Host) > 0 {
 		buffer.WriteByte(prefixHost)
