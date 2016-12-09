@@ -53,8 +53,8 @@ type Caller struct {
 }
 
 // newCaller creates and initializes a new callback handler.
-func newCaller() (c *Caller) {
-	c = &Caller{}
+func newCaller() *Caller {
+	c := &Caller{}
 
 	c.external = map[string]map[string]map[string]Callback{}
 	c.external["routine"] = map[string]map[string]Callback{}
@@ -163,7 +163,6 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 }
 
 // ClearAll clears all external callbacks currently setup within the client.
-//
 // This ignores internal callbacks.
 func (c *Caller) ClearAll() {
 	c.mu.Lock()
@@ -174,7 +173,6 @@ func (c *Caller) ClearAll() {
 }
 
 // Clear clears all of the callbacks for the given event.
-//
 // This ignores internal callbacks.
 func (c *Caller) Clear(cmd string) {
 	c.mu.Lock()
