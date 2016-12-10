@@ -419,17 +419,24 @@ func (c *Client) SetNick(name string) error {
 	return err
 }
 
-// GetChannels returns the active list of channels that the client
-// is in. Returns nil if tracking is disabled.
-func (c *Client) GetChannels() map[string]*Channel {
+// Channels returns the active list of channels that the client is in.
+// Returns nil if tracking is disabled.
+func (c *Client) Channels() []string {
 	if c.Config.DisableTracking {
-		panic("GetChannels() used when tracking is disabled")
+		panic("Channels() used when tracking is disabled")
 	}
 
-	c.state.m.RLock()
-	defer c.state.m.RUnlock()
+	channels := make([]string, len(c.state.channels))
 
-	return c.state.channels
+	c.state.m.RLock()
+	var i int
+	for channel := range c.state.channels {
+		channels[i] = channel
+		i++
+	}
+	c.state.m.RUnlock()
+
+	return channels
 }
 
 // IsInChannel returns true if the client is in channel.
