@@ -18,14 +18,14 @@
 
 ## TODO
 
+- [ ] implement `Who()` which actually returns results
+- [ ] make sure client can easily be garbage collected
 - [ ] write more function-specific examples as the api becomes much more stable
 - [ ] would be cool to track things like `SERVERNAME`, `VERSION`, `UMODES`, `CMODES`, etc. also see `Config.DisableCapTracking`. [e.g. here](https://github.com/lrstanley/Code/blob/master/core/triggers.py#L40-L67)
 - [ ] client should support ping tracking (sending `PING`'s to the server)
   - [ ] with this, we can potentially find lag. `Client.Lag()` would be useful
 - [ ] users need to be exposed in state somehow (other than `GetChannels()`)
 - [ ] `User.Age()`? (`FirstActive()`?) (time since first seen)
-- [ ] add `Client.IsInChannel()`? and/or basic channel list
-- [ ] add `Client.Topic(topic string)`
 - [ ] `MODE` tracking on a per-channel basis
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
 

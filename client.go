@@ -448,16 +448,6 @@ func (c *Client) IsInChannel(channel string) bool {
 	return inChannel
 }
 
-// Who tells the client to update it's channel/user records. Does not update
-// internal state if tracking is disabled.
-func (c *Client) Who(target string) error {
-	if !IsValidNick(target) && !IsValidChannel(target) {
-		return &ErrInvalidTarget{Target: target}
-	}
-
-	return c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhn,1"}})
-}
-
 // Join attempts to enter an IRC channel with an optional password.
 func (c *Client) Join(channel, password string) error {
 	if !IsValidChannel(channel) {

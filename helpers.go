@@ -73,12 +73,12 @@ func handleJOIN(c *Client, e Event) {
 	if e.Source.Name == c.GetNick() {
 		// If it's us, don't just add our user to the list. Run a WHO which
 		// will tell us who exactly is in the channel.
-		c.Who(e.Params[0])
+		c.Send(&Event{Command: WHO, Params: []string{e.Params[0], "%tcuhn,1"}})
 		return
 	}
 
 	// Create the user in state. Only WHO the user, which is more efficient.
-	c.Who(e.Source.Name)
+	c.Send(&Event{Command: WHO, Params: []string{e.Source.Name, "%tcuhn,1"}})
 }
 
 // handlePART ensures that the state is clean of old user and channel entries.
