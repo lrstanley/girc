@@ -35,7 +35,7 @@
 
 ## Examples
 
-See [girc/examples/](https://github.com/lrstanley/girc/tree/master/examples) for some examples.
+See [the examples](https://godoc.org/github.com/lrstanley/girc#example-package) within the documentation for real-world usecases.
 
 ## Contributing
 
