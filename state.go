@@ -16,7 +16,7 @@ import (
 type state struct {
 	// m is a RW mutex lock, used to guard the state from goroutines causing
 	// corruption.
-	m sync.RWMutex
+	mu sync.RWMutex
 
 	// reader is the socket buffer reader from the IRC server.
 	reader *ircDecoder
@@ -66,6 +66,8 @@ type Channel struct {
 	// Name of the channel. Must be rfc compliant. Always represented as
 	// lower-case, to ensure that the channel is only being tracked once.
 	Name string
+	// Topic of the channel.
+	Topic string
 	// users represents the users that we can currently see within the
 	// channel.
 	users map[string]*User
@@ -92,7 +94,7 @@ func (s *state) createChanIfNotExists(channel string) {
 		return
 	}
 
-	s.m.Lock()
+	s.mu.Lock()
 	if _, ok := s.channels[channel]; !ok {
 		s.channels[channel] = &Channel{
 			Name:   channel,
@@ -100,7 +102,7 @@ func (s *state) createChanIfNotExists(channel string) {
 			Joined: time.Now(),
 		}
 	}
-	s.m.Unlock()
+	s.mu.Unlock()
 }
 
 // deleteChannel removes the channel from state, if not already done.
@@ -108,11 +110,11 @@ func (s *state) deleteChannel(channel string) {
 	channel = strings.ToLower(channel)
 	s.createChanIfNotExists(channel)
 
-	s.m.Lock()
+	s.mu.Lock()
 	if _, ok := s.channels[channel]; ok {
 		delete(s.channels, channel)
 	}
-	s.m.Unlock()
+	s.mu.Unlock()
 }
 
 // createUserIfNotExists creates the channel and user in state, if not already
@@ -121,7 +123,7 @@ func (s *state) createUserIfNotExists(channel, nick, ident, host string) {
 	channel = strings.ToLower(channel)
 	s.createChanIfNotExists(channel)
 
-	s.m.Lock()
+	s.mu.Lock()
 	if _, ok := s.channels[channel].users[nick]; !ok {
 		s.channels[channel].users[nick] = &User{
 			Nick:      nick,
@@ -130,12 +132,12 @@ func (s *state) createUserIfNotExists(channel, nick, ident, host string) {
 			FirstSeen: time.Now(),
 		}
 	}
-	s.m.Unlock()
+	s.mu.Unlock()
 }
 
 // deleteUser removes the user from channel state.
 func (s *state) deleteUser(nick string) {
-	s.m.Lock()
+	s.mu.Lock()
 	for k := range s.channels {
 		// Check to see if they're in this channel.
 		if _, ok := s.channels[k].users[nick]; !ok {
@@ -144,13 +146,13 @@ func (s *state) deleteUser(nick string) {
 
 		delete(s.channels[k].users, nick)
 	}
-	s.m.Unlock()
+	s.mu.Unlock()
 }
 
 // renameUser renames the user in state, in all locations where relevant.
 func (s *state) renameUser(from, to string) {
-	s.m.Lock()
-	defer s.m.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	for k := range s.channels {
 		// Check to see if they're in this channel.

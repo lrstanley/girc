@@ -232,11 +232,11 @@ func (c *Client) Connect() error {
 	// Consider the connection a success at this point.
 	c.tries = 0
 
-	c.state.m.Lock()
+	c.state.mu.Lock()
 	ctime := time.Now()
 	c.state.connTime = &ctime
 	c.state.connected = true
-	c.state.m.Unlock()
+	c.state.mu.Unlock()
 
 	return nil
 }
@@ -248,9 +248,9 @@ func (c *Client) Uptime() (up *time.Time, err error) {
 		return nil, ErrNotConnected
 	}
 
-	c.state.m.RLock()
+	c.state.mu.RLock()
 	up = c.state.connTime
-	c.state.m.RUnlock()
+	c.state.mu.RUnlock()
 
 	return up, nil
 }
@@ -262,9 +262,9 @@ func (c *Client) ConnSince() (since *time.Duration, err error) {
 		return nil, ErrNotConnected
 	}
 
-	c.state.m.RLock()
+	c.state.mu.RLock()
 	timeSince := time.Since(*c.state.connTime)
-	c.state.m.RUnlock()
+	c.state.mu.RUnlock()
 
 	return &timeSince, nil
 }
@@ -376,9 +376,9 @@ func (c *Client) Loop() {
 
 // IsConnected returns true if the client is connected to the server.
 func (c *Client) IsConnected() (connected bool) {
-	c.state.m.RLock()
+	c.state.mu.RLock()
 	connected = c.state.connected
-	c.state.m.RUnlock()
+	c.state.mu.RUnlock()
 
 	return connected
 }
@@ -390,13 +390,13 @@ func (c *Client) GetNick() (nick string) {
 		panic("GetNick() used when tracking is disabled")
 	}
 
-	c.state.m.RLock()
+	c.state.mu.RLock()
 	if c.state.nick == "" {
 		nick = c.Config.Nick
 	} else {
 		nick = c.state.nick
 	}
-	c.state.m.RUnlock()
+	c.state.mu.RUnlock()
 
 	return nick
 }
@@ -411,10 +411,10 @@ func (c *Client) Nick(name string) error {
 		return &ErrInvalidTarget{Target: name}
 	}
 
-	c.state.m.Lock()
+	c.state.mu.Lock()
 	c.state.nick = name
 	err := c.Send(&Event{Command: NICK, Params: []string{name}})
-	c.state.m.Unlock()
+	c.state.mu.Unlock()
 
 	return err
 }
@@ -428,22 +428,22 @@ func (c *Client) Channels() []string {
 
 	channels := make([]string, len(c.state.channels))
 
-	c.state.m.RLock()
+	c.state.mu.RLock()
 	var i int
 	for channel := range c.state.channels {
 		channels[i] = channel
 		i++
 	}
-	c.state.m.RUnlock()
+	c.state.mu.RUnlock()
 
 	return channels
 }
 
 // IsInChannel returns true if the client is in channel.
 func (c *Client) IsInChannel(channel string) bool {
-	c.state.m.RLock()
+	c.state.mu.RLock()
 	_, inChannel := c.state.channels[strings.ToLower(channel)]
-	c.state.m.RUnlock()
+	c.state.mu.RUnlock()
 
 	return inChannel
 }
