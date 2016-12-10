@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 )
@@ -429,6 +430,15 @@ func (c *Client) GetChannels() map[string]*Channel {
 	defer c.state.m.RUnlock()
 
 	return c.state.channels
+}
+
+// IsInChannel returns true if the client is in channel.
+func (c *Client) IsInChannel(channel string) bool {
+	c.state.m.RLock()
+	_, inChannel := c.state.channels[strings.ToLower(channel)]
+	c.state.m.RUnlock()
+
+	return inChannel
 }
 
 // Who tells the client to update it's channel/user records. Does not update
