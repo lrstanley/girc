@@ -661,3 +661,9 @@ func (c *Client) Whowas(nick string) ([]*User, error) {
 
 	return users, nil
 }
+
+// Topic sets the topic of channel to message. Does not verify the length
+// of the topic.
+func (c *Client) Topic(channel, message string) error {
+	return c.Send(&Event{Command: TOPIC, Params: []string{channel}, Trailing: message})
+}
