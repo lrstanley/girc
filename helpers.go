@@ -54,7 +54,7 @@ func handleConnect(c *Client, e Event) {
 // nickCollisionHandler helps prevent the client from having conflicting
 // nicknames with another bot, user, etc.
 func nickCollisionHandler(c *Client, e Event) {
-	c.SetNick(c.GetNick() + "_")
+	c.Nick(c.GetNick() + "_")
 }
 
 // handlePING helps respond to ping requests from the server.

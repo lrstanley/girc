@@ -401,8 +401,8 @@ func (c *Client) GetNick() (nick string) {
 	return nick
 }
 
-// SetNick changes the client nickname.
-func (c *Client) SetNick(name string) error {
+// Nick changes the client nickname.
+func (c *Client) Nick(name string) error {
 	if !c.IsConnected() {
 		return ErrNotConnected
 	}
