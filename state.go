@@ -86,33 +86,40 @@ func newState() *state {
 }
 
 // createChanIfNotExists creates the channel in state, if not already done.
-func (s *state) createChanIfNotExists(channel string) {
-	channel = strings.ToLower(channel)
-
+func (s *state) createChanIfNotExists(name string) (channel *Channel) {
 	// Not a valid channel.
-	if !IsValidChannel(channel) {
+	if !IsValidChannel(name) {
+		return nil
+	}
+
+	name = strings.ToLower(name)
+
+	s.mu.Lock()
+	if _, ok := s.channels[name]; !ok {
+		channel = &Channel{
+			Name:   name,
+			users:  make(map[string]*User),
+			Joined: time.Now(),
+		}
+		s.channels[name] = channel
+	} else {
+		channel = s.channels[name]
+	}
+	s.mu.Unlock()
+
+	return channel
+}
+
+// deleteChannel removes the channel from state, if not already done.
+func (s *state) deleteChannel(name string) {
+	channel := s.createChanIfNotExists(name)
+	if channel == nil {
 		return
 	}
 
 	s.mu.Lock()
-	if _, ok := s.channels[channel]; !ok {
-		s.channels[channel] = &Channel{
-			Name:   channel,
-			users:  make(map[string]*User),
-			Joined: time.Now(),
-		}
-	}
-	s.mu.Unlock()
-}
-
-// deleteChannel removes the channel from state, if not already done.
-func (s *state) deleteChannel(channel string) {
-	channel = strings.ToLower(channel)
-	s.createChanIfNotExists(channel)
-
-	s.mu.Lock()
-	if _, ok := s.channels[channel]; ok {
-		delete(s.channels, channel)
+	if _, ok := s.channels[channel.Name]; ok {
+		delete(s.channels, channel.Name)
 	}
 	s.mu.Unlock()
 }

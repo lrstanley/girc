@@ -24,6 +24,10 @@ func (c *Client) registerHelpers() {
 		// WHO/WHOX responses.
 		c.Callbacks.register(true, "std", RPL_WHOREPLY, CallbackFunc(handleWHO))
 		c.Callbacks.register(true, "std", RPL_WHOSPCRPL, CallbackFunc(handleWHO))
+
+		// Other misc. useful stuff.
+		c.Callbacks.register(true, "std", TOPIC, CallbackFunc(handleTOPIC))
+		c.Callbacks.register(true, "std", RPL_TOPIC, CallbackFunc(handleTOPIC))
 	}
 
 	// Nickname collisions.
@@ -93,6 +97,27 @@ func handlePART(c *Client, e Event) {
 	}
 
 	c.state.deleteUser(e.Source.Name)
+}
+
+func handleTOPIC(c *Client, e Event) {
+	var name string
+	switch len(e.Params) {
+	case 0:
+		return
+	case 1:
+		name = e.Params[0]
+	default:
+		name = e.Params[len(e.Params)-1]
+	}
+
+	channel := c.state.createChanIfNotExists(name)
+	if channel == nil {
+		return
+	}
+
+	c.state.mu.Lock()
+	channel.Topic = e.Trailing
+	c.state.mu.Unlock()
 }
 
 // handlWHO updates our internal tracking of users/channels with WHO/WHOX
