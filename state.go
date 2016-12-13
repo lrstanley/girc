@@ -29,8 +29,8 @@ type state struct {
 	connected bool
 	// connTime is the time at which the client has connected to a server.
 	connTime *time.Time
-	// hasQuit is used to determine if we've finished quitting/cleaning up.
-	hasQuit bool
+	// quitting is used to determine if we've finished quitting/cleaning up.
+	quitting bool
 	// reconnecting lets the internal state know a reconnect is occurring.
 	reconnecting bool
 	// nick is the tracker for our nickname on the server.

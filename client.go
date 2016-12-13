@@ -37,8 +37,10 @@ type Client struct {
 	tries int
 	// log is used if a writer is supplied for Client.Config.Logger.
 	log *log.Logger
-	// quitChan is used to stop the client loop. See Client.Stop().
+	// quitChan is used to stop the read loop. See Client.Quit().
 	quitChan chan struct{}
+	// stopChan is used to stop the client loop. See Client.Stop().
+	stopChan chan struct{}
 }
 
 // Config contains configuration options for an IRC client
@@ -116,7 +118,8 @@ func New(config Config) *Client {
 	client := &Client{
 		Config:    config,
 		Events:    make(chan *Event, 100), // buffer 100 events
-		quitChan:  make(chan struct{}),
+		quitChan:  make(chan struct{}, 1),
+		stopChan:  make(chan struct{}, 1),
 		Callbacks: newCaller(),
 		initTime:  time.Now(),
 	}
@@ -137,25 +140,27 @@ func New(config Config) *Client {
 
 // Quit disconnects from the server.
 func (c *Client) Quit(message string) {
-	c.state.hasQuit = true
+	c.state.quitting = true
+	c.quitChan <- struct{}{}
 	defer func() {
-		// Unset c.hasQuit, so we can reconnect if we want to.
-		c.state.hasQuit = false
+		// Unset c.quitting, so we can reconnect if we want to.
+		c.state.quitting = false
 	}()
 
 	c.Send(&Event{Command: QUIT, Trailing: message})
 
+	c.state.connected = false
 	if c.state.conn != nil {
 		c.state.conn.Close()
 	}
 }
 
-// Stop exits the clients main loop. Use Client.Quit() if you want to
+// Stop exits the clients main loop. Use Client.Quit() first if you want to
 // disconnect the client from the server/connection.
 func (c *Client) Stop() {
-	// Send to the quit channel, so if Client.Loop() is being used, this will
+	// Send to the stop channel, so if Client.Loop() is being used, this will
 	// return.
-	c.quitChan <- struct{}{}
+	c.stopChan <- struct{}{}
 }
 
 // Lifetime returns the amount of time that has passed since the client was
@@ -304,7 +309,7 @@ func (c *Client) Reconnect() (err error) {
 	// Doesn't need to be set to false because a connect should reset it.
 	c.state.reconnecting = true
 
-	if c.state.hasQuit {
+	if c.state.quitting {
 		return nil
 	}
 
@@ -344,20 +349,23 @@ func (c *Client) Reconnect() (err error) {
 
 // readLoop sets a timeout of 300 seconds, and then attempts to read from the
 // IRC server. If there is an error, it calls Reconnect.
-func (c *Client) readLoop() error {
+func (c *Client) readLoop() {
 	for {
-		if c.state.reconnecting || c.state.hasQuit {
-			return ErrNotConnected
-		}
+		select {
+		case <-c.quitChan:
+			return
+		default:
+			c.state.conn.SetDeadline(time.Now().Add(300 * time.Second))
+			event, err := c.state.reader.Decode()
+			if err != nil {
+				// And attempt a reconnect (if applicable).
+				c.Reconnect()
+				<-c.quitChan
+				return
+			}
 
-		c.state.conn.SetDeadline(time.Now().Add(300 * time.Second))
-		event, err := c.state.reader.Decode()
-		if err != nil {
-			// And attempt a reconnect (if applicable).
-			return c.Reconnect()
+			c.Events <- event
 		}
-
-		c.Events <- event
 	}
 }
 
@@ -368,7 +376,7 @@ func (c *Client) Loop() {
 		select {
 		case event := <-c.Events:
 			c.RunCallbacks(event)
-		case <-c.quitChan:
+		case <-c.stopChan:
 			return
 		}
 	}
