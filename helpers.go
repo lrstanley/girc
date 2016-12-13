@@ -72,7 +72,12 @@ func handleJOIN(c *Client, e Event) {
 		return
 	}
 
-	c.state.createChanIfNotExists(e.Params[0])
+	c.state.mu.Lock()
+	channel := c.state.createChanIfNotExists(e.Params[0])
+	c.state.mu.Unlock()
+	if channel == nil {
+		return // Invalid channel.
+	}
 
 	if e.Source.Name == c.GetNick() {
 		// If it's us, don't just add our user to the list. Run a WHO which
@@ -91,12 +96,15 @@ func handlePART(c *Client, e Event) {
 		return
 	}
 
+	c.state.mu.Lock()
 	if e.Source.Name == c.GetNick() {
 		c.state.deleteChannel(e.Params[0])
+		c.state.mu.Unlock()
 		return
 	}
 
 	c.state.deleteUser(e.Source.Name)
+	c.state.mu.Unlock()
 }
 
 func handleTOPIC(c *Client, e Event) {
@@ -110,12 +118,13 @@ func handleTOPIC(c *Client, e Event) {
 		name = e.Params[len(e.Params)-1]
 	}
 
+	c.state.mu.Lock()
 	channel := c.state.createChanIfNotExists(name)
 	if channel == nil {
+		c.state.mu.Unlock()
 		return
 	}
 
-	c.state.mu.Lock()
 	channel.Topic = e.Trailing
 	c.state.mu.Unlock()
 }
@@ -123,7 +132,7 @@ func handleTOPIC(c *Client, e Event) {
 // handlWHO updates our internal tracking of users/channels with WHO/WHOX
 // information.
 func handleWHO(c *Client, e Event) {
-	var channel, user, host, nick string
+	var channel, ident, host, nick string
 
 	// Assume WHOX related.
 	if e.Command == RPL_WHOSPCRPL {
@@ -139,12 +148,21 @@ func handleWHO(c *Client, e Event) {
 			return
 		}
 
-		channel, user, host, nick = e.Params[2], e.Params[3], e.Params[4], e.Params[5]
+		channel, ident, host, nick = e.Params[2], e.Params[3], e.Params[4], e.Params[5]
 	} else {
-		channel, user, host, nick = e.Params[1], e.Params[2], e.Params[3], e.Params[5]
+		channel, ident, host, nick = e.Params[1], e.Params[2], e.Params[3], e.Params[5]
 	}
 
-	c.state.createUserIfNotExists(channel, nick, user, host)
+	c.state.mu.Lock()
+	user := c.state.createUserIfNotExists(channel, nick)
+	if user == nil {
+		c.state.mu.Unlock()
+		return
+	}
+
+	user.Host = host
+	user.Ident = ident
+	c.state.mu.Unlock()
 }
 
 // handleKICK ensures that users are cleaned up after being kicked from the
@@ -155,13 +173,16 @@ func handleKICK(c *Client, e Event) {
 		return
 	}
 
+	c.state.mu.Lock()
 	if e.Params[1] == c.GetNick() {
 		c.state.deleteChannel(e.Params[0])
+		c.state.mu.Unlock()
 		return
 	}
 
 	// Assume it's just another user.
 	c.state.deleteUser(e.Params[1])
+	c.state.mu.Unlock()
 }
 
 // handleNICK ensures that users are renamed in state, or the client name is
@@ -172,9 +193,13 @@ func handleNICK(c *Client, e Event) {
 		return
 	}
 
+	c.state.mu.Lock()
 	c.state.renameUser(e.Source.Name, e.Params[0])
+	c.state.mu.Unlock()
 }
 
 func handleQUIT(c *Client, e Event) {
+	c.state.mu.Lock()
 	c.state.deleteUser(e.Source.Name)
+	c.state.mu.Unlock()
 }

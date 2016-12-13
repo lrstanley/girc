@@ -86,6 +86,7 @@ func newState() *state {
 }
 
 // createChanIfNotExists creates the channel in state, if not already done.
+// Always use state.mu for transaction.
 func (s *state) createChanIfNotExists(name string) (channel *Channel) {
 	// Not a valid channel.
 	if !IsValidChannel(name) {
@@ -93,8 +94,6 @@ func (s *state) createChanIfNotExists(name string) (channel *Channel) {
 	}
 
 	name = strings.ToLower(name)
-
-	s.mu.Lock()
 	if _, ok := s.channels[name]; !ok {
 		channel = &Channel{
 			Name:   name,
@@ -105,46 +104,52 @@ func (s *state) createChanIfNotExists(name string) (channel *Channel) {
 	} else {
 		channel = s.channels[name]
 	}
-	s.mu.Unlock()
 
 	return channel
 }
 
-// deleteChannel removes the channel from state, if not already done.
+// deleteChannel removes the channel from state, if not already done. Always
+// use state.mu for transaction.
 func (s *state) deleteChannel(name string) {
 	channel := s.createChanIfNotExists(name)
 	if channel == nil {
 		return
 	}
 
-	s.mu.Lock()
 	if _, ok := s.channels[channel.Name]; ok {
 		delete(s.channels, channel.Name)
 	}
-	s.mu.Unlock()
 }
 
 // createUserIfNotExists creates the channel and user in state, if not already
-// done.
-func (s *state) createUserIfNotExists(channel, nick, ident, host string) {
-	channel = strings.ToLower(channel)
-	s.createChanIfNotExists(channel)
-
-	s.mu.Lock()
-	if _, ok := s.channels[channel].users[nick]; !ok {
-		s.channels[channel].users[nick] = &User{
-			Nick:      nick,
-			Ident:     ident,
-			Host:      host,
-			FirstSeen: time.Now(),
-		}
+// done. Always use state.mu for transaction.
+func (s *state) createUserIfNotExists(channelName, nick string) (user *User) {
+	if !IsValidNick(nick) {
+		return nil
 	}
-	s.mu.Unlock()
+
+	channel := s.createChanIfNotExists(channelName)
+	if channel == nil {
+		return nil
+	}
+
+	if _, ok := channel.users[nick]; ok {
+		return channel.users[nick]
+	}
+
+	user = &User{Nick: nick, FirstSeen: time.Now()}
+	channel.users[nick] = user
+
+	return user
 }
 
-// deleteUser removes the user from channel state.
+// deleteUser removes the user from channel state. Always use state.mu for
+// transaction.
 func (s *state) deleteUser(nick string) {
-	s.mu.Lock()
+	if !IsValidNick(nick) {
+		return
+	}
+
 	for k := range s.channels {
 		// Check to see if they're in this channel.
 		if _, ok := s.channels[k].users[nick]; !ok {
@@ -153,13 +158,14 @@ func (s *state) deleteUser(nick string) {
 
 		delete(s.channels[k].users, nick)
 	}
-	s.mu.Unlock()
 }
 
 // renameUser renames the user in state, in all locations where relevant.
+// Always use state.mu for transaction.
 func (s *state) renameUser(from, to string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	if !IsValidNick(from) || !IsValidNick(to) {
+		return
+	}
 
 	for k := range s.channels {
 		// Check to see if they're in this channel.

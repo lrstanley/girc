@@ -18,7 +18,6 @@
 
 ## TODO
 
-- [ ] less potnetial for data races in `state.go`
 - [ ] add JoinKey, re-setup Join args
 - [ ] implement `Who()` which actually returns results
 - [ ] make sure client can easily be garbage collected
