@@ -64,9 +64,7 @@ func Example_commands() {
 	client := girc.New(conf)
 
 	client.Callbacks.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
-		for _, ircchan := range channels {
-			c.Join(ircchan)
-		}
+		c.Join(channels...)
 	})
 
 	client.Callbacks.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
@@ -111,9 +109,7 @@ func Example_prompt() {
 	client := girc.New(conf)
 
 	client.Callbacks.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
-		for _, ircchan := range channels {
-			c.Join(ircchan)
-		}
+		c.Join(channels...)
 	})
 
 	client.Callbacks.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {

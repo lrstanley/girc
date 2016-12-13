@@ -456,17 +456,45 @@ func (c *Client) IsInChannel(channel string) bool {
 	return inChannel
 }
 
-// Join attempts to enter an IRC channel.
-func (c *Client) Join(channel string) error {
-	if !IsValidChannel(channel) {
-		return &ErrInvalidTarget{Target: channel}
-	}
-
+// Join attempts to enter a list of IRC channels. Specify up to
+func (c *Client) Join(channels ...string) error {
 	if !c.IsConnected() {
 		return ErrNotConnected
 	}
 
-	return c.Send(&Event{Command: JOIN, Params: []string{channel}})
+	// We can join multiple channels at once, however we need to ensure that
+	// we are not exceeding the line length. (see maxLength)
+	max := maxLength - len(JOIN) - 1
+
+	var buffer string
+	var err error
+
+	for i := 0; i < len(channels); i++ {
+		if !IsValidChannel(channels[i]) {
+			return &ErrInvalidTarget{Target: channels[i]}
+		}
+
+		if len(buffer+","+channels[i]) > max {
+			err = c.Send(&Event{Command: JOIN, Params: []string{buffer}})
+			if err != nil {
+				return err
+			}
+			buffer = ""
+			continue
+		}
+
+		if len(buffer) == 0 {
+			buffer = channels[i]
+		} else {
+			buffer += "," + channels[i]
+		}
+
+		if i == len(channels)-1 {
+			return c.Send(&Event{Command: JOIN, Params: []string{buffer}})
+		}
+	}
+
+	return nil
 }
 
 // JoinKey attempts to enter an IRC channel with a password.
