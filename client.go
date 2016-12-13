@@ -448,8 +448,8 @@ func (c *Client) IsInChannel(channel string) bool {
 	return inChannel
 }
 
-// Join attempts to enter an IRC channel with an optional password.
-func (c *Client) Join(channel, password string) error {
+// Join attempts to enter an IRC channel.
+func (c *Client) Join(channel string) error {
 	if !IsValidChannel(channel) {
 		return &ErrInvalidTarget{Target: channel}
 	}
@@ -458,14 +458,23 @@ func (c *Client) Join(channel, password string) error {
 		return ErrNotConnected
 	}
 
-	if password != "" {
-		return c.Send(&Event{Command: JOIN, Params: []string{channel, password}})
-	}
-
 	return c.Send(&Event{Command: JOIN, Params: []string{channel}})
 }
 
-// Part leaves an IRC channel with an optional leave message.
+// JoinKey attempts to enter an IRC channel with a password.
+func (c *Client) JoinKey(channel, password string) error {
+	if !IsValidChannel(channel) {
+		return &ErrInvalidTarget{Target: channel}
+	}
+
+	if !c.IsConnected() {
+		return ErrNotConnected
+	}
+
+	return c.Send(&Event{Command: JOIN, Params: []string{channel, password}})
+}
+
+// Part leaves an IRC channel.
 func (c *Client) Part(channel, message string) error {
 	if !IsValidChannel(channel) {
 		return &ErrInvalidTarget{Target: channel}
@@ -475,11 +484,20 @@ func (c *Client) Part(channel, message string) error {
 		return ErrNotConnected
 	}
 
-	if message != "" {
-		return c.Send(&Event{Command: JOIN, Params: []string{channel}, Trailing: message})
+	return c.Send(&Event{Command: JOIN, Params: []string{channel}})
+}
+
+// PartMessage leaves an IRC channel with a specified leave message.
+func (c *Client) PartMessage(channel, message string) error {
+	if !IsValidChannel(channel) {
+		return &ErrInvalidTarget{Target: channel}
 	}
 
-	return c.Send(&Event{Command: JOIN, Params: []string{channel}})
+	if !c.IsConnected() {
+		return ErrNotConnected
+	}
+
+	return c.Send(&Event{Command: JOIN, Params: []string{channel}, Trailing: message})
 }
 
 // Message sends a PRIVMSG to target (either channel, service, or user).

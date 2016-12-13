@@ -18,7 +18,6 @@
 
 ## TODO
 
-- [ ] add JoinKey, re-setup Join args
 - [ ] implement `Who()` which actually returns results
 - [ ] make sure client can easily be garbage collected
 - [ ] ensure types `User` and `Channel` don't have any unexported fields, and that when they are given publically, it's not a pointer to internal state
