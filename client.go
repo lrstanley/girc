@@ -163,28 +163,6 @@ func (c *Client) Stop() {
 	c.stopChan <- struct{}{}
 }
 
-// Lifetime returns the amount of time that has passed since the client was
-// created.
-func (c *Client) Lifetime() time.Duration {
-	return time.Since(c.initTime)
-}
-
-// Server returns the string representation of host+port pair for net.Conn.
-func (c *Client) Server() string {
-	return fmt.Sprintf("%s:%d", c.Config.Server, c.Config.Port)
-}
-
-// Send sends an event to the server. Use Client.RunCallback() if you are
-// simply looking to trigger callbacks with an event.
-func (c *Client) Send(event *Event) error {
-	// log the event
-	if !event.Sensitive {
-		c.log.Print("--> ", event.String())
-	}
-
-	return c.state.writer.Encode(event)
-}
-
 // Connect attempts to connect to the given IRC server
 func (c *Client) Connect() error {
 	var conn net.Conn
@@ -244,34 +222,6 @@ func (c *Client) Connect() error {
 	c.state.mu.Unlock()
 
 	return nil
-}
-
-// Uptime is the time at which the client successfully connected to the
-// server.
-func (c *Client) Uptime() (up *time.Time, err error) {
-	if !c.IsConnected() {
-		return nil, ErrNotConnected
-	}
-
-	c.state.mu.RLock()
-	up = c.state.connTime
-	c.state.mu.RUnlock()
-
-	return up, nil
-}
-
-// ConnSince is the duration that has past since the client successfully
-// connected to the server.
-func (c *Client) ConnSince() (since *time.Duration, err error) {
-	if !c.IsConnected() {
-		return nil, ErrNotConnected
-	}
-
-	c.state.mu.RLock()
-	timeSince := time.Since(*c.state.connTime)
-	c.state.mu.RUnlock()
-
-	return &timeSince, nil
 }
 
 // connectMessages is a list of IRC messages to send when attempting to
@@ -380,6 +330,56 @@ func (c *Client) Loop() {
 			return
 		}
 	}
+}
+
+// Server returns the string representation of host+port pair for net.Conn.
+func (c *Client) Server() string {
+	return fmt.Sprintf("%s:%d", c.Config.Server, c.Config.Port)
+}
+
+// Lifetime returns the amount of time that has passed since the client was
+// created.
+func (c *Client) Lifetime() time.Duration {
+	return time.Since(c.initTime)
+}
+
+// Send sends an event to the server. Use Client.RunCallback() if you are
+// simply looking to trigger callbacks with an event.
+func (c *Client) Send(event *Event) error {
+	// log the event
+	if !event.Sensitive {
+		c.log.Print("--> ", event.String())
+	}
+
+	return c.state.writer.Encode(event)
+}
+
+// Uptime is the time at which the client successfully connected to the
+// server.
+func (c *Client) Uptime() (up *time.Time, err error) {
+	if !c.IsConnected() {
+		return nil, ErrNotConnected
+	}
+
+	c.state.mu.RLock()
+	up = c.state.connTime
+	c.state.mu.RUnlock()
+
+	return up, nil
+}
+
+// ConnSince is the duration that has past since the client successfully
+// connected to the server.
+func (c *Client) ConnSince() (since *time.Duration, err error) {
+	if !c.IsConnected() {
+		return nil, ErrNotConnected
+	}
+
+	c.state.mu.RLock()
+	timeSince := time.Since(*c.state.connTime)
+	c.state.mu.RUnlock()
+
+	return &timeSince, nil
 }
 
 // IsConnected returns true if the client is connected to the server.
