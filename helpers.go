@@ -9,6 +9,8 @@ import "time"
 // registerHelpers sets up built-in callbacks/helpers, based on client
 // configuration.
 func (c *Client) registerHelpers() {
+	c.Callbacks.mu.Lock()
+
 	// Built-in things that should always be supported.
 	c.Callbacks.register(true, "routine", SUCCESS, CallbackFunc(handleConnect))
 	c.Callbacks.register(true, "std", PING, CallbackFunc(handlePING))
@@ -36,6 +38,8 @@ func (c *Client) registerHelpers() {
 		c.Callbacks.register(true, "std", ERR_NICKCOLLISION, CallbackFunc(nickCollisionHandler))
 		c.Callbacks.register(true, "std", ERR_UNAVAILRESOURCE, CallbackFunc(nickCollisionHandler))
 	}
+
+	c.Callbacks.mu.Unlock()
 }
 
 // handleConnect is a helper function which lets the client know that enough
@@ -81,7 +85,7 @@ func handleJOIN(c *Client, e Event) {
 
 	if e.Source.Name == c.GetNick() {
 		// If it's us, don't just add our user to the list. Run a WHO which
-		// will tell us who exactly is in the channel.
+		// will tell us who exactly is in the entire channel.
 		c.Send(&Event{Command: WHO, Params: []string{e.Params[0], "%tcuhn,1"}})
 		return
 	}

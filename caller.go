@@ -149,6 +149,9 @@ func (c *Caller) cuidToID(input string) (ctype, cmd, uid string) {
 // Please note that there is no specific order/priority for which the
 // callback types themselves or the callbacks are executed.
 func (c *Caller) exec(command string, client *Client, event *Event) {
+	var execstack []Callback
+	var routinestack []Callback
+
 	c.mu.RLock()
 	// Execute internal callbacks first.
 	for callbackType := range c.internal {
@@ -159,9 +162,9 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 		for cuid := range c.internal[callbackType][command] {
 			switch callbackType {
 			case "routine":
-				go c.internal[callbackType][command][cuid].Execute(client, *event)
+				routinestack = append(routinestack, c.internal[callbackType][command][cuid])
 			default:
-				c.internal[callbackType][command][cuid].Execute(client, *event)
+				execstack = append(execstack, c.internal[callbackType][command][cuid])
 			}
 		}
 	}
@@ -175,13 +178,21 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 		for cuid := range c.external[callbackType][command] {
 			switch callbackType {
 			case "routine":
-				go c.external[callbackType][command][cuid].Execute(client, *event)
+				routinestack = append(routinestack, c.external[callbackType][command][cuid])
 			default:
-				c.external[callbackType][command][cuid].Execute(client, *event)
+				execstack = append(execstack, c.external[callbackType][command][cuid])
 			}
 		}
 	}
 	c.mu.RUnlock()
+
+	for i := 0; i < len(routinestack); i++ {
+		routinestack[i].Execute(client, *event)
+	}
+
+	for i := 0; i < len(execstack); i++ {
+		execstack[i].Execute(client, *event)
+	}
 }
 
 // ClearAll clears all external callbacks currently setup within the client.
@@ -212,43 +223,59 @@ func (c *Caller) Clear(cmd string) {
 // indicates that it existed, and has been removed. If not success, it
 // wasn't a registered callback.
 func (c *Caller) Remove(cuid string) (success bool) {
+	c.mu.Lock()
+	success = c.remove(cuid)
+	c.mu.Unlock()
+
+	return success
+}
+
+// remove is much like Remove, however is NOT concurrency safe. Lock Caller.mu
+// on your own.
+func (c *Caller) remove(cuid string) (success bool) {
 	ctype, cmd, uid := c.cuidToID(cuid)
 	if len(ctype) == 0 || len(cmd) == 0 || len(uid) == 0 {
 		return false
 	}
 
-	c.mu.Lock()
 	// Check if the callback type exists.
 	if _, ok := c.external[ctype]; !ok {
-		c.mu.Unlock()
 		return false
 	}
 
 	// Check if the irc command/event has any callbacks on it.
 	if _, ok := c.external[ctype][cmd]; !ok {
-		c.mu.Unlock()
 		return false
 	}
 
 	// Check to see if it's actually a registered callback.
 	if _, ok := c.external[ctype][cmd][cuid]; !ok {
-		c.mu.Unlock()
 		return false
 	}
 
 	delete(c.external[ctype][cmd], uid)
-	c.mu.Unlock()
 
 	// Assume success.
 	return true
 }
 
+// sregister is much like Caller.register(), except that it safely locks
+// the Caller mutex.
+func (c *Caller) sregister(internal bool, ctype, cmd string, callback Callback) (cuid string) {
+	c.mu.Lock()
+	cuid = c.register(internal, ctype, cmd, callback)
+	c.mu.Unlock()
+
+	return cuid
+}
+
+// register will register a callback in the internal tracker. Unsafe (you
+// must lock c.mu yourself!)
 func (c *Caller) register(internal bool, ctype, cmd string, callback Callback) (cuid string) {
 	var uid string
 
 	cmd = strings.ToUpper(cmd)
 
-	c.mu.Lock()
 	if internal {
 		if _, ok := c.internal[ctype]; !ok {
 			panic(errors.New("callback type does not exist: " + ctype))
@@ -274,7 +301,6 @@ func (c *Caller) register(internal bool, ctype, cmd string, callback Callback) (
 
 		c.external[ctype][cmd][uid] = callback
 	}
-	c.mu.Unlock()
 
 	return cuid
 }
@@ -283,25 +309,25 @@ func (c *Caller) register(internal bool, ctype, cmd string, callback Callback) (
 // given event. cuid is the callback uid which can be used to remove the
 // callback with Caller.Remove().
 func (c *Caller) AddHandler(cmd string, callback Callback) (cuid string) {
-	return c.register(false, "std", cmd, callback)
+	return c.sregister(false, "std", cmd, callback)
 }
 
 // AddBgHandler registers a callback (matching the Callback interface) for
 // the given event and executes it in a go-routine. cuid is the callback uid
 // which can be used to remove the callback with Caller.Remove().
 func (c *Caller) AddBgHandler(cmd string, callback Callback) (cuid string) {
-	return c.register(false, "routine", cmd, callback)
+	return c.sregister(false, "routine", cmd, callback)
 }
 
 // Add registers the callback function for the given event. cuid is the
 // callback uid which can be used to remove the callback with Caller.Remove().
 func (c *Caller) Add(cmd string, callback func(c *Client, e Event)) (cuid string) {
-	return c.register(false, "std", cmd, CallbackFunc(callback))
+	return c.sregister(false, "std", cmd, CallbackFunc(callback))
 }
 
 // AddBg registers the callback function for the given event and executes it
 // in a go-routine. cuid is the callback uid which can be used to remove the
 // callback with Caller.Remove().
 func (c *Caller) AddBg(cmd string, callback func(c *Client, e Event)) (cuid string) {
-	return c.register(false, "routine", cmd, CallbackFunc(callback))
+	return c.sregister(false, "routine", cmd, CallbackFunc(callback))
 }
