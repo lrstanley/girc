@@ -12,31 +12,33 @@ func (c *Client) registerHelpers() {
 	c.Callbacks.mu.Lock()
 
 	// Built-in things that should always be supported.
-	c.Callbacks.register(true, "routine", SUCCESS, CallbackFunc(handleConnect))
-	c.Callbacks.register(true, "std", PING, CallbackFunc(handlePING))
+	c.Callbacks.register(true, SUCCESS, CallbackFunc(func(c *Client, e Event) {
+		go handleConnect(c, e)
+	}))
+	c.Callbacks.register(true, PING, CallbackFunc(handlePING))
 
 	if !c.Config.DisableTracking {
 		// Joins/parts/anything that may add/remove/rename users.
-		c.Callbacks.register(true, "std", JOIN, CallbackFunc(handleJOIN))
-		c.Callbacks.register(true, "std", PART, CallbackFunc(handlePART))
-		c.Callbacks.register(true, "std", KICK, CallbackFunc(handleKICK))
-		c.Callbacks.register(true, "std", QUIT, CallbackFunc(handleQUIT))
-		c.Callbacks.register(true, "std", NICK, CallbackFunc(handleNICK))
+		c.Callbacks.register(true, JOIN, CallbackFunc(handleJOIN))
+		c.Callbacks.register(true, PART, CallbackFunc(handlePART))
+		c.Callbacks.register(true, KICK, CallbackFunc(handleKICK))
+		c.Callbacks.register(true, QUIT, CallbackFunc(handleQUIT))
+		c.Callbacks.register(true, NICK, CallbackFunc(handleNICK))
 
 		// WHO/WHOX responses.
-		c.Callbacks.register(true, "std", RPL_WHOREPLY, CallbackFunc(handleWHO))
-		c.Callbacks.register(true, "std", RPL_WHOSPCRPL, CallbackFunc(handleWHO))
+		c.Callbacks.register(true, RPL_WHOREPLY, CallbackFunc(handleWHO))
+		c.Callbacks.register(true, RPL_WHOSPCRPL, CallbackFunc(handleWHO))
 
 		// Other misc. useful stuff.
-		c.Callbacks.register(true, "std", TOPIC, CallbackFunc(handleTOPIC))
-		c.Callbacks.register(true, "std", RPL_TOPIC, CallbackFunc(handleTOPIC))
+		c.Callbacks.register(true, TOPIC, CallbackFunc(handleTOPIC))
+		c.Callbacks.register(true, RPL_TOPIC, CallbackFunc(handleTOPIC))
 	}
 
 	// Nickname collisions.
 	if !c.Config.DisableNickCollision {
-		c.Callbacks.register(true, "std", ERR_NICKNAMEINUSE, CallbackFunc(nickCollisionHandler))
-		c.Callbacks.register(true, "std", ERR_NICKCOLLISION, CallbackFunc(nickCollisionHandler))
-		c.Callbacks.register(true, "std", ERR_UNAVAILRESOURCE, CallbackFunc(nickCollisionHandler))
+		c.Callbacks.register(true, ERR_NICKNAMEINUSE, CallbackFunc(nickCollisionHandler))
+		c.Callbacks.register(true, ERR_NICKCOLLISION, CallbackFunc(nickCollisionHandler))
+		c.Callbacks.register(true, ERR_UNAVAILRESOURCE, CallbackFunc(nickCollisionHandler))
 	}
 
 	c.Callbacks.mu.Unlock()
