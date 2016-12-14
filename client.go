@@ -85,18 +85,6 @@ type Config struct {
 	DisableNickCollision bool
 }
 
-// ErrCallbackTimedout is used when we need to wait for temporary callbacks.
-type ErrCallbackTimedout struct {
-	// ID is the identified of the callback in the callback stack.
-	ID string
-	// Timeout is the time that past before the callback timed out.
-	Timeout time.Duration
-}
-
-func (e *ErrCallbackTimedout) Error() string {
-	return "callback [" + e.ID + "] timed out while waiting for response from the server: " + e.Timeout.String()
-}
-
 // ErrNotConnected is returned if a method is used when the client isn't
 // connected.
 var ErrNotConnected = errors.New("client is not connected to server")
