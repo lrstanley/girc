@@ -48,6 +48,8 @@ func (f CallbackFunc) Execute(c *Client, e Event) {
 type Caller struct {
 	// mu is the mutex that should be used when accessing callbacks.
 	mu sync.RWMutex
+	// wg is the waitgroup which is used to execute all callbacks concurrently.
+	wg sync.WaitGroup
 	// external is a map of user facing callbacks.
 	external map[string]map[string]map[string]Callback
 	// internal is a map of internally used callbacks for the client.
@@ -149,11 +151,12 @@ func (c *Caller) cuidToID(input string) (ctype, cmd, uid string) {
 // Please note that there is no specific order/priority for which the
 // callback types themselves or the callbacks are executed.
 func (c *Caller) exec(command string, client *Client, event *Event) {
+	// Build a stack of callbacks which can be executed concurrently.
 	var execstack []Callback
 	var routinestack []Callback
 
 	c.mu.RLock()
-	// Execute internal callbacks first.
+	// Get internal callbacks first.
 	for callbackType := range c.internal {
 		if _, ok := c.internal[callbackType][command]; !ok {
 			continue
@@ -186,13 +189,27 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 	}
 	c.mu.RUnlock()
 
+	// Run all callbacks that should be ran in a go-routine. This will ensure
+	// that anything that the callback is doing, isn't going to disrupt or
+	// cause the execution loop to hang.
 	for i := 0; i < len(routinestack); i++ {
 		go routinestack[i].Execute(client, *event)
 	}
 
+	// Run all regular callbacks concurrently across the same event. This
+	// should still help prevent mis-ordered events, while speeding up the
+	// execution speed.
+	c.wg.Add(len(execstack))
 	for i := 0; i < len(execstack); i++ {
-		execstack[i].Execute(client, *event)
+		go func(index int) {
+			execstack[index].Execute(client, *event)
+			c.wg.Done()
+		}(i)
 	}
+
+	// Wait for all of the callbacks to complete. Not doing this may cause
+	// new events from becoming ahead of older callbacks.
+	c.wg.Wait()
 }
 
 // ClearAll clears all external callbacks currently setup within the client.
