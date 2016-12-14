@@ -57,11 +57,12 @@ type User struct {
 	// be empty.
 	Name string
 	// FirstSeen represents the first time that the user was seen by the
-	// client for the given channel.
+	// client for the given channel. Only usable if from state, not in past.
 	FirstSeen time.Time
 
 	// LastActive represents the last time that we saw the user active,
 	// which could be during nickname change, message, channel join, etc.
+	// Only usable if from state, not in past.
 	LastActive time.Time
 }
 
