@@ -76,22 +76,23 @@ func handleJOIN(c *Client, e Event) {
 		return
 	}
 
+	// Create the user in state. 2This will also verify the channel.
 	c.state.mu.Lock()
-	channel := c.state.createChanIfNotExists(e.Params[0])
+	user := c.state.createUserIfNotExists(e.Params[0], e.Source.Name)
 	c.state.mu.Unlock()
-	if channel == nil {
-		return // Invalid channel.
+	if user == nil {
+		return
 	}
 
 	if e.Source.Name == c.GetNick() {
 		// If it's us, don't just add our user to the list. Run a WHO which
 		// will tell us who exactly is in the entire channel.
-		c.Send(&Event{Command: WHO, Params: []string{e.Params[0], "%tcuhn,1"}})
+		c.Send(&Event{Command: WHO, Params: []string{e.Params[0], "%tcuhnr,1"}})
 		return
 	}
 
-	// Create the user in state. Only WHO the user, which is more efficient.
-	c.Send(&Event{Command: WHO, Params: []string{e.Source.Name, "%tcuhn,1"}})
+	// Only WHO the user, which is more efficient.
+	c.Send(&Event{Command: WHO, Params: []string{e.Source.Name, "%tcuhnr,1"}})
 }
 
 // handlePART ensures that the state is clean of old user and channel entries.
@@ -100,13 +101,14 @@ func handlePART(c *Client, e Event) {
 		return
 	}
 
-	c.state.mu.Lock()
 	if e.Source.Name == c.GetNick() {
+		c.state.mu.Lock()
 		c.state.deleteChannel(e.Params[0])
 		c.state.mu.Unlock()
 		return
 	}
 
+	c.state.mu.Lock()
 	c.state.deleteUser(e.Source.Name)
 	c.state.mu.Unlock()
 }
@@ -166,6 +168,7 @@ func handleWHO(c *Client, e Event) {
 
 	user.Host = host
 	user.Ident = ident
+	user.Name = e.Trailing
 	c.state.mu.Unlock()
 }
 
@@ -177,14 +180,15 @@ func handleKICK(c *Client, e Event) {
 		return
 	}
 
-	c.state.mu.Lock()
 	if e.Params[1] == c.GetNick() {
+		c.state.mu.Lock()
 		c.state.deleteChannel(e.Params[0])
 		c.state.mu.Unlock()
 		return
 	}
 
 	// Assume it's just another user.
+	c.state.mu.Lock()
 	c.state.deleteUser(e.Params[1])
 	c.state.mu.Unlock()
 }
