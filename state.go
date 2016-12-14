@@ -96,6 +96,12 @@ type Channel struct {
 	Joined time.Time
 }
 
+// Lifetime represents the amount of time that has passed since we have first
+// joined the channel.
+func (c *Channel) Lifetime() time.Duration {
+	return time.Since(c.Joined)
+}
+
 // newState returns a clean client state.
 func newState() *state {
 	s := &state{}
