@@ -187,7 +187,7 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 	c.mu.RUnlock()
 
 	for i := 0; i < len(routinestack); i++ {
-		routinestack[i].Execute(client, *event)
+		go routinestack[i].Execute(client, *event)
 	}
 
 	for i := 0; i < len(execstack); i++ {
