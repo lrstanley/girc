@@ -13,7 +13,6 @@ import (
 	"log"
 	"net"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -617,93 +616,6 @@ func (c *Client) SendRaw(raw string) error {
 // returns or newlines.
 func (c *Client) SendRawf(format string, a ...interface{}) error {
 	return c.SendRaw(fmt.Sprintf(format, a...))
-}
-
-// Whowas sends and waits for a response to a WHOWAS query to the server.
-// Returns the list of users form the WHOWAS query.
-func (c *Client) Whowas(nick string) ([]*User, error) {
-	if !IsValidNick(nick) {
-		return nil, &ErrInvalidTarget{Target: nick}
-	}
-
-	if !c.IsConnected() {
-		return nil, ErrNotConnected
-	}
-
-	var mu sync.Mutex
-	var events []*Event
-	whoDone := make(chan struct{})
-
-	// One callback needs to be added to collect the WHOWAS lines.
-	// <nick> <user> <host> * :<real_name>
-	whoCb := c.Callbacks.AddBg(RPL_WHOWASUSER, func(c *Client, e Event) {
-		if len(e.Params) != 5 {
-			return
-		}
-
-		// First check and make sure that this WHOWAS is for us.
-		if e.Params[1] != nick {
-			return
-		}
-
-		mu.Lock()
-		events = append(events, &e)
-		mu.Unlock()
-	})
-
-	// One more callback needs to be added to let us know when WHOWAS has
-	// finished.
-	// 	<nick> :<info>
-	whoDoneCb := c.Callbacks.AddBg(RPL_ENDOFWHOWAS, func(c *Client, e Event) {
-		if len(e.Params) != 2 {
-			return
-		}
-
-		// First check and make sure that this WHOWAS is for us.
-		if e.Params[1] != nick {
-			return
-		}
-
-		mu.Lock()
-		whoDone <- struct{}{}
-		mu.Unlock()
-	})
-
-	// Send the WHOWAS query.
-	c.Send(&Event{Command: WHOWAS, Params: []string{nick, "10"}})
-
-	// Wait for everything to finish. Give the server 2 seconds to respond.
-	select {
-	case <-whoDone:
-		close(whoDone)
-	case <-time.After(time.Second * 2):
-		// Remove callbacks and return. Took too long.
-		c.Callbacks.Remove(whoCb)
-		c.Callbacks.Remove(whoDoneCb)
-
-		return nil, &ErrCallbackTimedout{
-			ID:      whoCb + " + " + whoDoneCb,
-			Timeout: time.Second * 2,
-		}
-	}
-
-	// Remove the temporary callbacks to ensure that nothing else is
-	// received.
-	c.Callbacks.Remove(whoCb)
-	c.Callbacks.Remove(whoDoneCb)
-
-	var users []*User
-
-	for i := 0; i < len(events); i++ {
-		users = append(users, &User{
-			Nick:  events[i].Params[1],
-			Ident: events[i].Params[2],
-			Host:  events[i].Params[3],
-			Name:  events[i].Trailing,
-		})
-	}
-
-	return users, nil
 }
 
 // Topic sets the topic of channel to message. Does not verify the length
