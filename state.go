@@ -59,6 +59,27 @@ type User struct {
 	// FirstSeen represents the first time that the user was seen by the
 	// client for the given channel.
 	FirstSeen time.Time
+
+	// LastActive represents the last time that we saw the user active,
+	// which could be during nickname change, message, channel join, etc.
+	LastActive time.Time
+}
+
+// Lifetime represents the amount of time that has passed since we have first
+// seen the user.
+func (u *User) Lifetime() time.Duration {
+	return time.Since(u.FirstSeen)
+}
+
+// Active represents the the amount of time that has passed since we have
+// last seen the user.
+func (u *User) Active() time.Duration {
+	return time.Since(u.LastActive)
+}
+
+// IsActive returns true if they were active within the last 30 minutes.
+func (u *User) IsActive() bool {
+	return u.Active() < (time.Minute * 30)
 }
 
 // Channel represents an IRC channel and the state attached to it.
@@ -134,10 +155,11 @@ func (s *state) createUserIfNotExists(channelName, nick string) (user *User) {
 	}
 
 	if _, ok := channel.users[nick]; ok {
+		channel.users[nick].LastActive = time.Now()
 		return channel.users[nick]
 	}
 
-	user = &User{Nick: nick, FirstSeen: time.Now()}
+	user = &User{Nick: nick, FirstSeen: time.Now(), LastActive: time.Now()}
 	channel.users[nick] = user
 
 	return user
@@ -179,6 +201,7 @@ func (s *state) renameUser(from, to string) {
 		// Update the nick field (as we not only have a key, but a matching
 		// struct field).
 		source.Nick = to
+		source.LastActive = time.Now()
 
 		// Delete the old reference.
 		delete(s.channels[k].users, from)
