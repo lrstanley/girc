@@ -18,6 +18,10 @@
 
 ## TODO
 
+- [ ] User and Channel should support methods which return events:
+  - [ ] User.Reply(), User.Replyf()
+  - [ ] User.Message(), User.Messagef()
+  - [ ] User.Who(), etc
 - [ ] implement CTCP callbacks. something like `CTCP_VERSION`, etc
 - [ ] ensure types `User` and `Channel` don't have any unexported fields, and that when they are given publically, it's not a pointer to internal state
 - [ ] track with `NAMES` as well? would require rewrite of user existance logic, could also help track user modes
