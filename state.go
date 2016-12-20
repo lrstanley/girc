@@ -5,6 +5,7 @@
 package girc
 
 import (
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -66,6 +67,32 @@ type User struct {
 	LastActive time.Time
 }
 
+// Reply returns an event which can be used to send a response to the user
+// as a private message.
+func (u *User) Reply(message string) *Event {
+	return &Event{Command: PRIVMSG, Params: []string{u.Nick}, Trailing: message}
+}
+
+// Replyf returns an event which can be used to send a response to the user
+// as a private message. format is a printf format string, which a's
+// arbitrary arugments will be passed to.
+func (u *User) Replyf(format string, a ...interface{}) *Event {
+	return u.Reply(fmt.Sprintf(format, a...))
+}
+
+// ReplyTo returns an event which can be used to send a response to the
+// user in a channel as a private message.
+func (u *User) ReplyTo(channel, message string) *Event {
+	return &Event{Command: PRIVMSG, Params: []string{u.Nick}, Trailing: channel + ": " + message}
+}
+
+// ReplyTof returns an event which can be used to send a response to the
+// channel. format is a printf format string, which a's arbitrary arugments
+// will be passed to.
+func (u *User) ReplyTof(channel, format string, a ...interface{}) *Event {
+	return u.ReplyTo(channel, fmt.Sprintf(format, a...))
+}
+
 // Lifetime represents the amount of time that has passed since we have first
 // seen the user.
 func (u *User) Lifetime() time.Duration {
@@ -95,6 +122,18 @@ type Channel struct {
 	users map[string]*User
 	// Joined represents the first time that the client joined the channel.
 	Joined time.Time
+}
+
+// Reply returns an event which can be used to send a response to the channel.
+func (c *Channel) Reply(message string) *Event {
+	return &Event{Command: PRIVMSG, Params: []string{c.Name}, Trailing: message}
+}
+
+// Replyf returns an event which can be used to send a response to the
+// channel. format is a printf format string, which a's arbitrary arugments
+// will be passed to.
+func (c *Channel) Replyf(format string, a ...interface{}) *Event {
+	return c.Reply(fmt.Sprintf(format, a...))
 }
 
 // Lifetime represents the amount of time that has passed since we have first
