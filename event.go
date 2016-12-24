@@ -250,29 +250,29 @@ func (e *Event) IsAction() bool {
 // IsFromChannel checks to see if a message was from a channel (rather than
 // a private message).
 func (e *Event) IsFromChannel() bool {
-	if len(e.Params) != 2 {
+	if len(e.Params) != 1 {
 		return false
 	}
 
-	if e.Params[0] != "PRIVMSG" {
+	if e.Command != "PRIVMSG" || !IsValidChannel(e.Params[0]) {
 		return false
 	}
 
-	return IsValidChannel(e.Params[1])
+	return true
 }
 
 // IsFromUser checks to see if a message was from a user (rather than a
 // channel).
 func (e *Event) IsFromUser() bool {
-	if len(e.Params) != 2 {
+	if len(e.Params) != 1 {
 		return false
 	}
 
-	if e.Params[0] != "PRIVMSG" {
+	if e.Command != "PRIVMSG" || !IsValidNick(e.Params[0]) {
 		return false
 	}
 
-	return IsValidUser(e.Params[1])
+	return true
 }
 
 // StripAction strips the action encoding from a PRIVMSG ACTION (/me).
