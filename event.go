@@ -34,7 +34,7 @@ func cutCRFunc(r rune) bool {
 //                   CR or LF>
 //    <crlf>     :: CR LF
 type Event struct {
-	*Source                // The source of the event.
+	Source        *Source  // The source of the event.
 	Command       string   // the IRC command, e.g. JOIN, PRIVMSG, KILL.
 	Params        []string // parameters to the command. Commonly nickname, channel, etc.
 	Trailing      string   // any trailing data. e.g. with a PRIVMSG, this is the message text.
@@ -240,7 +240,7 @@ func (e *Event) IsAction() bool {
 		return false
 	}
 
-	if !strings.HasPrefix(e.Trailing, "\001ACTION") || !strings.HasSuffix(e.Trailing, "\001") {
+	if !strings.HasPrefix(e.Trailing, "\001ACTION") || e.Trailing[len(e.Trailing)-1] != ctcpDelim {
 		return false
 	}
 

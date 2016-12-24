@@ -4,6 +4,18 @@
 
 package girc
 
+// Standard CTCP based constants
+const (
+	CTCP_PING       = "PING"
+	CTCP_PONG       = "PONG"
+	CTCP_VERSION    = "VERSION"
+	CTCP_USERINFO   = "USERINFO"
+	CTCP_CLIENTINFO = "CLIENTINFO"
+	CTCP_FINGER     = "FINGER"
+	CTCP_SOURCE     = "SOURCE"
+	CTCP_TIME       = "TIME"
+)
+
 // Misc constants for use with the client.
 const (
 	ALLEVENTS = "*"         // trigger on all events

@@ -524,6 +524,21 @@ func (c *Client) PartMessage(channel, message string) error {
 	return c.Send(&Event{Command: JOIN, Params: []string{channel}, Trailing: message})
 }
 
+// SendCTCP sends a CTCP request to target.
+func (c *Client) SendCTCP(target, ctcpType, message string) error {
+	out := encodeCTCPRaw(ctcpType, message)
+	if out == "" {
+		return errors.New("invalid CTCP")
+	}
+
+	return c.Message(target, out)
+}
+
+// SendCTCPf sends a CTCP request to target using a specific format.
+func (c *Client) SendCTCPf(target, ctcpType, format string, a ...interface{}) error {
+	return c.SendCTCP(target, ctcpType, fmt.Sprintf(format, a...))
+}
+
 // Message sends a PRIVMSG to target (either channel, service, or user).
 func (c *Client) Message(target, message string) error {
 	if !IsValidNick(target) && !IsValidChannel(target) {
