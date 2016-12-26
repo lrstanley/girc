@@ -14,13 +14,19 @@ import (
 // RunCallbacks manually runs callbacks for a given event.
 func (c *Client) RunCallbacks(event *Event) {
 	// Log the event.
-	c.log.Print("<-- " + event.Raw())
+	c.log.Print("<-- " + StripRaw(event.Raw()))
 
 	// Regular wildcard callbacks.
 	c.Callbacks.exec(ALLEVENTS, c, event)
 
-	// Then regular non-threaded callbacks.
+	// Then regular callbacks.
 	c.Callbacks.exec(event.Command, c, event)
+
+	// Check if it's a CTCP.
+	if ctcp := decodeCTCP(event); ctcp != nil {
+		// Execute it.
+		c.CTCP.call(ctcp, c)
+	}
 }
 
 // Callback is lower level implementation of a callback. See
