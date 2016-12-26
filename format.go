@@ -9,12 +9,12 @@ import (
 	"strings"
 )
 
-type color struct {
+type ircFmtCode struct {
 	aliases []string
 	val     string
 }
 
-var colors = []*color{
+var codes = []*ircFmtCode{
 	{aliases: []string{"white"}, val: "\x0300"},
 	{aliases: []string{"black"}, val: "\x0301"},
 	{aliases: []string{"blue", "navy"}, val: "\x0302"},
@@ -34,21 +34,22 @@ var colors = []*color{
 	{aliases: []string{"bold", "b"}, val: "\x02"},
 	{aliases: []string{"italic", "i"}, val: "\x1d"},
 	{aliases: []string{"reset", "r"}, val: "\x0f"},
-	{aliases: []string{"clear", "c"}, val: "\x03"},
+	{aliases: []string{"clear", "c"}, val: "\x03"}, // Clears formatting.
 	{aliases: []string{"reverse"}, val: "\x16"},
 	{aliases: []string{"underline", "ul"}, val: "\x1f"},
+	{aliases: []string{"ctcp"}, val: "\x01"}, // CTCP/ACTION delimiter.
 }
 
-// Format takes color strings like "{red}" and turns them into the resulting
-// ASCII color code for IRC.
+// Format takes format strings like "{red}" and turns them into the resulting
+// ASCII format/color codes for IRC.
 //
 // For example:
 //
 //   client.Message("#channel", Format("{red}{bold}Hello World{c}"))
 func Format(text string) string {
-	for i := 0; i < len(colors); i++ {
-		for a := 0; a < len(colors[i].aliases); a++ {
-			text = strings.Replace(text, "{"+colors[i].aliases[a]+"}", colors[i].val, -1)
+	for i := 0; i < len(codes); i++ {
+		for a := 0; a < len(codes[i].aliases); a++ {
+			text = strings.Replace(text, "{"+codes[i].aliases[a]+"}", codes[i].val, -1)
 		}
 
 		// makes parsing small strings slightly slower, but helps longer
@@ -68,12 +69,12 @@ func Format(text string) string {
 	return text
 }
 
-// StripFormat strips all "{color}" formatting strings from the input text.
+// StripFormat strips all "{fmt}" formatting strings from the input text.
 // See Format() for more information.
 func StripFormat(text string) string {
-	for i := 0; i < len(colors); i++ {
-		for a := 0; a < len(colors[i].aliases); a++ {
-			text = strings.Replace(text, "{"+colors[i].aliases[a]+"}", "", -1)
+	for i := 0; i < len(codes); i++ {
+		for a := 0; a < len(codes[i].aliases); a++ {
+			text = strings.Replace(text, "{"+codes[i].aliases[a]+"}", "", -1)
 		}
 
 		// makes parsing small strings slightly slower, but helps longer
@@ -93,10 +94,10 @@ func StripFormat(text string) string {
 	return text
 }
 
-// StripColors tries to strip all ASCII color codes that are used for IRC.
-func StripColors(text string) string {
-	for i := 0; i < len(colors); i++ {
-		text = strings.Replace(text, colors[i].val, "", -1)
+// StripRaw tries to strip all ASCII format codes that are used for IRC.
+func StripRaw(text string) string {
+	for i := 0; i < len(codes); i++ {
+		text = strings.Replace(text, codes[i].val, "", -1)
 	}
 
 	return text

@@ -40,19 +40,19 @@ func BenchmarkStripFormatLong(b *testing.B) {
 	return
 }
 
-func BenchmarkStripColors(b *testing.B) {
+func BenchmarkStripRaw(b *testing.B) {
 	text := Format("{red}test{c}")
 	for i := 0; i < b.N; i++ {
-		StripColors(text)
+		StripRaw(text)
 	}
 
 	return
 }
 
-func BenchmarkStripColorsLong(b *testing.B) {
+func BenchmarkStripRawLong(b *testing.B) {
 	text := Format("{red}test {blue}2 {red}3 {brown} {italic}test{c}")
 	for i := 0; i < b.N; i++ {
-		StripColors(text)
+		StripRaw(text)
 	}
 
 	return
@@ -110,7 +110,7 @@ func TestStripFormat(t *testing.T) {
 	}
 }
 
-func TestStripColors(t *testing.T) {
+func TestStripRaw(t *testing.T) {
 	type args struct {
 		text string
 	}
@@ -129,8 +129,8 @@ func TestStripColors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := StripColors(Format(tt.args.text)); got != tt.want {
-				t.Errorf("StripColors() = %v, want %v", got, tt.want)
+			if got := StripRaw(Format(tt.args.text)); got != tt.want {
+				t.Errorf("StripRaw() = %v, want %v", got, tt.want)
 			}
 		})
 	}
