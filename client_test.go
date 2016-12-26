@@ -43,7 +43,6 @@ func Example() {
 		log.Fatalf("an error occurred while attempting to connect to %s: %s", client.Server(), err)
 	}
 
-	// Don't push this into a goroutine normally.
 	client.Loop()
 }
 
