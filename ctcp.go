@@ -126,18 +126,22 @@ func newCTCP() *CTCP {
 // call executes the necessary CTCP handler for the incoming event/CTCP
 // command.
 func (c *CTCP) call(event *CTCPEvent, client *Client) {
-	// TODO: Wildcard CTCP catching?
 	c.mu.RLock()
-	if _, ok := c.handlers[event.Command]; !ok {
-		c.mu.RUnlock()
+	defer c.mu.RUnlock()
 
+	// Support wildcard CTCP event handling. Gets executed first before
+	// regular event handlers.
+	if _, ok := c.handlers["*"]; ok {
+		c.handlers[event.Command](client, event)
+	}
+
+	if _, ok := c.handlers[event.Command]; !ok {
 		// Send a ERRMSG reply.
 		client.SendCTCPReply(event.Source.Name, CTCP_ERRMSG, "that is an unknown CTCP query")
 		return
 	}
 
 	c.handlers[event.Command](client, event)
-	c.mu.RUnlock()
 }
 
 // parseCMD parses a CTCP command/tag, ensuring it's valid. If not, an empty
@@ -157,6 +161,8 @@ func (c *CTCP) parseCMD(cmd string) string {
 
 // Set saves handler for execution upon a matching incoming CTCP event.
 // Use SetBg if the handler may take an extended period of time to execute.
+// If you would like to have a handler which will catch ALL CTCP requests,
+// simply use "*" in place of the command.
 func (c *CTCP) Set(cmd string, handler func(client *Client, ctcp *CTCPEvent)) {
 	if cmd = c.parseCMD(cmd); cmd == "" {
 		return
@@ -168,7 +174,8 @@ func (c *CTCP) Set(cmd string, handler func(client *Client, ctcp *CTCPEvent)) {
 }
 
 // SetBg is much like Set, however the handler is executed in the background,
-// ensuring that event handling isn't hung during long running tasks.
+// ensuring that event handling isn't hung during long running tasks. See Set
+// for more information.
 func (c *CTCP) SetBg(cmd string, handler func(client *Client, ctcp *CTCPEvent)) {
 	c.Set(cmd, func(client *Client, ctcp *CTCPEvent) {
 		go handler(client, ctcp)
