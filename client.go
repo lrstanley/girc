@@ -77,6 +77,9 @@ type Config struct {
 	// DisableTracking disables all channel and user-level tracking. Useful
 	// for highly embedded scripts with single purposes.
 	DisableTracking bool
+	// DisableDefaultCTCP disables all default CTCP responses. Though, any
+	// set CTCP's will override any pre-set ones, by default.
+	DisableDefaultCTCP bool
 	// DisableCapTracking disables all network/server capability tracking.
 	// This includes determining what feature the IRC server supports, what
 	// the "NETWORK=" variables are, and other useful stuff.
@@ -125,6 +128,10 @@ func New(config Config) *Client {
 
 	// Register builtin helpers.
 	client.registerHelpers()
+
+	// Register default CTCP responses.
+	client.CTCP.disableDefault = client.Config.DisableDefaultCTCP
+	client.CTCP.addDefaultHandlers()
 
 	return client
 }
@@ -339,7 +346,7 @@ func (c *Client) Lifetime() time.Duration {
 func (c *Client) Send(event *Event) error {
 	// log the event
 	if !event.Sensitive {
-		c.log.Print("--> ", event.String())
+		c.log.Print("--> ", StripRaw(event.Raw()))
 	}
 
 	return c.state.writer.Encode(event)
@@ -527,7 +534,8 @@ func (c *Client) PartMessage(channel, message string) error {
 	return c.Send(&Event{Command: JOIN, Params: []string{channel}, Trailing: message})
 }
 
-// SendCTCP sends a CTCP request to target.
+// SendCTCP sends a CTCP request to target. Note that this method uses
+// PRIVMSG specifically.
 func (c *Client) SendCTCP(target, ctcpType, message string) error {
 	out := encodeCTCPRaw(ctcpType, message)
 	if out == "" {
@@ -537,9 +545,27 @@ func (c *Client) SendCTCP(target, ctcpType, message string) error {
 	return c.Message(target, out)
 }
 
-// SendCTCPf sends a CTCP request to target using a specific format.
+// SendCTCPf sends a CTCP request to target using a specific format. Note that
+// this method uses PRIVMSG specifically.
 func (c *Client) SendCTCPf(target, ctcpType, format string, a ...interface{}) error {
 	return c.SendCTCP(target, ctcpType, fmt.Sprintf(format, a...))
+}
+
+// SendCTCPReplyf sends a CTCP response to target using a specific format.
+// Note that this method uses NOTICE specifically.
+func (c *Client) SendCTCPReplyf(target, ctcpType, format string, a ...interface{}) error {
+	return c.SendCTCPReply(target, ctcpType, fmt.Sprintf(format, a...))
+}
+
+// SendCTCPReply sends a CTCP response to target. Note that this method uses
+// NOTICE specifically.
+func (c *Client) SendCTCPReply(target, ctcpType, message string) error {
+	out := encodeCTCPRaw(ctcpType, message)
+	if out == "" {
+		return errors.New("invalid CTCP")
+	}
+
+	return c.Notice(target, out)
 }
 
 // Message sends a PRIVMSG to target (either channel, service, or user).

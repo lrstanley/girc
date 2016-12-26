@@ -9,22 +9,34 @@ import (
 	"sync"
 )
 
+// ctcpDelim if the delimiter used for CTCP formatted events/messages.
 const ctcpDelim byte = 0x01 // Prefix and suffix for CTCP messages.
 
+// CTCPEvent is the necessary information from an IRC message.
 type CTCPEvent struct {
-	Source  *Source
+	// Source is the author of the CTCP event.
+	Source *Source
+	// Command is the type of CTCP event. E.g. PING, TIME, VERSION.
 	Command string
-	Text    string
+	// Text is the raw arguments following the command.
+	Text string
+	// Reply is true if the CTCP event is intended to be a reply to a
+	// previous CTCP (e.g, if we sent one).
+	Reply bool
 }
 
+// decodeCTCP codes an incoming CTCP event, if it is CTCP. nil is returned
+// if the incoming event does not match a valid CTCP.
 func decodeCTCP(e *Event) *CTCPEvent {
+	// http://www.irchelp.org/protocol/ctcpspec.html
+
 	// Must be targetting a user/channel, AND trailing must have
 	// DELIM+TAG+DELIM minimum (at least 3 chars).
 	if len(e.Params) != 1 || len(e.Trailing) < 3 {
 		return nil
 	}
 
-	if e.Command != "PRIVMSG" || !IsValidNick(e.Params[0]) {
+	if (e.Command != "PRIVMSG" && e.Command != "NOTICE") || !IsValidNick(e.Params[0]) {
 		return nil
 	}
 
@@ -46,7 +58,11 @@ func decodeCTCP(e *Event) *CTCPEvent {
 			}
 		}
 
-		return &CTCPEvent{Source: e.Source, Command: text}
+		return &CTCPEvent{
+			Source:  e.Source,
+			Command: text,
+			Reply:   e.Command == "NOTICE",
+		}
 	}
 
 	// Loop through checking the tag first.
@@ -57,9 +73,15 @@ func decodeCTCP(e *Event) *CTCPEvent {
 		}
 	}
 
-	return &CTCPEvent{Source: e.Source, Command: text[0:s], Text: text[s+1 : len(text)]}
+	return &CTCPEvent{
+		Source:  e.Source,
+		Command: text[0:s],
+		Text:    text[s+1 : len(text)],
+		Reply:   e.Command == "NOTICE",
+	}
 }
 
+// encodeCTCP encodes a CTCP event into a string, including delimiters.
 func encodeCTCP(ctcp *CTCPEvent) (out string) {
 	if ctcp == nil {
 		return ""
@@ -68,6 +90,8 @@ func encodeCTCP(ctcp *CTCPEvent) (out string) {
 	return encodeCTCPRaw(ctcp.Command, ctcp.Text)
 }
 
+// encodeCTCPRaw is much like encodeCTCP, however accepts a raw command and
+// string as input.
 func encodeCTCPRaw(cmd, text string) (out string) {
 	if len(cmd) <= 0 {
 		return ""
@@ -82,17 +106,23 @@ func encodeCTCPRaw(cmd, text string) (out string) {
 	return out + string(ctcpDelim)
 }
 
+// CTCP handles the storage and execution of CTCP handlers against incoming
+// CTCP events.
 type CTCP struct {
+	disableDefault bool
 	// mu is the mutex that should be used when accessing callbacks.
 	mu sync.RWMutex
 	// handlers is a map of CTCP message -> functions.
 	handlers map[string]CTCPHandler
 }
 
+// newCTCP returns a new clean CTCP handler.
 func newCTCP() *CTCP {
 	return &CTCP{handlers: map[string]CTCPHandler{}}
 }
 
+// call executes the necessary CTCP handler for the incoming event/CTCP
+// command.
 func (c *CTCP) call(event *CTCPEvent, client *Client) {
 	c.mu.RLock()
 	if _, ok := c.handlers[event.Command]; !ok {
@@ -100,10 +130,12 @@ func (c *CTCP) call(event *CTCPEvent, client *Client) {
 		return
 	}
 
-	go c.handlers[event.Command](client, event)
+	c.handlers[event.Command](client, event)
 	c.mu.RUnlock()
 }
 
+// parseCMD parses a CTCP command/tag, ensuring it's valid. If not, an empty
+// string is returned.
 func (c *CTCP) parseCMD(cmd string) string {
 	cmd = strings.ToUpper(cmd)
 
@@ -117,6 +149,8 @@ func (c *CTCP) parseCMD(cmd string) string {
 	return cmd
 }
 
+// Set saves handler for execution upon a matching incoming CTCP event.
+// Use SetBg if the handler may take an extended period of time to execute.
 func (c *CTCP) Set(cmd string, handler func(client *Client, ctcp *CTCPEvent)) {
 	if cmd = c.parseCMD(cmd); cmd == "" {
 		return
@@ -127,12 +161,16 @@ func (c *CTCP) Set(cmd string, handler func(client *Client, ctcp *CTCPEvent)) {
 	c.mu.Unlock()
 }
 
+// SetBg is much like Set, however the handler is executed in the background,
+// ensuring that event handling isn't hung during long running tasks.
 func (c *CTCP) SetBg(cmd string, handler func(client *Client, ctcp *CTCPEvent)) {
 	c.Set(cmd, func(client *Client, ctcp *CTCPEvent) {
 		go handler(client, ctcp)
 	})
 }
 
+// Clear removes currently setup handler for cmd, if one is set. This will
+// also disable default handlers for a specific cmd.
 func (c *CTCP) Clear(cmd string) {
 	if cmd = c.parseCMD(cmd); cmd == "" {
 		return
@@ -143,20 +181,32 @@ func (c *CTCP) Clear(cmd string) {
 	c.mu.Unlock()
 }
 
+// ClearAll removes all currently setup and re-sets the default handlers,
+// unless configured not to. See Client.Config.DisableDefaultCTCP.
 func (c *CTCP) ClearAll() {
 	c.mu.Lock()
 	c.handlers = map[string]CTCPHandler{}
 	c.mu.Unlock()
+
+	// Register necessary handlers.
+	c.addDefaultHandlers()
 }
 
 // CTCPHandler is a type that represents the function necessary to
 // implement a CTCP handler.
 type CTCPHandler func(client *Client, ctcp *CTCPEvent)
 
+// addDefaultHandlers adds some useful default CTCP response handlers, unless
+// requested by the client not to.
 func (c *CTCP) addDefaultHandlers() {
+	if c.disableDefault {
+		return
+	}
+
 	c.SetBg(CTCP_PING, handleCTCPPing)
 }
 
+// handleCTCPPing replies with a ping and whatever was originally requested.
 func handleCTCPPing(client *Client, ctcp *CTCPEvent) {
-	client.SendCTCP(ctcp.Source.Name, CTCP_PING, "")
+	client.SendCTCPReply(ctcp.Source.Name, CTCP_PING, ctcp.Text)
 }
