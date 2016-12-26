@@ -132,7 +132,7 @@ func (c *CTCP) call(event *CTCPEvent, client *Client) {
 	// Support wildcard CTCP event handling. Gets executed first before
 	// regular event handlers.
 	if _, ok := c.handlers["*"]; ok {
-		c.handlers[event.Command](client, *event)
+		c.handlers["*"](client, *event)
 	}
 
 	if _, ok := c.handlers[event.Command]; !ok {
@@ -147,6 +147,11 @@ func (c *CTCP) call(event *CTCPEvent, client *Client) {
 // parseCMD parses a CTCP command/tag, ensuring it's valid. If not, an empty
 // string is returned.
 func (c *CTCP) parseCMD(cmd string) string {
+	// Check if wildcard.
+	if cmd == "*" {
+		return "*"
+	}
+
 	cmd = strings.ToUpper(cmd)
 
 	for i := 0; i < len(cmd); i++ {
