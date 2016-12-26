@@ -149,6 +149,7 @@ func (c *CTCP) call(event *CTCPEvent, client *Client) {
 // parseCMD parses a CTCP command/tag, ensuring it's valid. If not, an empty
 // string is returned.
 func (c *CTCP) parseCMD(cmd string) string {
+	// TODO: Needs proper testing.
 	// Check if wildcard.
 	if cmd == "*" {
 		return "*"
