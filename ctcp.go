@@ -136,8 +136,10 @@ func (c *CTCP) call(event *CTCPEvent, client *Client) {
 	}
 
 	if _, ok := c.handlers[event.Command]; !ok {
-		// Send a ERRMSG reply.
-		client.SendCTCPReply(event.Source.Name, CTCP_ERRMSG, "that is an unknown CTCP query")
+		// Send a ERRMSG reply, if we know who sent it.
+		if event.Source != nil && IsValidNick(event.Source.Name) {
+			client.SendCTCPReply(event.Source.Name, CTCP_ERRMSG, "that is an unknown CTCP query")
+		}
 		return
 	}
 
