@@ -27,7 +27,7 @@ type CTCPEvent struct {
 	Reply bool
 }
 
-// decodeCTCP codes an incoming CTCP event, if it is CTCP. nil is returned
+// decodeCTCP decodes an incoming CTCP event, if it is CTCP. nil is returned
 // if the incoming event does not match a valid CTCP.
 func decodeCTCP(e *Event) *CTCPEvent {
 	// http://www.irchelp.org/protocol/ctcpspec.html
@@ -132,7 +132,7 @@ func (c *CTCP) call(event *CTCPEvent, client *Client) {
 	// Support wildcard CTCP event handling. Gets executed first before
 	// regular event handlers.
 	if _, ok := c.handlers["*"]; ok {
-		c.handlers[event.Command](client, event)
+		c.handlers[event.Command](client, *event)
 	}
 
 	if _, ok := c.handlers[event.Command]; !ok {
@@ -141,7 +141,7 @@ func (c *CTCP) call(event *CTCPEvent, client *Client) {
 		return
 	}
 
-	c.handlers[event.Command](client, event)
+	c.handlers[event.Command](client, *event)
 }
 
 // parseCMD parses a CTCP command/tag, ensuring it's valid. If not, an empty
@@ -163,7 +163,7 @@ func (c *CTCP) parseCMD(cmd string) string {
 // Use SetBg if the handler may take an extended period of time to execute.
 // If you would like to have a handler which will catch ALL CTCP requests,
 // simply use "*" in place of the command.
-func (c *CTCP) Set(cmd string, handler func(client *Client, ctcp *CTCPEvent)) {
+func (c *CTCP) Set(cmd string, handler func(client *Client, ctcp CTCPEvent)) {
 	if cmd = c.parseCMD(cmd); cmd == "" {
 		return
 	}
@@ -176,8 +176,8 @@ func (c *CTCP) Set(cmd string, handler func(client *Client, ctcp *CTCPEvent)) {
 // SetBg is much like Set, however the handler is executed in the background,
 // ensuring that event handling isn't hung during long running tasks. See Set
 // for more information.
-func (c *CTCP) SetBg(cmd string, handler func(client *Client, ctcp *CTCPEvent)) {
-	c.Set(cmd, func(client *Client, ctcp *CTCPEvent) {
+func (c *CTCP) SetBg(cmd string, handler func(client *Client, ctcp CTCPEvent)) {
+	c.Set(cmd, func(client *Client, ctcp CTCPEvent) {
 		go handler(client, ctcp)
 	})
 }
@@ -207,7 +207,7 @@ func (c *CTCP) ClearAll() {
 
 // CTCPHandler is a type that represents the function necessary to
 // implement a CTCP handler.
-type CTCPHandler func(client *Client, ctcp *CTCPEvent)
+type CTCPHandler func(client *Client, ctcp CTCPEvent)
 
 // addDefaultHandlers adds some useful default CTCP response handlers, unless
 // requested by the client not to.
@@ -224,7 +224,7 @@ func (c *CTCP) addDefaultHandlers() {
 }
 
 // handleCTCPPing replies with a ping and whatever was originally requested.
-func handleCTCPPing(client *Client, ctcp *CTCPEvent) {
+func handleCTCPPing(client *Client, ctcp CTCPEvent) {
 	if ctcp.Reply {
 		return
 	}
@@ -232,7 +232,7 @@ func handleCTCPPing(client *Client, ctcp *CTCPEvent) {
 }
 
 // handleCTCPPong replies with a pong.
-func handleCTCPPong(client *Client, ctcp *CTCPEvent) {
+func handleCTCPPong(client *Client, ctcp CTCPEvent) {
 	if ctcp.Reply {
 		return
 	}
@@ -242,7 +242,7 @@ func handleCTCPPong(client *Client, ctcp *CTCPEvent) {
 // handleCTCPVersion replies with the name of the client, Go version, as well
 // as the os type (darwin, linux, windows, etc) and architecture type (x86,
 // arm, etc).
-func handleCTCPVersion(client *Client, ctcp *CTCPEvent) {
+func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
 	client.SendCTCPReplyf(
 		ctcp.Source.Name, CTCP_VERSION,
 		"girc (github.com/lrstanley/girc) using %s (%s, %s)",
@@ -251,12 +251,12 @@ func handleCTCPVersion(client *Client, ctcp *CTCPEvent) {
 }
 
 // handleCTCPSource replies with the public git location of this library.
-func handleCTCPSource(client *Client, ctcp *CTCPEvent) {
+func handleCTCPSource(client *Client, ctcp CTCPEvent) {
 	client.SendCTCPReply(ctcp.Source.Name, CTCP_SOURCE, "https://github.com/lrstanley/girc")
 }
 
 // handleCTCPTime replies with a RFC 1123 (Z) formatted version of Go's
 // local time.
-func handleCTCPTime(client *Client, ctcp *CTCPEvent) {
+func handleCTCPTime(client *Client, ctcp CTCPEvent) {
 	client.SendCTCPReply(ctcp.Source.Name, CTCP_TIME, ":"+time.Now().Format(time.RFC1123Z))
 }
