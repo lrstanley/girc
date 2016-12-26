@@ -5,8 +5,10 @@
 package girc
 
 import (
+	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 // ctcpDelim if the delimiter used for CTCP formatted events/messages.
@@ -124,9 +126,13 @@ func newCTCP() *CTCP {
 // call executes the necessary CTCP handler for the incoming event/CTCP
 // command.
 func (c *CTCP) call(event *CTCPEvent, client *Client) {
+	// TODO: Wildcard CTCP catching?
 	c.mu.RLock()
 	if _, ok := c.handlers[event.Command]; !ok {
 		c.mu.RUnlock()
+
+		// Send a ERRMSG reply.
+		client.SendCTCPReply(event.Source.Name, CTCP_ERRMSG, "that is an unknown CTCP query")
 		return
 	}
 
@@ -204,9 +210,46 @@ func (c *CTCP) addDefaultHandlers() {
 	}
 
 	c.SetBg(CTCP_PING, handleCTCPPing)
+	c.SetBg(CTCP_PONG, handleCTCPPong)
+	c.SetBg(CTCP_VERSION, handleCTCPVersion)
+	c.SetBg(CTCP_SOURCE, handleCTCPSource)
+	c.SetBg(CTCP_TIME, handleCTCPTime)
 }
 
 // handleCTCPPing replies with a ping and whatever was originally requested.
 func handleCTCPPing(client *Client, ctcp *CTCPEvent) {
+	if ctcp.Reply {
+		return
+	}
 	client.SendCTCPReply(ctcp.Source.Name, CTCP_PING, ctcp.Text)
+}
+
+// handleCTCPPong replies with a pong.
+func handleCTCPPong(client *Client, ctcp *CTCPEvent) {
+	if ctcp.Reply {
+		return
+	}
+	client.SendCTCPReply(ctcp.Source.Name, CTCP_PONG, "")
+}
+
+// handleCTCPVersion replies with the name of the client, Go version, as well
+// as the os type (darwin, linux, windows, etc) and architecture type (x86,
+// arm, etc).
+func handleCTCPVersion(client *Client, ctcp *CTCPEvent) {
+	client.SendCTCPReplyf(
+		ctcp.Source.Name, CTCP_VERSION,
+		"girc (github.com/lrstanley/girc) using %s (%s, %s)",
+		runtime.Version(), runtime.GOOS, runtime.GOARCH,
+	)
+}
+
+// handleCTCPSource replies with the public git location of this library.
+func handleCTCPSource(client *Client, ctcp *CTCPEvent) {
+	client.SendCTCPReply(ctcp.Source.Name, CTCP_SOURCE, "https://github.com/lrstanley/girc")
+}
+
+// handleCTCPTime replies with a RFC 1123 (Z) formatted version of Go's
+// local time.
+func handleCTCPTime(client *Client, ctcp *CTCPEvent) {
+	client.SendCTCPReply(ctcp.Source.Name, CTCP_TIME, ":"+time.Now().Format(time.RFC1123Z))
 }

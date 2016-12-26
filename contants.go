@@ -11,9 +11,9 @@ const (
 	CTCP_VERSION    = "VERSION"
 	CTCP_USERINFO   = "USERINFO"
 	CTCP_CLIENTINFO = "CLIENTINFO"
-	CTCP_FINGER     = "FINGER"
 	CTCP_SOURCE     = "SOURCE"
 	CTCP_TIME       = "TIME"
+	CTCP_ERRMSG     = "ERRMSG"
 )
 
 // Misc constants for use with the client.
