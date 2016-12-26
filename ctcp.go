@@ -18,7 +18,9 @@ type CTCPEvent struct {
 }
 
 func decodeCTCP(e *Event) *CTCPEvent {
-	if len(e.Params) != 1 {
+	// Must be targetting a user/channel, AND trailing must have
+	// DELIM+TAG+DELIM minimum (at least 3 chars).
+	if len(e.Params) != 1 || len(e.Trailing) < 3 {
 		return nil
 	}
 
@@ -30,6 +32,7 @@ func decodeCTCP(e *Event) *CTCPEvent {
 		return nil
 	}
 
+	// Strip delimiters.
 	text := e.Trailing[1 : len(e.Trailing)-1]
 
 	s := strings.IndexByte(text, space)
@@ -54,7 +57,7 @@ func decodeCTCP(e *Event) *CTCPEvent {
 		}
 	}
 
-	return &CTCPEvent{Source: e.Source, Command: text[1:s], Text: text[s+1 : len(text)-1]}
+	return &CTCPEvent{Source: e.Source, Command: text[0:s], Text: text[s+1 : len(text)]}
 }
 
 func encodeCTCP(ctcp *CTCPEvent) (out string) {
@@ -90,7 +93,7 @@ func newCTCP() *CTCP {
 	return &CTCP{handlers: map[string]CTCPHandler{}}
 }
 
-func (c *CTCP) Call(event *CTCPEvent, client *Client) {
+func (c *CTCP) call(event *CTCPEvent, client *Client) {
 	c.mu.RLock()
 	if _, ok := c.handlers[event.Command]; !ok {
 		c.mu.RUnlock()
@@ -124,6 +127,12 @@ func (c *CTCP) Set(cmd string, handler func(client *Client, ctcp *CTCPEvent)) {
 	c.mu.Unlock()
 }
 
+func (c *CTCP) SetBg(cmd string, handler func(client *Client, ctcp *CTCPEvent)) {
+	c.Set(cmd, func(client *Client, ctcp *CTCPEvent) {
+		go handler(client, ctcp)
+	})
+}
+
 func (c *CTCP) Clear(cmd string) {
 	if cmd = c.parseCMD(cmd); cmd == "" {
 		return
@@ -144,7 +153,9 @@ func (c *CTCP) ClearAll() {
 // implement a CTCP handler.
 type CTCPHandler func(client *Client, ctcp *CTCPEvent)
 
-func (c *CTCP) addDefaultHandlers() {}
+func (c *CTCP) addDefaultHandlers() {
+	c.SetBg(CTCP_PING, handleCTCPPing)
+}
 
 func handleCTCPPing(client *Client, ctcp *CTCPEvent) {
 	client.SendCTCP(ctcp.Source.Name, CTCP_PING, "")

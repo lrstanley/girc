@@ -32,6 +32,8 @@ type Client struct {
 
 	// Callbacks is a handler which manages internal and external callbacks.
 	Callbacks *Caller
+	// CTCP is a handler which manages internal and external CTCP handlers.
+	CTCP *CTCP
 
 	// tries represents the internal reconnect count to the IRC server.
 	tries int
@@ -109,6 +111,7 @@ func New(config Config) *Client {
 		quitChan:  make(chan struct{}, 1),
 		stopChan:  make(chan struct{}, 1),
 		Callbacks: newCaller(),
+		CTCP:      newCTCP(),
 		initTime:  time.Now(),
 	}
 
