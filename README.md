@@ -18,6 +18,7 @@
 
 ## TODO
 
+- [ ] IRCv3 spec? notify-away, message tags, `CHGHOST`, `multi-prefix`, `userhost-in-names`, etc -- see [here](http://ircv3.net)
 - [ ] ensure types `User` and `Channel` don't have any unexported fields, and that when they are given publically, it's not a pointer to internal state
 - [ ] track with `NAMES` as well? would require rewrite of user existance logic, could also help track user modes
 - [ ] write more function-specific examples as the api becomes much more stable
