@@ -251,7 +251,7 @@ const (
 	ERR_USERSDONTMATCH    = "502"
 )
 
-// IRCv3 commands :: http://ircv3.net/irc/
+// IRCv3 commands and extensions :: http://ircv3.net/irc/
 const (
 	AUTHENTICATE = "AUTHENTICATE"
 	CAP          = "CAP"
@@ -262,6 +262,9 @@ const (
 	CAP_LS       = "LS"
 	CAP_NAK      = "NAK"
 	CAP_REQ      = "REQ"
+
+	CAP_CHGHOST = "CHGHOST"
+	CAP_AWAY    = "AWAY"
 )
 
 // Numeric IRC reply mapping for ircv3 :: http://ircv3.net/irc/

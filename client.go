@@ -70,6 +70,10 @@ type Config struct {
 	// Logger is an optional, user supplied logger to log the raw lines sent
 	// from the server. Useful for debugging. Defaults to ioutil.Discard.
 	Logger io.Writer
+	// What IRCv3 capabilities you would like the client to support. Only use
+	// this if DisableTracking and DisableCapTracking are not enabled,
+	// otherwise you will need to handle CAP negotiation yourself.
+	SupportedCaps []string
 	// ReconnectDelay is the a duration of time to delay before attempting a
 	// reconnection. Defaults to 10s (minimum of 10s).
 	ReconnectDelay time.Duration
@@ -201,13 +205,20 @@ func (c *Client) Connect() error {
 
 	c.state.reader = newDecoder(c.state.conn)
 	c.state.writer = newEncoder(c.state.conn)
+
 	for _, event := range c.connectMessages() {
 		if err := c.Send(event); err != nil {
 			return err
 		}
 	}
 
+	// Start read loop to process messages from the server.
 	go c.readLoop()
+
+	// Process potential IRCv3 capabilities.
+	if !c.Config.DisableCapTracking && !c.Config.DisableTracking {
+		go c.handleCAP()
+	}
 
 	// Consider the connection a success at this point.
 	c.tries = 0
@@ -240,6 +251,93 @@ func (c *Client) connectMessages() (events []*Event) {
 	events = append(events, &Event{Command: USER, Params: []string{c.Config.User, "+iw", "*"}, Trailing: c.Config.Name})
 
 	return events
+}
+
+var possibleCap = []string{"chghost", "away-notify"}
+
+// handleCAP attempts to find out what IRCv3 capabilities the server supports.
+// This will lock further registration until we have acknowledged the
+// capabilities.
+func (c *Client) handleCAP() {
+	capDone := make(chan struct{})
+	var caps []string
+
+	possible := c.Config.SupportedCaps
+	possible = append(possible, possibleCap...)
+
+	cuid := c.Callbacks.sregister(true, CAP, CallbackFunc(func(client *Client, e Event) {
+		// We can assume there was a failure attempting to enable a capability.
+		if len(e.Params) == 2 && e.Params[1] == CAP_NAK {
+			// Let the server know that we're done.
+			client.Send(&Event{Command: CAP, Params: []string{CAP_END}})
+
+			capDone <- struct{}{}
+			return
+		}
+
+		if len(e.Params) >= 2 && len(e.Trailing) > 1 && e.Params[1] == CAP_LS {
+
+			client.state.mu.Lock()
+			client.state.supportedCap = strings.Split(e.Trailing, " ")
+
+			for i := 0; i < len(client.state.supportedCap); i++ {
+				for j := 0; j < len(possible); j++ {
+					if client.state.supportedCap[i] == possibleCap[j] {
+						// It's one for which we support.
+						caps = append(caps, client.state.supportedCap[i])
+						break
+					}
+				}
+			}
+			client.state.mu.Unlock()
+
+			// Indicates if this is a multi-line LS. (2 args means it's the
+			// last LS)
+			if len(e.Params) == 2 {
+				// If we support no caps, just ack the CAP message and END.
+				if len(caps) == 0 {
+					client.Send(&Event{Command: CAP, Params: []string{CAP_END}})
+					capDone <- struct{}{}
+					return
+				}
+
+				// Let them know which ones we'd like to enable.
+				client.Send(&Event{Command: CAP, Params: []string{CAP_REQ}, Trailing: strings.Join(caps, " ")})
+			}
+		}
+
+		if len(e.Params) == 2 && len(e.Trailing) > 1 && e.Params[1] == CAP_ACK {
+			client.state.mu.Lock()
+			client.state.enabledCap = strings.Split(e.Trailing, " ")
+			client.state.mu.Unlock()
+
+			// Let the server know that we're done.
+			client.Send(&Event{Command: CAP, Params: []string{CAP_END}})
+
+			capDone <- struct{}{}
+			return
+		}
+	}))
+
+	unknCuid := c.Callbacks.sregister(true, ERR_UNKNOWNCOMMAND, CallbackFunc(func(client *Client, e Event) {
+		capDone <- struct{}{}
+	}))
+
+	// Ensure that the callbacks are removed when done.
+	defer c.Callbacks.Remove(cuid)
+	defer c.Callbacks.Remove(unknCuid)
+
+	// List the capabilities, specifically with the max protocol we support.
+	c.Send(&Event{Command: CAP, Params: []string{CAP_LS, "302"}})
+
+	select {
+	case <-capDone:
+		close(capDone)
+	case <-time.After(time.Second * 15):
+		// Wait 15 seconds, only because the server HAS YET to tell us that
+		// it's an unknown command, meaning it's likely doing things behind
+		// the scenes.
+	}
 }
 
 // Reconnect checks to make sure we want to, and then attempts to reconnect

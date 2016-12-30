@@ -41,6 +41,12 @@ func (c *Client) registerHelpers() {
 		c.Callbacks.register(true, ERR_UNAVAILRESOURCE, CallbackFunc(nickCollisionHandler))
 	}
 
+	// CAP IRCv3-specific tracking and functionality.
+	if !c.Config.DisableTracking && !c.Config.DisableCapTracking {
+		c.Callbacks.register(true, CAP_CHGHOST, CallbackFunc(handleCHGHOST))
+		c.Callbacks.register(true, CAP_AWAY, CallbackFunc(handleAWAY))
+	}
+
 	c.Callbacks.mu.Unlock()
 }
 
@@ -89,12 +95,12 @@ func handleJOIN(c *Client, e Event) {
 	if e.Source.Name == c.GetNick() {
 		// If it's us, don't just add our user to the list. Run a WHO which
 		// will tell us who exactly is in the entire channel.
-		c.Send(&Event{Command: WHO, Params: []string{e.Params[0], "%tcuhnr,1"}})
+		c.Send(&Event{Command: WHO, Params: []string{e.Params[0], "%tacuhnr,1"}})
 		return
 	}
 
 	// Only WHO the user, which is more efficient.
-	c.Send(&Event{Command: WHO, Params: []string{e.Source.Name, "%tcuhnr,1"}})
+	c.Send(&Event{Command: WHO, Params: []string{e.Source.Name, "%tacuhnr,1"}})
 }
 
 // handlePART ensures that the state is clean of old user and channel entries.
@@ -140,11 +146,11 @@ func handleTOPIC(c *Client, e Event) {
 // handlWHO updates our internal tracking of users/channels with WHO/WHOX
 // information.
 func handleWHO(c *Client, e Event) {
-	var channel, ident, host, nick string
+	var channel, ident, host, nick, account string
 
 	// Assume WHOX related.
 	if e.Command == RPL_WHOSPCRPL {
-		if len(e.Params) != 6 {
+		if len(e.Params) != 7 {
 			// Assume there was some form of error or invalid WHOX response.
 			return
 		}
@@ -156,7 +162,7 @@ func handleWHO(c *Client, e Event) {
 			return
 		}
 
-		channel, ident, host, nick = e.Params[2], e.Params[3], e.Params[4], e.Params[5]
+		channel, ident, host, nick, account = e.Params[2], e.Params[3], e.Params[4], e.Params[5], e.Params[6]
 	} else {
 		channel, ident, host, nick = e.Params[1], e.Params[2], e.Params[3], e.Params[5]
 	}
@@ -171,6 +177,11 @@ func handleWHO(c *Client, e Event) {
 	user.Host = host
 	user.Ident = ident
 	user.Extras.Name = e.Trailing
+
+	if account != "0" {
+		user.Extras.Account = account
+	}
+
 	c.state.mu.Unlock()
 }
 
@@ -211,5 +222,34 @@ func handleNICK(c *Client, e Event) {
 func handleQUIT(c *Client, e Event) {
 	c.state.mu.Lock()
 	c.state.deleteUser(e.Source.Name)
+	c.state.mu.Unlock()
+}
+
+func handleCHGHOST(c *Client, e Event) {
+	if len(e.Params) != 2 {
+		return
+	}
+
+	c.state.mu.Lock()
+	for chanName := range c.state.channels {
+		if _, ok := c.state.channels[chanName].users[e.Source.Name]; !ok {
+			continue
+		}
+
+		c.state.channels[chanName].users[e.Source.Name].Ident = e.Params[0]
+		c.state.channels[chanName].users[e.Source.Name].Host = e.Params[1]
+	}
+	c.state.mu.Unlock()
+}
+
+func handleAWAY(c *Client, e Event) {
+	c.state.mu.Lock()
+	for chanName := range c.state.channels {
+		if _, ok := c.state.channels[chanName].users[e.Source.Name]; !ok {
+			continue
+		}
+
+		c.state.channels[chanName].users[e.Source.Name].Extras.Away = e.Trailing
+	}
 	c.state.mu.Unlock()
 }

@@ -38,6 +38,11 @@ type state struct {
 	nick string
 	// channels represents all channels we're active in.
 	channels map[string]*Channel
+	// enabledCap are the capabilities which are enabled for this connection.
+	enabledCap []string
+	// supportedCap are the capabilties which are supporteed by the server
+	// during the last capability check.
+	supportedCap []string
 }
 
 // User represents an IRC user and the state attached to them.
@@ -66,9 +71,19 @@ type User struct {
 	// or may not work on the IRC server in mention.
 	Extras struct {
 		// Name is the users "realname" or full name. Commonly contains links
-		// to the IRC client being used, or something of non-importance. May also
-		// be empty.
+		// to the IRC client being used, or something of non-importance. May
+		// also be empty if unsupported by the server/tracking is disabled.
 		Name string
+		// Account refers to the account which the user is authenticated as.
+		// This differs between each network (e.g. usually Nickserv, but
+		// could also be something like Undernet). May also be empty if
+		// unsupported by the server/tracking is disabled.
+		Account string
+		// Away refers to the away status of the user. An empty string
+		// indicates that they are active, otherwise the string is what they
+		// set as their away message. May also be empty if unsupported by the
+		// server/tracking is disabled.
+		Away string
 	}
 }
 
