@@ -78,7 +78,7 @@ func decodeCTCP(e *Event) *CTCPEvent {
 	return &CTCPEvent{
 		Source:  e.Source,
 		Command: text[0:s],
-		Text:    text[s+1 : len(text)],
+		Text:    text[s+1:],
 		Reply:   e.Command == "NOTICE",
 	}
 }
