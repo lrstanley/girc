@@ -26,7 +26,6 @@
 - [ ] client should support ping tracking (sending `PING`'s to the server)
   - [ ] with this, we can potentially find lag. `Client.Lag()` would be useful
 - [ ] users need to be exposed in state somehow (other than `GetChannels()`)
-- [ ] `User.Age()`? (`FirstActive()`?) (time since first seen)
 - [ ] `MODE` tracking on a per-channel basis
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
 
