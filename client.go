@@ -13,7 +13,6 @@ import (
 	"log"
 	"net"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -669,177 +668,32 @@ func (e *ErrCallbackTimedout) Error() string {
 	return "callback [" + e.ID + "] timed out while waiting for response from the server: " + e.Timeout.String()
 }
 
-// Who runs a WHO query to give details about an active user. Can only be
-// used if the calling callback was added as a background callback. Will
-// lock otherwise.
-func (c *Client) Who(nick string) (*User, error) {
+// Who sends a WHO query to the server, which will attempt WHOX by default.
+// See http://faerion.sourceforge.net/doc/irc/whox.var for more details. This
+// sends "%tcuhnr,2" per default. Do not use "1" as this will conflict with
+// girc's builtin tracking functionality.
+func (c *Client) Who(nick string) error {
 	if !IsValidNick(nick) {
-		return nil, &ErrInvalidTarget{Target: nick}
+		return &ErrInvalidTarget{Target: nick}
 	}
 
 	if !c.IsConnected() {
-		return nil, ErrNotConnected
+		return ErrNotConnected
 	}
 
-	var user *User
-	whoDone := make(chan struct{})
-
-	whoHandler := func(c *Client, e Event) {
-		var eIdent, eHost, eNick string
-
-		// Assume WHOX related.
-		if e.Command == RPL_WHOSPCRPL {
-			if len(e.Params) != 6 {
-				// Assume there was some form of error or invalid WHOX response.
-				return
-			}
-
-			if e.Params[1] != "2" {
-				// We should always be sending 2, and we should receive 2. If
-				// this is anything but, then we didn't send the request and we
-				// can ignore it.
-				return
-			}
-
-			eIdent, eHost, eNick = e.Params[3], e.Params[4], e.Params[5]
-		} else {
-			eIdent, eHost, eNick = e.Params[2], e.Params[3], e.Params[5]
-		}
-
-		if strings.ToLower(eNick) != strings.ToLower(nick) {
-			// Not the same user we're querying for.
-			return
-		}
-
-		user = &User{
-			Nick:  eNick,
-			Ident: eIdent,
-			Host:  eHost,
-			Name:  e.Trailing,
-		}
-
-		whoDone <- struct{}{}
-	}
-
-	// Add a callback for both the standard WHO as well as a WHOX response.
-	// Use register rather than sregister, as we're already in a lock.
-	whoCb := c.Callbacks.AddBg(RPL_WHOREPLY, whoHandler)
-	whoXCb := c.Callbacks.AddBg(RPL_WHOSPCRPL, whoHandler)
-
-	// Initiate the event so we can catch it.
-	err := c.Send(&Event{Command: WHO, Params: []string{nick, "%tcuhnr,2"}})
-	if err != nil {
-		return nil, err
-	}
-
-	// Wait for everything to finish. Give the server 2 seconds to respond.
-	select {
-	case <-whoDone:
-		close(whoDone)
-	case <-time.After(time.Second * 2):
-		// Remove callbacks and return. Took too long.
-		c.Callbacks.Remove(whoCb)
-		c.Callbacks.Remove(whoXCb)
-
-		return nil, &ErrCallbackTimedout{
-			ID:      whoCb + " + " + whoXCb,
-			Timeout: time.Second * 2,
-		}
-	}
-
-	c.Callbacks.Remove(whoCb)
-	c.Callbacks.Remove(whoXCb)
-
-	return user, nil
+	return c.Send(&Event{Command: WHO, Params: []string{nick, "%tcuhnr,2"}})
 }
 
-// Whowas sends and waits for a response to a WHOWAS query to the server.
-// Returns the list of users form the WHOWAS query. Can only be used if the
-// calling callback was added as a background callback. Will lock otherwise.
-func (c *Client) Whowas(nick string) ([]*User, error) {
+// Whowas sends a WHOWAS query to the server. amount is the amount of results
+// you want back.
+func (c *Client) Whowas(nick string, amount int) error {
 	if !IsValidNick(nick) {
-		return nil, &ErrInvalidTarget{Target: nick}
+		return &ErrInvalidTarget{Target: nick}
 	}
 
 	if !c.IsConnected() {
-		return nil, ErrNotConnected
+		return ErrNotConnected
 	}
 
-	var mu sync.Mutex
-	var events []*Event
-	whoDone := make(chan struct{})
-
-	// One callback needs to be added to collect the WHOWAS lines.
-	// <nick> <user> <host> * :<real_name>
-	whoCb := c.Callbacks.AddBg(RPL_WHOWASUSER, func(c *Client, e Event) {
-		if len(e.Params) != 5 {
-			return
-		}
-
-		// First check and make sure that this WHOWAS is for us.
-		if e.Params[1] != nick {
-			return
-		}
-
-		mu.Lock()
-		events = append(events, &e)
-		mu.Unlock()
-	})
-
-	// One more callback needs to be added to let us know when WHOWAS has
-	// finished.
-	// 	<nick> :<info>
-	whoDoneCb := c.Callbacks.AddBg(RPL_ENDOFWHOWAS, func(c *Client, e Event) {
-		if len(e.Params) != 2 {
-			return
-		}
-
-		// First check and make sure that this WHOWAS is for us.
-		if e.Params[1] != nick {
-			return
-		}
-
-		mu.Lock()
-		whoDone <- struct{}{}
-		mu.Unlock()
-	})
-
-	// Send the WHOWAS query.
-	err := c.Send(&Event{Command: WHOWAS, Params: []string{nick, "10"}})
-	if err != nil {
-		return nil, err
-	}
-
-	// Wait for everything to finish. Give the server 2 seconds to respond.
-	select {
-	case <-whoDone:
-		close(whoDone)
-	case <-time.After(time.Second * 2):
-		// Remove callbacks and return. Took too long.
-		c.Callbacks.Remove(whoCb)
-		c.Callbacks.Remove(whoDoneCb)
-
-		return nil, &ErrCallbackTimedout{
-			ID:      whoCb + " + " + whoDoneCb,
-			Timeout: time.Second * 2,
-		}
-	}
-
-	// Remove the temporary callbacks to ensure that nothing else is
-	// received.
-	c.Callbacks.Remove(whoCb)
-	c.Callbacks.Remove(whoDoneCb)
-
-	var users []*User
-
-	for i := 0; i < len(events); i++ {
-		users = append(users, &User{
-			Nick:  events[i].Params[1],
-			Ident: events[i].Params[2],
-			Host:  events[i].Params[3],
-			Name:  events[i].Trailing,
-		})
-	}
-
-	return users, nil
+	return c.Send(&Event{Command: WHOWAS, Params: []string{nick, string(amount)}})
 }
