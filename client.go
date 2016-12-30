@@ -237,11 +237,7 @@ func (c *Client) connectMessages() (events []*Event) {
 		c.Config.Name = c.Config.User
 	}
 
-	events = append(events, &Event{
-		Command:  USER,
-		Params:   []string{c.Config.User, "+iw", "*"},
-		Trailing: c.Config.Name,
-	})
+	events = append(events, &Event{Command: USER, Params: []string{c.Config.User, "+iw", "*"}, Trailing: c.Config.Name})
 
 	return events
 }
