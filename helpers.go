@@ -170,7 +170,7 @@ func handleWHO(c *Client, e Event) {
 
 	user.Host = host
 	user.Ident = ident
-	user.Name = e.Trailing
+	user.Extras.Name = e.Trailing
 	c.state.mu.Unlock()
 }
 

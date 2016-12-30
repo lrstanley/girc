@@ -53,18 +53,23 @@ type User struct {
 	// many networks spoofing/hiding parts of the hostname for privacy
 	// reasons.
 	Host string
-	// Name is the users "realname" or full name. Commonly contains links
-	// to the IRC client being used, or something of non-importance. May also
-	// be empty.
-	Name string
+
 	// FirstSeen represents the first time that the user was seen by the
 	// client for the given channel. Only usable if from state, not in past.
 	FirstSeen time.Time
-
 	// LastActive represents the last time that we saw the user active,
 	// which could be during nickname change, message, channel join, etc.
 	// Only usable if from state, not in past.
 	LastActive time.Time
+
+	// Extras are things added on by additional tracking methods, which may
+	// or may not work on the IRC server in mention.
+	Extras struct {
+		// Name is the users "realname" or full name. Commonly contains links
+		// to the IRC client being used, or something of non-importance. May also
+		// be empty.
+		Name string
+	}
 }
 
 // Message returns an event which can be used to send a response to the user
