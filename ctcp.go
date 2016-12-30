@@ -32,7 +32,7 @@ type CTCPEvent struct {
 func decodeCTCP(e *Event) *CTCPEvent {
 	// http://www.irchelp.org/protocol/ctcpspec.html
 
-	// Must be targetting a user/channel, AND trailing must have
+	// Must be targeting a user/channel, AND trailing must have
 	// DELIM+TAG+DELIM minimum (at least 3 chars).
 	if len(e.Params) != 1 || len(e.Trailing) < 3 {
 		return nil

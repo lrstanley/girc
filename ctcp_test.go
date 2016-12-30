@@ -154,7 +154,7 @@ func TestCall(t *testing.T) {
 func TestSet(t *testing.T) {
 	ctcp := newCTCP()
 
-	t.Run("invalid commmand", func(t *testing.T) {
+	t.Run("invalid command", func(t *testing.T) {
 		ctcp.Set("TEST-1", func(client *Client, event CTCPEvent) {})
 		if _, ok := ctcp.handlers["TEST"]; ok {
 			t.Fatal("Set('TEST') allowed invalid command")
