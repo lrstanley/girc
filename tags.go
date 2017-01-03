@@ -109,6 +109,8 @@ func (t Tags) String() string {
 	return string(t.Bytes())
 }
 
+// writeTo writes the necessary tag bytes to an io.Writer, including a trailing
+// space-separator.
 func (t Tags) writeTo(w io.Writer) (n int, err error) {
 	b := t.Bytes()
 	if len(b) == 0 {
@@ -186,6 +188,7 @@ func (t Tags) Remove(key string) (success bool) {
 	return success
 }
 
+// validTag validates an IRC tag.
 func validTag(name string) bool {
 	if len(name) < 1 {
 		return false
