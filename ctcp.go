@@ -49,7 +49,7 @@ func decodeCTCP(e *Event) *CTCPEvent {
 	// Strip delimiters.
 	text := e.Trailing[1 : len(e.Trailing)-1]
 
-	s := strings.IndexByte(text, space)
+	s := strings.IndexByte(text, eventSpace)
 
 	// Check to see if it only contains a tag.
 	if s < 0 {
@@ -102,7 +102,7 @@ func encodeCTCPRaw(cmd, text string) (out string) {
 	out = string(ctcpDelim) + cmd
 
 	if len(text) > 0 {
-		out += string(space) + text
+		out += string(eventSpace) + text
 	}
 
 	return out + string(ctcpDelim)

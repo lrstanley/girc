@@ -253,12 +253,13 @@ func (c *Client) connectMessages() (events []*Event) {
 	return events
 }
 
-var possibleCap = []string{"chghost", "away-notify"}
+var possibleCap = []string{"chghost", "away-notify", "message-tags"}
 
 // handleCAP attempts to find out what IRCv3 capabilities the server supports.
 // This will lock further registration until we have acknowledged the
 // capabilities.
 func (c *Client) handleCAP() {
+	// testnet.inspircd.org may potentially be used for testing.
 	capDone := make(chan struct{})
 	var caps []string
 

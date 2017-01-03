@@ -10,9 +10,9 @@ import (
 )
 
 const (
-	prefix     byte = 0x3A // ":" -- prefix or last argument
-	prefixUser byte = 0x21 // "!" -- username
-	prefixHost byte = 0x40 // "@" -- hostname
+	messagePrefix byte = 0x3A // ":" -- prefix or last argument
+	prefixUser    byte = 0x21 // "!" -- username
+	prefixHost    byte = 0x40 // "@" -- hostname
 )
 
 // Source represents the sender of an IRC event, see RFC1459 section 2.3.1.

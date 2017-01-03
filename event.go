@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	space     byte = 0x20 // Separator.
-	maxLength      = 510  // Maximum length is 510 (2 for line endings).
+	eventSpace byte = 0x20 // Separator.
+	maxLength       = 510  // Maximum length is 510 (2 for line endings).
 )
 
 // cutCRFunc is used to trim CR characters from prefixes/messages.
@@ -35,6 +35,7 @@ func cutCRFunc(r rune) bool {
 //    <crlf>     :: CR LF
 type Event struct {
 	Source        *Source  // The source of the event.
+	Tags          Tags     // IRCv3 style message tags. Only use if network supported.
 	Command       string   // the IRC command, e.g. JOIN, PRIVMSG, KILL.
 	Params        []string // parameters to the command. Commonly nickname, channel, etc.
 	Trailing      string   // any trailing data. e.g. with a PRIVMSG, this is the message text.
@@ -54,9 +55,21 @@ func ParseEvent(raw string) (e *Event) {
 	i, j := 0, 0
 	e = new(Event)
 
-	if raw[0] == prefix {
+	if raw[0] == prefixTag {
+		// Tags end with a space.
+		i = strings.IndexByte(raw, eventSpace)
+
+		if i < 2 {
+			return nil
+		}
+
+		e.Tags = ParseTags(raw[1:i])
+		raw = raw[i+1:]
+	}
+
+	if raw[0] == messagePrefix {
 		// Prefix ends with a space.
-		i = strings.IndexByte(raw, space)
+		i = strings.IndexByte(raw, eventSpace)
 
 		// Prefix string must not be empty if the indicator is present.
 		if i < 2 {
@@ -70,7 +83,7 @@ func ParseEvent(raw string) (e *Event) {
 	}
 
 	// Find end of command.
-	j = i + strings.IndexByte(raw[i:], space)
+	j = i + strings.IndexByte(raw[i:], eventSpace)
 
 	// Extract command.
 	if j < i {
@@ -83,11 +96,11 @@ func ParseEvent(raw string) (e *Event) {
 	j++
 
 	// Find prefix for trailer.
-	i = strings.IndexByte(raw[j:], prefix)
+	i = strings.IndexByte(raw[j:], messagePrefix)
 
-	if i < 0 || raw[j+i-1] != space {
+	if i < 0 || raw[j+i-1] != eventSpace {
 		// No trailing argument.
-		e.Params = strings.Split(raw[j:], string(space))
+		e.Params = strings.Split(raw[j:], string(eventSpace))
 		return e
 	}
 
@@ -96,7 +109,7 @@ func ParseEvent(raw string) (e *Event) {
 
 	// Check if we need to parse arguments.
 	if i > j {
-		e.Params = strings.Split(raw[j:i-1], string(space))
+		e.Params = strings.Split(raw[j:i-1], string(eventSpace))
 	}
 
 	e.Trailing = raw[i+1:]
@@ -112,24 +125,28 @@ func ParseEvent(raw string) (e *Event) {
 
 // Len calculates the length of the string representation of event.
 func (e *Event) Len() (length int) {
+	if e.Tags != nil {
+		// Include tags and trailing space.
+		length = e.Tags.Len() + 1
+	}
 	if e.Source != nil {
 		// Include prefix and trailing space.
-		length = e.Source.Len() + 2
+		length += e.Source.Len() + 2
 	}
 
-	length = length + len(e.Command)
+	length += len(e.Command)
 
 	if len(e.Params) > 0 {
-		length = length + len(e.Params)
+		length += len(e.Params)
 
 		for i := 0; i < len(e.Params); i++ {
-			length = length + len(e.Params[i])
+			length += len(e.Params[i])
 		}
 	}
 
 	if len(e.Trailing) > 0 || e.EmptyTrailing {
 		// Include prefix and space.
-		length = length + len(e.Trailing) + 2
+		length += len(e.Trailing) + 2
 	}
 
 	return
@@ -144,11 +161,16 @@ func (e *Event) Len() (length int) {
 func (e *Event) Bytes() []byte {
 	buffer := new(bytes.Buffer)
 
+	// Tags.
+	if e.Tags != nil {
+		e.Tags.writeTo(buffer)
+	}
+
 	// Event prefix.
 	if e.Source != nil {
-		buffer.WriteByte(prefix)
+		buffer.WriteByte(messagePrefix)
 		e.Source.writeTo(buffer)
-		buffer.WriteByte(space)
+		buffer.WriteByte(eventSpace)
 	}
 
 	// Command is required.
@@ -156,13 +178,13 @@ func (e *Event) Bytes() []byte {
 
 	// Space separated list of arguments.
 	if len(e.Params) > 0 {
-		buffer.WriteByte(space)
-		buffer.WriteString(strings.Join(e.Params, string(space)))
+		buffer.WriteByte(eventSpace)
+		buffer.WriteString(strings.Join(e.Params, string(eventSpace)))
 	}
 
 	if len(e.Trailing) > 0 || e.EmptyTrailing {
-		buffer.WriteByte(space)
-		buffer.WriteByte(prefix)
+		buffer.WriteByte(eventSpace)
+		buffer.WriteByte(messagePrefix)
 		buffer.WriteString(e.Trailing)
 	}
 
@@ -211,7 +233,7 @@ func (e *Event) String() (out string) {
 
 	// Space separated list of arguments.
 	if len(e.Params) > 0 {
-		out += " " + strings.Join(e.Params, string(space))
+		out += " " + strings.Join(e.Params, string(eventSpace))
 	}
 
 	if len(e.Trailing) > 0 || e.EmptyTrailing {
