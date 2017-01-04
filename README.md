@@ -19,7 +19,6 @@
 ## TODO
 
 - [ ] IRCv3 spec -- [details](http://ircv3.net):
-  - [ ] [account-notify](http://ircv3.net/specs/extensions/account-notify-3.1.html)
   - [ ] [account-tag](http://ircv3.net/specs/extensions/account-tag-3.2.html)
   - [ ] [multi-prefix](http://ircv3.net/specs/extensions/multi-prefix-3.1.html)
   - [ ] [sasl](http://ircv3.net/specs/extensions/sasl-3.2.html)

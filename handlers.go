@@ -6,9 +6,9 @@ package girc
 
 import "time"
 
-// registerHelpers sets up built-in callbacks/helpers, based on client
+// registerHandlers sets up built-in callbacks/helpers, based on client
 // configuration.
-func (c *Client) registerHelpers() {
+func (c *Client) registerHandlers() {
 	c.Callbacks.mu.Lock()
 
 	// Built-in things that should always be supported.
@@ -45,6 +45,7 @@ func (c *Client) registerHelpers() {
 	if !c.Config.DisableTracking && !c.Config.DisableCapTracking {
 		c.Callbacks.register(true, CAP_CHGHOST, CallbackFunc(handleCHGHOST))
 		c.Callbacks.register(true, CAP_AWAY, CallbackFunc(handleAWAY))
+		c.Callbacks.register(true, CAP_ACCOUNT, CallbackFunc(handleACCOUNT))
 	}
 
 	c.Callbacks.mu.Unlock()
@@ -222,34 +223,5 @@ func handleNICK(c *Client, e Event) {
 func handleQUIT(c *Client, e Event) {
 	c.state.mu.Lock()
 	c.state.deleteUser(e.Source.Name)
-	c.state.mu.Unlock()
-}
-
-func handleCHGHOST(c *Client, e Event) {
-	if len(e.Params) != 2 {
-		return
-	}
-
-	c.state.mu.Lock()
-	for chanName := range c.state.channels {
-		if _, ok := c.state.channels[chanName].users[e.Source.Name]; !ok {
-			continue
-		}
-
-		c.state.channels[chanName].users[e.Source.Name].Ident = e.Params[0]
-		c.state.channels[chanName].users[e.Source.Name].Host = e.Params[1]
-	}
-	c.state.mu.Unlock()
-}
-
-func handleAWAY(c *Client, e Event) {
-	c.state.mu.Lock()
-	for chanName := range c.state.channels {
-		if _, ok := c.state.channels[chanName].users[e.Source.Name]; !ok {
-			continue
-		}
-
-		c.state.channels[chanName].users[e.Source.Name].Extras.Away = e.Trailing
-	}
 	c.state.mu.Unlock()
 }

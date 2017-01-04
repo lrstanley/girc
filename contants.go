@@ -265,6 +265,7 @@ const (
 
 	CAP_CHGHOST = "CHGHOST"
 	CAP_AWAY    = "AWAY"
+	CAP_ACCOUNT = "ACCOUNT"
 )
 
 // Numeric IRC reply mapping for ircv3 :: http://ircv3.net/irc/
@@ -310,9 +311,9 @@ const (
 
 // Misc.
 const (
-	ERR_TOOMANYMATCHES = "416" // IRCNet
-	RPL_GLOBALUSERS    = "266" // aircd/hybrid/bahamut, used on freenode
-	RPL_LOCALUSERS     = "265" // aircd/hybrid/bahamut, used on freenode
-	RPL_TOPICWHOTIME   = "333" // ircu, in use on Freenode
-	RPL_WHOSPCRPL      = "354" // ircu, used on networks with WHOX support
+	ERR_TOOMANYMATCHES = "416" // IRCNet.
+	RPL_GLOBALUSERS    = "266" // aircd/hybrid/bahamut, used on freenode.
+	RPL_LOCALUSERS     = "265" // aircd/hybrid/bahamut, used on freenode.
+	RPL_TOPICWHOTIME   = "333" // ircu, in use on Freenode.
+	RPL_WHOSPCRPL      = "354" // ircu, used on networks with WHOX support.
 )
