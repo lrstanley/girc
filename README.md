@@ -2,7 +2,6 @@
 
 [![Build Status](https://travis-ci.org/lrstanley/girc.svg?branch=master)](https://travis-ci.org/lrstanley/girc)
 [![GoDoc](https://godoc.org/github.com/lrstanley/girc?status.png)](https://godoc.org/github.com/lrstanley/girc)
-[![codebeat badge](https://codebeat.co/badges/9f69c452-abc4-4dd3-9e9c-8536ad0a7b18)](https://codebeat.co/projects/github-com-lrstanley-girc)
 [![Go Report Card](https://goreportcard.com/badge/github.com/lrstanley/girc)](https://goreportcard.com/report/github.com/lrstanley/girc)
 [![IRC Chat](https://img.shields.io/badge/ByteIRC-%23L-blue.svg)](http://byteirc.org/channel/L)
 [![GitHub Issues](https://img.shields.io/github/issues/lrstanley/girc.svg)](https://github.com/lrstanley/girc/issues)
