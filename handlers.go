@@ -130,6 +130,8 @@ func handlePART(c *Client, e Event) {
 	c.state.mu.Unlock()
 }
 
+// handleTOPIC handles incoming TOPIC events and keeps channel tracking info
+// updated with the latest channel topic.
 func handleTOPIC(c *Client, e Event) {
 	var name string
 	switch len(e.Params) {
@@ -234,6 +236,9 @@ func handleQUIT(c *Client, e Event) {
 	c.state.mu.Unlock()
 }
 
+// handleMYINFO handles incoming MYINFO events -- these are commonly used
+// to tell us what the server name is, what version of software is being used
+// as well as what channel and user modes are being used on the server.
 func handleMYINFO(c *Client, e Event) {
 	// Malformed or odd output. As this can differ strongly between networks,
 	// just skip it.
@@ -247,10 +252,15 @@ func handleMYINFO(c *Client, e Event) {
 	c.state.mu.Unlock()
 }
 
+// handleISUPPORT handles incoming RPL_ISUPPORT (also known as RPL_PROTOCTL)
+// events. These commonly contain the server capabilities and limitations.
+// For example, things like max channel name length, or nickname length.
 func handleISUPPORT(c *Client, e Event) {
 	// Must be a ISUPPORT-based message. 005 is also used for server bounce
 	// related things, so this callback may be triggered during other
 	// situations.
+
+	// Also known as RPL_PROTOCTL.
 	if !strings.HasSuffix(e.Trailing, "this server") {
 		return
 	}
@@ -277,6 +287,8 @@ func handleISUPPORT(c *Client, e Event) {
 	c.state.mu.Unlock()
 }
 
+// handleMOTD handles incoming MOTD messages and buffers them up for use with
+// Client.ServerMOTD().
 func handleMOTD(c *Client, e Event) {
 	c.state.mu.Lock()
 

@@ -709,8 +709,8 @@ func (c *Client) Whowas(nick string, amount int) error {
 }
 
 // GetServerOption retrieves a server capability setting that was retrieved
-// during client connection. This is also known as ISUPPORT. Will panic if
-// used when tracking has been disabled. Examples of usage:
+// during client connection. This is also known as ISUPPORT (or RPL_PROTOCTL).
+// Will panic if used when tracking has been disabled. Examples of usage:
 //
 //   nickLen, success := GetServerOption("MAXNICKLEN")
 //
@@ -731,7 +731,7 @@ func (c *Client) GetServerOption(key string) (result string, success bool) {
 // used when tracking has been disabled.
 func (c *Client) ServerName() (name string) {
 	if c.Config.DisableTracking {
-		panic("GetServerOption() used when tracking is disabled")
+		panic("ServerName() used when tracking is disabled")
 	}
 
 	name, _ = c.GetServerOption("SERVER")
@@ -740,11 +740,11 @@ func (c *Client) ServerName() (name string) {
 }
 
 // NetworkName returns the network identifier. E.g. "EsperNet", "ByteIRC".
-// May be empty if the server does not support RPL_ISUPPORT. Will panic if
-// used when tracking has been disabled.
+// May be empty if the server does not support RPL_ISUPPORT (or RPL_PROTOCTL).
+// Will panic if used when tracking has been disabled.
 func (c *Client) NetworkName() (name string) {
 	if c.Config.DisableTracking {
-		panic("GetServerOption() used when tracking is disabled")
+		panic("NetworkName() used when tracking is disabled")
 	}
 
 	name, _ = c.GetServerOption("NETWORK")
@@ -758,7 +758,7 @@ func (c *Client) NetworkName() (name string) {
 // disabled.
 func (c *Client) ServerVersion() (version string) {
 	if c.Config.DisableTracking {
-		panic("GetServerOption() used when tracking is disabled")
+		panic("ServerVersion() used when tracking is disabled")
 	}
 
 	version, _ = c.GetServerOption("VERSION")
@@ -767,8 +767,12 @@ func (c *Client) ServerVersion() (version string) {
 }
 
 // ServerMOTD returns the servers message of the day, if the server has sent
-// it upon connect.
+// it upon connect. Will panic if used when tracking has been disabled.
 func (c *Client) ServerMOTD() (motd string) {
+	if c.Config.DisableTracking {
+		panic("ServerMOTD() used when tracking is disabled")
+	}
+
 	c.state.mu.Lock()
 	motd = c.state.motd
 	c.state.mu.Unlock()

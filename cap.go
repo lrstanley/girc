@@ -83,6 +83,10 @@ func handleCAP(c *Client, e Event) {
 	}
 }
 
+// handleCHGHOST handles incoming IRCv3 hostname change events. CHGHOST is
+// what occurs (when enabled) when a servers services change the hostname of
+// a user. Traditionally, this was simply resolved with a quick QUIT and JOIN,
+// however CHGHOST resolves this in a much cleaner fashion.
 func handleCHGHOST(c *Client, e Event) {
 	if len(e.Params) != 2 {
 		return
@@ -100,6 +104,8 @@ func handleCHGHOST(c *Client, e Event) {
 	c.state.mu.Unlock()
 }
 
+// handleAWAY handles incoming IRCv3 AWAY events, for which are sent both
+// when users are no longer away, or when they are away.
 func handleAWAY(c *Client, e Event) {
 	c.state.mu.Lock()
 	for chanName := range c.state.channels {
@@ -112,6 +118,10 @@ func handleAWAY(c *Client, e Event) {
 	c.state.mu.Unlock()
 }
 
+// handleACCOUNT handles incoming IRCv3 ACCOUNT events. ACCOUNT is sent when
+// a user logs into an account, logs out of their account, or logs into a
+// different account. The account backend is handled server-side, so this
+// could be NickServ, X (undernet?), etc.
 func handleACCOUNT(c *Client, e Event) {
 	if len(e.Params) != 1 {
 		return
