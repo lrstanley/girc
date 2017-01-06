@@ -709,7 +709,8 @@ func (c *Client) Whowas(nick string, amount int) error {
 }
 
 // GetServerOption retrieves a server capability setting that was retrieved
-// during client connection. This is also known as ISUPPORT. Examples of usage:
+// during client connection. This is also known as ISUPPORT. Will panic if
+// used when tracking has been disabled. Examples of usage:
 //
 //   nickLen, success := GetServerOption("MAXNICKLEN")
 //
@@ -726,16 +727,26 @@ func (c *Client) GetServerOption(key string) (result string, success bool) {
 }
 
 // ServerName returns the server host/name that the server itself identifies
-// as. May be empty if the server does not support RPL_MYINFO.
+// as. May be empty if the server does not support RPL_MYINFO. Will panic if
+// used when tracking has been disabled.
 func (c *Client) ServerName() (name string) {
+	if c.Config.DisableTracking {
+		panic("GetServerOption() used when tracking is disabled")
+	}
+
 	name, _ = c.GetServerOption("SERVER")
 
 	return name
 }
 
 // NetworkName returns the network identifier. E.g. "EsperNet", "ByteIRC".
-// May be empty if the server does not support RPL_ISUPPORT.
+// May be empty if the server does not support RPL_ISUPPORT. Will panic if
+// used when tracking has been disabled.
 func (c *Client) NetworkName() (name string) {
+	if c.Config.DisableTracking {
+		panic("GetServerOption() used when tracking is disabled")
+	}
+
 	name, _ = c.GetServerOption("NETWORK")
 
 	return name
@@ -743,9 +754,24 @@ func (c *Client) NetworkName() (name string) {
 
 // ServerVersion returns the server software version, if the server has
 // supplied this information during connection. May be empty if the server
-// does not support RPL_MYINFO.
+// does not support RPL_MYINFO. Will panic if used when tracking has been
+// disabled.
 func (c *Client) ServerVersion() (version string) {
+	if c.Config.DisableTracking {
+		panic("GetServerOption() used when tracking is disabled")
+	}
+
 	version, _ = c.GetServerOption("VERSION")
 
 	return version
+}
+
+// ServerMOTD returns the servers message of the day, if the server has sent
+// it upon connect.
+func (c *Client) ServerMOTD() (motd string) {
+	c.state.mu.Lock()
+	motd = c.state.motd
+	c.state.mu.Unlock()
+
+	return motd
 }

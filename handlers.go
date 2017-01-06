@@ -37,6 +37,8 @@ func (c *Client) registerHandlers() {
 		c.Callbacks.register(true, RPL_TOPIC, CallbackFunc(handleTOPIC))
 		c.Callbacks.register(true, RPL_MYINFO, CallbackFunc(handleMYINFO))
 		c.Callbacks.register(true, RPL_ISUPPORT, CallbackFunc(handleISUPPORT))
+		c.Callbacks.register(true, RPL_MOTDSTART, CallbackFunc(handleMOTD))
+		c.Callbacks.register(true, RPL_MOTD, CallbackFunc(handleMOTD))
 	}
 
 	// Nickname collisions.
@@ -272,5 +274,26 @@ func handleISUPPORT(c *Client, e Event) {
 		val := e.Params[i][j+1:]
 		c.state.serverOptions[name] = val
 	}
+	c.state.mu.Unlock()
+}
+
+func handleMOTD(c *Client, e Event) {
+	c.state.mu.Lock()
+
+	// Beginning of the MOTD.
+	if e.Command == RPL_MOTDSTART {
+		c.state.motd = ""
+
+		c.state.mu.Unlock()
+		return
+	}
+
+	// Otherwise, assume we're getting sent the MOTD line-by-line.
+	if len(c.state.motd) != 0 {
+		e.Trailing = "\n" + e.Trailing
+	}
+
+	c.state.motd += e.Trailing
+
 	c.state.mu.Unlock()
 }

@@ -48,6 +48,8 @@ type state struct {
 	// supported by the server at connection time. This also includes ISUPPORT
 	// entries.
 	serverOptions map[string]string
+	// motd is the servers message of the day.
+	motd string
 }
 
 // User represents an IRC user and the state attached to them.
