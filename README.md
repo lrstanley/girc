@@ -33,6 +33,7 @@
 - [ ] users need to be exposed in state somehow (other than `GetChannels()`)
 - [ ] `MODE` tracking on a per-channel basis
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
+- [ ] add option to enable PRIVMSG/NOTICE text wrapping (and maybe per-default?) (`Config.DisableResponseWrap`?)
 
 ## Installing
 
