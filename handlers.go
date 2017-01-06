@@ -4,7 +4,10 @@
 
 package girc
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 // registerHandlers sets up built-in callbacks/helpers, based on client
 // configuration.
@@ -32,6 +35,8 @@ func (c *Client) registerHandlers() {
 		// Other misc. useful stuff.
 		c.Callbacks.register(true, TOPIC, CallbackFunc(handleTOPIC))
 		c.Callbacks.register(true, RPL_TOPIC, CallbackFunc(handleTOPIC))
+		c.Callbacks.register(true, RPL_MYINFO, CallbackFunc(handleMYINFO))
+		c.Callbacks.register(true, RPL_ISUPPORT, CallbackFunc(handleISUPPORT))
 	}
 
 	// Nickname collisions.
@@ -64,7 +69,7 @@ func handleConnect(c *Client, e Event) {
 		c.state.nick = e.Params[0]
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(2 * time.Second)
 
 	c.Events <- &Event{Command: CONNECTED}
 }
@@ -224,5 +229,48 @@ func handleNICK(c *Client, e Event) {
 func handleQUIT(c *Client, e Event) {
 	c.state.mu.Lock()
 	c.state.deleteUser(e.Source.Name)
+	c.state.mu.Unlock()
+}
+
+func handleMYINFO(c *Client, e Event) {
+	// Malformed or odd output. As this can differ strongly between networks,
+	// just skip it.
+	if len(e.Params) < 3 {
+		return
+	}
+
+	c.state.mu.Lock()
+	c.state.serverOptions["SERVER"] = e.Params[1]
+	c.state.serverOptions["VERSION"] = e.Params[2]
+	c.state.mu.Unlock()
+}
+
+func handleISUPPORT(c *Client, e Event) {
+	// Must be a ISUPPORT-based message. 005 is also used for server bounce
+	// related things, so this callback may be triggered during other
+	// situations.
+	if !strings.HasSuffix(e.Trailing, "this server") {
+		return
+	}
+
+	// Must have at least one configuration.
+	if len(e.Params) < 2 {
+		return
+	}
+
+	c.state.mu.Lock()
+	// Skip the first parameter, as it's our nickname.
+	for i := 1; i < len(e.Params); i++ {
+		j := strings.IndexByte(e.Params[i], 0x3D) // =
+
+		if j < 1 || (j+1) == len(e.Params[i]) {
+			c.state.serverOptions[e.Params[i]] = ""
+			continue
+		}
+
+		name := e.Params[i][0:j]
+		val := e.Params[i][j+1:]
+		c.state.serverOptions[name] = val
+	}
 	c.state.mu.Unlock()
 }

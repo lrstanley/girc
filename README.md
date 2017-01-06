@@ -28,7 +28,6 @@
 - [ ] ensure types `User` and `Channel` don't have any unexported fields, and that when they are given publically, it's not a pointer to internal state
 - [ ] track with `NAMES` as well? would require rewrite of user existance logic, could also help track user modes
 - [ ] write more function-specific examples as the api becomes much more stable
-- [ ] would be cool to track things like `SERVERNAME`, `VERSION`, `UMODES`, `CMODES`, etc. also see `Config.DisableCapTracking`. [e.g. here](https://github.com/lrstanley/Code/blob/master/core/triggers.py#L40-L67)
 - [ ] client should support ping tracking (sending `PING`'s to the server)
   - [ ] with this, we can potentially find lag. `Client.Lag()` would be useful
 - [ ] users need to be exposed in state somehow (other than `GetChannels()`)

@@ -707,3 +707,45 @@ func (c *Client) Whowas(nick string, amount int) error {
 
 	return c.Send(&Event{Command: WHOWAS, Params: []string{nick, string(amount)}})
 }
+
+// GetServerOption retrieves a server capability setting that was retrieved
+// during client connection. This is also known as ISUPPORT. Examples of usage:
+//
+//   nickLen, success := GetServerOption("MAXNICKLEN")
+//
+func (c *Client) GetServerOption(key string) (result string, success bool) {
+	if c.Config.DisableTracking {
+		panic("GetServerOption() used when tracking is disabled")
+	}
+
+	c.state.mu.Lock()
+	result, success = c.state.serverOptions[key]
+	c.state.mu.Unlock()
+
+	return result, success
+}
+
+// ServerName returns the server host/name that the server itself identifies
+// as. May be empty if the server does not support RPL_MYINFO.
+func (c *Client) ServerName() (name string) {
+	name, _ = c.GetServerOption("SERVER")
+
+	return name
+}
+
+// NetworkName returns the network identifier. E.g. "EsperNet", "ByteIRC".
+// May be empty if the server does not support RPL_ISUPPORT.
+func (c *Client) NetworkName() (name string) {
+	name, _ = c.GetServerOption("NETWORK")
+
+	return name
+}
+
+// ServerVersion returns the server software version, if the server has
+// supplied this information during connection. May be empty if the server
+// does not support RPL_MYINFO.
+func (c *Client) ServerVersion() (version string) {
+	version, _ = c.GetServerOption("VERSION")
+
+	return version
+}

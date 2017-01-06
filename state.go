@@ -44,6 +44,10 @@ type state struct {
 	// last capability check. These will get sent once we have received the
 	// last capability list command from the server.
 	tmpCap []string
+	// serverOptions are the standard capabilities and configurations
+	// supported by the server at connection time. This also includes ISUPPORT
+	// entries.
+	serverOptions map[string]string
 }
 
 // User represents an IRC user and the state attached to them.
@@ -168,6 +172,7 @@ func newState() *state {
 	s := &state{}
 
 	s.channels = make(map[string]*Channel)
+	s.serverOptions = make(map[string]string)
 	s.connected = false
 
 	return s
