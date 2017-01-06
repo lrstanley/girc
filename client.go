@@ -70,9 +70,9 @@ type Config struct {
 	// Logger is an optional, user supplied logger to log the raw lines sent
 	// from the server. Useful for debugging. Defaults to ioutil.Discard.
 	Logger io.Writer
-	// What IRCv3 capabilities you would like the client to support. Only use
-	// this if DisableTracking and DisableCapTracking are not enabled,
-	// otherwise you will need to handle CAP negotiation yourself.
+	// SupportedCaps are the IRCv3 capabilities you would like the client to
+	// support. Only use this if DisableTracking and DisableCapTracking are
+	// not enabled, otherwise you will need to handle CAP negotiation yourself.
 	SupportedCaps []string
 	// ReconnectDelay is the a duration of time to delay before attempting a
 	// reconnection. Defaults to 10s (minimum of 10s).
@@ -85,7 +85,8 @@ type Config struct {
 	DisableDefaultCTCP bool
 	// DisableCapTracking disables all network/server capability tracking.
 	// This includes determining what feature the IRC server supports, what
-	// the "NETWORK=" variables are, and other useful stuff.
+	// the "NETWORK=" variables are, and other useful stuff. DisableTracking
+	// cannot be enabled if you want to also tracking capabilities.
 	DisableCapTracking bool
 	// DisableNickCollision disables the clients auto-response to nickname
 	// collisions. For example, if "test" is already in use, or is blocked by
