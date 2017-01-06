@@ -215,9 +215,12 @@ func (c *Client) Connect() error {
 	// Start read loop to process messages from the server.
 	go c.readLoop()
 
-	// Process potential IRCv3 capabilities.
-	if !c.Config.DisableCapTracking && !c.Config.DisableTracking {
-		go c.capHandler()
+	// List the IRCv3 capabilities, specifically with the max protocol we
+	// support.
+	if !c.Config.DisableTracking && !c.Config.DisableCapTracking {
+		if err := c.Send(&Event{Command: CAP, Params: []string{CAP_LS, "302"}}); err != nil {
+			return err
+		}
 	}
 
 	// Consider the connection a success at this point.

@@ -43,6 +43,7 @@ func (c *Client) registerHandlers() {
 
 	// CAP IRCv3-specific tracking and functionality.
 	if !c.Config.DisableTracking && !c.Config.DisableCapTracking {
+		c.Callbacks.register(true, CAP, CallbackFunc(handleCAP))
 		c.Callbacks.register(true, CAP_CHGHOST, CallbackFunc(handleCHGHOST))
 		c.Callbacks.register(true, CAP_AWAY, CallbackFunc(handleAWAY))
 		c.Callbacks.register(true, CAP_ACCOUNT, CallbackFunc(handleACCOUNT))

@@ -40,9 +40,10 @@ type state struct {
 	channels map[string]*Channel
 	// enabledCap are the capabilities which are enabled for this connection.
 	enabledCap []string
-	// supportedCap are the capabilties which are supporteed by the server
-	// during the last capability check.
-	supportedCap []string
+	// tmpCap are the capabilties which we share with the server during the
+	// last capability check. These will get sent once we have received the
+	// last capability list command from the server.
+	tmpCap []string
 }
 
 // User represents an IRC user and the state attached to them.

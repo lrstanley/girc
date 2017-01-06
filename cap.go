@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 )
 
 var possibleCap = []string{
@@ -19,89 +18,68 @@ var possibleCap = []string{
 	"message-tags",
 }
 
-// capHandler attempts to find out what IRCv3 capabilities the server supports.
+// handleCAP attempts to find out what IRCv3 capabilities the server supports.
 // This will lock further registration until we have acknowledged the
 // capabilities.
-func (c *Client) capHandler() {
+func handleCAP(c *Client, e Event) {
 	// testnet.inspircd.org may potentially be used for testing.
-	capDone := make(chan struct{})
-	var caps []string
-
 	possible := c.Config.SupportedCaps
 	possible = append(possible, possibleCap...)
 
-	cuid := c.Callbacks.sregister(true, CAP, CallbackFunc(func(client *Client, e Event) {
-		// We can assume there was a failure attempting to enable a capability.
-		if len(e.Params) == 2 && e.Params[1] == CAP_NAK {
-			// Let the server know that we're done.
-			client.Send(&Event{Command: CAP, Params: []string{CAP_END}})
+	// We can assume there was a failure attempting to enable a capability.
+	if len(e.Params) == 2 && e.Params[1] == CAP_NAK {
+		// Let the server know that we're done.
+		c.Send(&Event{Command: CAP, Params: []string{CAP_END}})
+		return
+	}
 
-			capDone <- struct{}{}
-			return
-		}
-
-		if len(e.Params) >= 2 && len(e.Trailing) > 1 && e.Params[1] == CAP_LS {
-
-			client.state.mu.Lock()
-			client.state.supportedCap = strings.Split(e.Trailing, " ")
-
-			for i := 0; i < len(client.state.supportedCap); i++ {
-				for j := 0; j < len(possible); j++ {
-					if client.state.supportedCap[i] == possibleCap[j] {
-						// It's one for which we support.
-						caps = append(caps, client.state.supportedCap[i])
-						break
+	if len(e.Params) >= 2 && len(e.Trailing) > 1 && e.Params[1] == CAP_LS {
+		c.state.mu.Lock()
+		// Loop through and check if it's one we support.
+		for _, cap := range strings.Split(e.Trailing, " ") {
+			for i := 0; i < len(possible); i++ {
+				// Check if it's one that we support.
+				if possibleCap[i] == cap {
+					// Ensure that there are no duplicates.
+					var isin bool
+					for j := 0; j < len(c.state.tmpCap); j++ {
+						if c.state.tmpCap[j] == cap {
+							isin = true
+							break
+						}
 					}
+					if !isin {
+						c.state.tmpCap = append(c.state.tmpCap, cap)
+					}
+
+					break
 				}
 			}
-			client.state.mu.Unlock()
+		}
+		c.state.mu.Unlock()
 
-			// Indicates if this is a multi-line LS. (2 args means it's the
-			// last LS)
-			if len(e.Params) == 2 {
-				// If we support no caps, just ack the CAP message and END.
-				if len(caps) == 0 {
-					client.Send(&Event{Command: CAP, Params: []string{CAP_END}})
-					capDone <- struct{}{}
-					return
-				}
-
-				// Let them know which ones we'd like to enable.
-				client.Send(&Event{Command: CAP, Params: []string{CAP_REQ}, Trailing: strings.Join(caps, " ")})
+		// Indicates if this is a multi-line LS. (2 args means it's the
+		// last LS).
+		if len(e.Params) == 2 {
+			// If we support no caps, just ack the CAP message and END.
+			if len(c.state.tmpCap) == 0 {
+				c.Send(&Event{Command: CAP, Params: []string{CAP_END}})
+				return
 			}
+
+			// Let them know which ones we'd like to enable.
+			c.Send(&Event{Command: CAP, Params: []string{CAP_REQ}, Trailing: strings.Join(c.state.tmpCap, " ")})
 		}
+	}
 
-		if len(e.Params) == 2 && len(e.Trailing) > 1 && e.Params[1] == CAP_ACK {
-			client.state.mu.Lock()
-			client.state.enabledCap = strings.Split(e.Trailing, " ")
-			client.state.mu.Unlock()
+	if len(e.Params) == 2 && len(e.Trailing) > 1 && e.Params[1] == CAP_ACK {
+		c.state.mu.Lock()
+		c.state.enabledCap = strings.Split(e.Trailing, " ")
+		c.state.mu.Unlock()
 
-			// Let the server know that we're done.
-			client.Send(&Event{Command: CAP, Params: []string{CAP_END}})
-
-			capDone <- struct{}{}
-			return
-		}
-	}))
-
-	unknCuid := c.Callbacks.sregister(true, ERR_UNKNOWNCOMMAND, CallbackFunc(func(client *Client, e Event) {
-		capDone <- struct{}{}
-	}))
-
-	// Ensure that the callbacks are removed when done.
-	defer c.Callbacks.Remove(cuid)
-	defer c.Callbacks.Remove(unknCuid)
-
-	// List the capabilities, specifically with the max protocol we support.
-	c.Send(&Event{Command: CAP, Params: []string{CAP_LS, "302"}})
-
-	select {
-	case <-capDone:
-		close(capDone)
-	case <-time.After(time.Second * 15):
-		// Wait 15 seconds, only because the server HAS YET to tell us that
-		// it's an unknown command, meaning it's likely doing things behind
-		// the scenes.
+		// Let the server know that we're done.
+		c.Send(&Event{Command: CAP, Params: []string{CAP_END}})
+		return
 	}
 }
 
