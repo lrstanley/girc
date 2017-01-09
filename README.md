@@ -30,10 +30,16 @@
 - [ ] write more function-specific examples as the api becomes much more stable
 - [ ] client should support ping tracking (sending `PING`'s to the server)
   - [ ] with this, we can potentially find lag. `Client.Lag()` would be useful
+  - [ ] allow support for changing the frequency of this?
 - [ ] users need to be exposed in state somehow (other than `GetChannels()`)
 - [ ] `MODE` tracking on a per-channel basis
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
 - [ ] add option to enable PRIVMSG/NOTICE text wrapping (and maybe per-default?) (`Config.DisableResponseWrap`?)
+- [ ] optional flood toggle which uses `EventLimiter` so the user doesn't have to implement it themselves?
+- [ ] allow users to supply a custom `VERSION` for the CTCP reply so they don't have to implement their own CTCP `VERSION` handler?
+- [ ] allow support for proxy URLs (passing to `golang.org/x/net/proxy`?)
+- [ ] allow users to specify a local/bind address using `net.Dialer{}.LocalAddr`
+- [ ] add more generic helpers: `Away()`, `Invite()`, `Kick()`, `Oper()`, generic `Ping()` and `Pong()`, `VHost()`, `Whois()` and `Who()`
 
 ## Installing
 
