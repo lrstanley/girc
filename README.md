@@ -1,11 +1,13 @@
-## girc is a flexible IRC library for Go
-
-[![Build Status](https://travis-ci.org/lrstanley/girc.svg?branch=master)](https://travis-ci.org/lrstanley/girc)
-[![GoDoc](https://godoc.org/github.com/lrstanley/girc?status.png)](https://godoc.org/github.com/lrstanley/girc)
-[![Go Report Card](https://goreportcard.com/badge/github.com/lrstanley/girc)](https://goreportcard.com/report/github.com/lrstanley/girc)
-[![IRC Chat](https://img.shields.io/badge/ByteIRC-%23L-blue.svg)](http://byteirc.org/channel/L)
-[![GitHub Issues](https://img.shields.io/github/issues/lrstanley/girc.svg)](https://github.com/lrstanley/girc/issues)
-[![license](https://img.shields.io/github/license/lrstanley/girc.svg)](https://raw.githubusercontent.com/lrstanley/girc/master/LICENSE)
+<p align="center"><a href="https://godoc.org/github.com/lrstanley/girc"><img  width="600" src="https://i.imgur.com/Wh6otgh.png"></a></p>
+<p align="center">girc -- A flexible IRC library for Go</p>
+<p align="center">
+  <a href="https://travis-ci.org/lrstanley/girc"><img src="https://travis-ci.org/lrstanley/girc.svg?branch=master" alt="Build Status"></a>
+  <a href="https://godoc.org/github.com/lrstanley/girc"><img src="https://godoc.org/github.com/lrstanley/girc?status.png" alt="GoDoc"></a>
+  <a href="https://goreportcard.com/report/github.com/lrstanley/girc"><img src="https://goreportcard.com/badge/github.com/lrstanley/girc" alt="Go Report Card"></a>
+  <a href="http://byteirc.org/channel/L"><img src="https://img.shields.io/badge/ByteIRC-%23L-blue.svg" alt="IRC Chat"></a>
+  <a href="https://github.com/lrstanley/girc/issues"><img src="https://img.shields.io/github/issues/lrstanley/girc.svg" alt="GitHub Issues"></a>
+  <a href="https://raw.githubusercontent.com/lrstanley/girc/master/LICENSE"><img src="https://img.shields.io/github/license/lrstanley/girc.svg" alt="License"></a>
+</p>
 
 ## Features
 
