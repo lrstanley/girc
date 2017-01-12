@@ -74,6 +74,10 @@ type Config struct {
 	// support. Only use this if DisableTracking and DisableCapTracking are
 	// not enabled, otherwise you will need to handle CAP negotiation yourself.
 	SupportedCaps []string
+	// Version is the application version information that will be used in
+	// response to a CTCP VERSION, if default CTCP replies have not been
+	// overwritten or a VERSION handler was already supplied.
+	Version string
 	// ReconnectDelay is the a duration of time to delay before attempting a
 	// reconnection. Defaults to 10s (minimum of 10s).
 	ReconnectDelay time.Duration
