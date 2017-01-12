@@ -34,7 +34,6 @@
 - [ ] users need to be exposed in state somehow (other than `GetChannels()`)
 - [ ] `MODE` tracking on a per-channel basis
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
-- [ ] add option to enable PRIVMSG/NOTICE text wrapping (and maybe per-default?) (`Config.DisableResponseWrap`?)
 - [ ] optional flood toggle which uses `EventLimiter` so the user doesn't have to implement it themselves?
 - [ ] allow support for proxy URLs (passing to `golang.org/x/net/proxy`?)
 - [ ] allow users to specify a local/bind address using `net.Dialer{}.LocalAddr`
