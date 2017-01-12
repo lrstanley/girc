@@ -9,11 +9,20 @@
 
 ## Features
 
-- Focuses on simplicity, yet tries to still be flexible
-- Only requires standard packages
-- Event based triggering/responses
-- Documentation is mostly on par
-- At this time, **expect breaking changes to occur frequently**.
+- Focuses on simplicity, yet tries to still be flexible.
+- Only requires standard library packages.
+- Event based triggering/responses (and CTCP too!).
+- Documentation is mostly on par.
+- Full support for the IRCv3 spec. [**WIP**]
+- Channel and user tracking. Easily find what users are in a channel, if a user is away, or if they are authenticated.
+- Client state/capability tracking. Easy methods to access capability data.
+- Built-in support for things you would commmonly have to implement yourself.
+  - Nick collision detection and prevention.
+  - Event/message rate limiting.
+  - Channel, nick, and user validation on connection methods.
+  - CTCP handling and auto-responses.
+
+- At this time, **expect breaking changes to occur frequently**. girc has **not hit version 1.0.0 yet!**
 
 ## TODO
 
@@ -31,10 +40,9 @@
 - [ ] client should support ping tracking (sending `PING`'s to the server)
   - [ ] with this, we can potentially find lag. `Client.Lag()` would be useful
   - [ ] allow support for changing the frequency of this?
-- [ ] users need to be exposed in state somehow (other than `GetChannels()`)
+- [ ] users need to be exposed in state some how (other than `GetChannels()`)
 - [ ] `MODE` tracking on a per-channel basis
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
-- [ ] optional flood toggle which uses `EventLimiter` so the user doesn't have to implement it themselves?
 - [ ] allow support for proxy URLs (passing to `golang.org/x/net/proxy`?)
 - [ ] allow users to specify a local/bind address using `net.Dialer{}.LocalAddr`
 - [ ] add more generic helpers: `Away()`, `Invite()`, `Kick()`, `Oper()`, generic `Ping()` and `Pong()`, `VHost()`, `Whois()` and `Who()`

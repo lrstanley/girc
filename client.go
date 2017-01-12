@@ -36,6 +36,8 @@ type Client struct {
 
 	// tries represents the internal reconnect count to the IRC server.
 	tries int
+	// limiter is a configurable EventLimiter by the end user.
+	limiter *EventLimiter
 	// log is used if a writer is supplied for Client.Config.Logger.
 	log *log.Logger
 	// quitChan is used to stop the read loop. See Client.Quit().
@@ -67,6 +69,9 @@ type Config struct {
 	// MaxRetries is the number of times the client will attempt to reconnect
 	// to the server after the last disconnect.
 	MaxRetries int
+	// RateLimit is the delay in seconds between events sent to the server,
+	// with a burst of 4 messages. Set to -1 to disable.
+	RateLimit int
 	// Logger is an optional, user supplied logger to log the raw lines sent
 	// from the server. Useful for debugging. Defaults to ioutil.Discard.
 	Logger io.Writer
@@ -131,6 +136,13 @@ func New(config Config) *Client {
 	}
 	client.log = log.New(client.Config.Logger, "", log.Ldate|log.Ltime|log.Lshortfile)
 
+	// Setup a rate limiter if they requested one.
+	if client.Config.RateLimit == 0 {
+		client.limiter = NewEventLimiter(4, 1*time.Second, client.write)
+	} else if client.Config.RateLimit > 0 {
+		client.limiter = NewEventLimiter(4, time.Duration(client.Config.RateLimit)*time.Second, client.write)
+	}
+
 	// Give ourselves a new state.
 	client.state = newState()
 
@@ -164,6 +176,12 @@ func (c *Client) Quit(message string) {
 // Stop exits the clients main loop. Use Client.Quit() first if you want to
 // disconnect the client from the server/connection.
 func (c *Client) Stop() {
+	// Close and limiters they have, otherwise the client could be easily
+	// held in memory.
+	if c.limiter != nil {
+		c.limiter.Stop()
+	}
+
 	// Send to the stop channel, so if Client.Loop() is being used, this will
 	// return.
 	c.stopChan <- struct{}{}
@@ -358,6 +376,17 @@ func (c *Client) Lifetime() time.Duration {
 // Send sends an event to the server. Use Client.RunCallback() if you are
 // simply looking to trigger callbacks with an event.
 func (c *Client) Send(event *Event) error {
+	// if the client wants us to rate limit incoming events, do so, otherwise
+	// simply use the underlying send functionality.
+	if c.limiter != nil {
+		return c.limiter.Send(event)
+	}
+
+	return c.write(event)
+}
+
+// write is the lower level function to write an event.
+func (c *Client) write(event *Event) error {
 	// log the event
 	if !event.Sensitive {
 		c.log.Print("--> ", StripRaw(event.Raw()))
