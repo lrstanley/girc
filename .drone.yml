@@ -1,0 +1,5 @@
+image: go1.7
+env:
+  - GOPATH=/var/cache/drone
+script:
+  - make
