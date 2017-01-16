@@ -3,3 +3,4 @@ env:
   - GOPATH=/var/cache/drone
 script:
   - make
+
