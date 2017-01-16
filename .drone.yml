@@ -12,7 +12,6 @@ pipeline:
       - GOPATH=/go
       - GO15VENDOREXPERIMENT=1
     commands:
-      - env
       - export PATH=$PATH:$GOPATH/bin
       - go get -v -x
       - go test -v
