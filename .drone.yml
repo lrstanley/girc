@@ -1,6 +1,8 @@
-image: go1.7
-env:
-  - GOPATH=/var/cache/drone
-script:
-  - make
+pipeline:
+  build:
+    image: golang
+    commands:
+      - go get
+      - go build
+      - go test
 
