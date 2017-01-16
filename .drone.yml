@@ -1,8 +1,17 @@
+workspace:
+  base: /go
+  path: src/github.com/${DRONE_REPO}
+matrix:
+  GO_VERSION:
+    - latest
+    - 1.7
 pipeline:
   build:
-    image: golang
+    image: golang:${GO_VERSION}
+    environment:
+      - GOPATH=/go
+      - GO15VENDOREXPERIMENT=1
     commands:
-      - go get
-      - go build
-      - go test
+      - export PATH=$PATH:$GOPATH/bin
+      - make
 
