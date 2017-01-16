@@ -1,19 +1,30 @@
-## girc is a flexible IRC library for Go
-
-[![Build Status](https://travis-ci.org/lrstanley/girc.svg?branch=master)](https://travis-ci.org/lrstanley/girc)
-[![GoDoc](https://godoc.org/github.com/lrstanley/girc?status.png)](https://godoc.org/github.com/lrstanley/girc)
-[![Go Report Card](https://goreportcard.com/badge/github.com/lrstanley/girc)](https://goreportcard.com/report/github.com/lrstanley/girc)
-[![IRC Chat](https://img.shields.io/badge/ByteIRC-%23L-blue.svg)](http://byteirc.org/channel/L)
-[![GitHub Issues](https://img.shields.io/github/issues/lrstanley/girc.svg)](https://github.com/lrstanley/girc/issues)
-[![license](https://img.shields.io/github/license/lrstanley/girc.svg)](https://raw.githubusercontent.com/lrstanley/girc/master/LICENSE)
+<p align="center"><a href="https://godoc.org/github.com/lrstanley/girc"><img  width="600" src="https://i.imgur.com/Wh6otgh.png"></a></p>
+<p align="center">girc -- A flexible IRC library for Go</p>
+<p align="center">
+  <a href="https://travis-ci.org/lrstanley/girc"><img src="https://travis-ci.org/lrstanley/girc.svg?branch=master" alt="Build Status"></a>
+  <a href="https://godoc.org/github.com/lrstanley/girc"><img src="https://godoc.org/github.com/lrstanley/girc?status.png" alt="GoDoc"></a>
+  <a href="https://goreportcard.com/report/github.com/lrstanley/girc"><img src="https://goreportcard.com/badge/github.com/lrstanley/girc" alt="Go Report Card"></a>
+  <a href="http://byteirc.org/channel/L"><img src="https://img.shields.io/badge/ByteIRC-%23L-blue.svg" alt="IRC Chat"></a>
+  <a href="https://github.com/lrstanley/girc/issues"><img src="https://img.shields.io/github/issues/lrstanley/girc.svg" alt="GitHub Issues"></a>
+  <a href="https://raw.githubusercontent.com/lrstanley/girc/master/LICENSE"><img src="https://img.shields.io/github/license/lrstanley/girc.svg" alt="License"></a>
+</p>
 
 ## Features
 
-- Focuses on simplicity, yet tries to still be flexible
-- Only requires standard packages
-- Event based triggering/responses
-- Documentation is mostly on par
-- At this time, **expect breaking changes to occur frequently**.
+- Focuses on simplicity, yet tries to still be flexible.
+- Only requires standard library packages.
+- Event based triggering/responses (and CTCP too!).
+- Documentation is mostly on par.
+- Full support for the IRCv3 spec. [**WIP**]
+- Channel and user tracking. Easily find what users are in a channel, if a user is away, or if they are authenticated.
+- Client state/capability tracking. Easy methods to access capability data.
+- Built-in support for things you would commmonly have to implement yourself.
+  - Nick collision detection and prevention.
+  - Event/message rate limiting.
+  - Channel, nick, and user validation on connection methods.
+  - CTCP handling and auto-responses.
+
+- At this time, **expect breaking changes to occur frequently**. girc has **not hit version 1.0.0 yet!**
 
 ## TODO
 
@@ -30,10 +41,13 @@
 - [ ] write more function-specific examples as the api becomes much more stable
 - [ ] client should support ping tracking (sending `PING`'s to the server)
   - [ ] with this, we can potentially find lag. `Client.Lag()` would be useful
-- [ ] users need to be exposed in state somehow (other than `GetChannels()`)
+  - [ ] allow support for changing the frequency of this?
+- [ ] users need to be exposed in state some how (other than `GetChannels()`)
 - [ ] `MODE` tracking on a per-channel basis
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
-- [ ] add option to enable PRIVMSG/NOTICE text wrapping (and maybe per-default?) (`Config.DisableResponseWrap`?)
+- [ ] allow support for proxy URLs (passing to `golang.org/x/net/proxy`?)
+- [ ] allow users to specify a local/bind address using `net.Dialer{}.LocalAddr`
+- [ ] add more generic helpers: `Away()`, `Invite()`, `Kick()`, `Oper()`, generic `Ping()` and `Pong()`, `VHost()`, `Whois()` and `Who()`
 
 ## Installing
 

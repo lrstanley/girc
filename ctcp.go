@@ -251,6 +251,11 @@ func handleCTCPPong(client *Client, ctcp CTCPEvent) {
 // as the os type (darwin, linux, windows, etc) and architecture type (x86,
 // arm, etc).
 func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
+	if client.Config.Version != "" {
+		client.SendCTCPReply(ctcp.Source.Name, CTCP_VERSION, client.Config.Version)
+		return
+	}
+
 	client.SendCTCPReplyf(
 		ctcp.Source.Name, CTCP_VERSION,
 		"girc (github.com/lrstanley/girc) using %s (%s, %s)",
