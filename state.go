@@ -284,3 +284,36 @@ func (s *state) renameUser(from, to string) {
 		s.channels[k].users[to] = &source
 	}
 }
+
+func (s *state) getUsers(matchType, toMatch string) []*User {
+	var users []*User
+
+	for c := range s.channels {
+		for u := range s.channels[c].users {
+			switch matchType {
+			case "nick":
+				if s.channels[c].users[u].Nick == toMatch {
+					users = append(users, s.channels[c].users[u])
+					continue
+				}
+			case "name":
+				if s.channels[c].users[u].Extras.Name == toMatch {
+					users = append(users, s.channels[c].users[u])
+					continue
+				}
+			case "ident":
+				if s.channels[c].users[u].Ident == toMatch {
+					users = append(users, s.channels[c].users[u])
+					continue
+				}
+			case "account":
+				if s.channels[c].users[u].Extras.Account == toMatch {
+					users = append(users, s.channels[c].users[u])
+					continue
+				}
+			}
+		}
+	}
+
+	return users
+}
