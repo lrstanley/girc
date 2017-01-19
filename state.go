@@ -45,8 +45,8 @@ type state struct {
 	// last capability list command from the server.
 	tmpCap []string
 	// serverOptions are the standard capabilities and configurations
-	// supported by the server at connection time. This also includes ISUPPORT
-	// entries.
+	// supported by the server at connection time. This also includes
+	// RPL_ISUPPORT entries.
 	serverOptions map[string]string
 	// motd is the servers message of the day.
 	motd string

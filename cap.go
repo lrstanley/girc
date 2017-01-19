@@ -11,14 +11,14 @@ import (
 	"strings"
 )
 
-var possibleCap = []string{
-	"account-notify",
-	"account-tag",
-	"away-notify",
-	"batch",
-	"cap-notify",
-	"chghost",
-	"message-tags",
+var possibleCap = map[string][]string{
+	"account-notify": nil,
+	"account-tag":    nil,
+	"away-notify":    nil,
+	"batch":          nil,
+	"cap-notify":     nil,
+	"chghost":        nil,
+	"message-tags":   nil,
 }
 
 func (c *Client) listCAP() error {
@@ -31,13 +31,46 @@ func (c *Client) listCAP() error {
 	return nil
 }
 
+func possibleCapList(c *Client) map[string][]string {
+	out := make(map[string][]string)
+
+	for k := range c.Config.SupportedCaps {
+		out[k] = c.Config.SupportedCaps[k]
+	}
+
+	for k := range possibleCap {
+		out[k] = possibleCap[k]
+	}
+
+	return out
+}
+
+func parseCap(raw string) map[string][]string {
+	out := make(map[string][]string)
+	parts := strings.Split(raw, " ")
+
+	var val int
+
+	for i := 0; i < len(parts); i++ {
+		val = strings.IndexByte(parts[i], prefixTagValue) // =
+
+		// No value splitter, or has splitter but no trailing value.
+		if val < 1 || len(parts[i]) < val+1 {
+			// The capability doesn't contain a value.
+			out[parts[i]] = []string{}
+			continue
+		}
+
+		out[parts[i][:val]] = strings.Split(parts[i][val+1:], ",")
+	}
+
+	return out
+}
+
 // handleCAP attempts to find out what IRCv3 capabilities the server supports.
 // This will lock further registration until we have acknowledged the
 // capabilities.
 func handleCAP(c *Client, e Event) {
-	possible := c.Config.SupportedCaps
-	possible = append(possible, possibleCap...)
-
 	if len(e.Params) >= 2 && (e.Params[1] == CAP_NEW || e.Params[1] == CAP_DEL) {
 		c.listCAP()
 		return
@@ -46,32 +79,51 @@ func handleCAP(c *Client, e Event) {
 	// We can assume there was a failure attempting to enable a capability.
 	if len(e.Params) == 2 && e.Params[1] == CAP_NAK {
 		// Let the server know that we're done.
-		c.Send(&Event{Command: CAP, Params: []string{CAP_END}})
+		c.write(&Event{Command: CAP, Params: []string{CAP_END}})
 		return
 	}
 
+	possible := possibleCapList(c)
+
 	if len(e.Params) >= 2 && len(e.Trailing) > 1 && e.Params[1] == CAP_LS {
 		c.state.mu.Lock()
-		// Loop through and check if it's one we support.
-		for _, cap := range strings.Split(e.Trailing, " ") {
-			for i := 0; i < len(possible); i++ {
-				// Check if it's one that we support.
-				if possibleCap[i] == cap {
-					// Ensure that there are no duplicates.
-					var isin bool
-					for j := 0; j < len(c.state.tmpCap); j++ {
-						if c.state.tmpCap[j] == cap {
-							isin = true
-							break
-						}
-					}
-					if !isin {
-						c.state.tmpCap = append(c.state.tmpCap, cap)
+
+		caps := parseCap(e.Trailing)
+
+		for k := range caps {
+			if _, ok := possible[k]; !ok {
+				continue
+			}
+
+			if len(possible[k]) == 0 || len(caps[k]) == 0 {
+				c.state.tmpCap = append(c.state.tmpCap, k)
+				continue
+			}
+
+			var contains bool
+			for i := 0; i < len(caps[k]); i++ {
+				for j := 0; j < len(possible[k]); j++ {
+					if caps[k][i] == possible[k][j] {
+						// Assume we have a matching split value.
+						contains = true
+						break
 					}
 
+					if contains {
+						break
+					}
+				}
+
+				if contains {
 					break
 				}
 			}
+
+			if !contains {
+				continue
+			}
+
+			c.state.tmpCap = append(c.state.tmpCap, k)
 		}
 		c.state.mu.Unlock()
 
@@ -80,12 +132,12 @@ func handleCAP(c *Client, e Event) {
 		if len(e.Params) == 2 {
 			// If we support no caps, just ack the CAP message and END.
 			if len(c.state.tmpCap) == 0 {
-				c.Send(&Event{Command: CAP, Params: []string{CAP_END}})
+				c.write(&Event{Command: CAP, Params: []string{CAP_END}})
 				return
 			}
 
 			// Let them know which ones we'd like to enable.
-			c.Send(&Event{Command: CAP, Params: []string{CAP_REQ}, Trailing: strings.Join(c.state.tmpCap, " ")})
+			c.write(&Event{Command: CAP, Params: []string{CAP_REQ}, Trailing: strings.Join(c.state.tmpCap, " ")})
 
 			// Re-initialize the tmpCap, so if we get multiple 'CAP LS' requests
 			// due to cap-notify, we can re-evaluate what we can support.
@@ -101,7 +153,7 @@ func handleCAP(c *Client, e Event) {
 		c.state.mu.Unlock()
 
 		// Let the server know that we're done.
-		c.Send(&Event{Command: CAP, Params: []string{CAP_END}})
+		c.write(&Event{Command: CAP, Params: []string{CAP_END}})
 		return
 	}
 }
@@ -210,20 +262,14 @@ func ParseTags(raw string) (t Tags) {
 	for i := 0; i < len(parts); i++ {
 		hasValue = strings.IndexByte(parts[i], prefixTagValue)
 
-		if hasValue < 1 {
+		// The tag doesn't contain a value or has a splitter with no value.
+		if hasValue < 1 || len(parts[i]) < hasValue+1 {
 			// The tag doesn't contain a value.
 			t[parts[i]] = ""
 			continue
 		}
 
-		// May have equals sign and no value as well.
-		if len(parts[i]) < hasValue+1 {
-			t[parts[i]] = ""
-			continue
-		}
-
 		t[parts[i][:hasValue]] = parts[i][hasValue+1:]
-		continue
 	}
 
 	return t

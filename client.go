@@ -78,7 +78,8 @@ type Config struct {
 	// SupportedCaps are the IRCv3 capabilities you would like the client to
 	// support. Only use this if DisableTracking and DisableCapTracking are
 	// not enabled, otherwise you will need to handle CAP negotiation yourself.
-	SupportedCaps []string
+	// The keys value gets passed to the server if supported.
+	SupportedCaps map[string][]string
 	// Version is the application version information that will be used in
 	// response to a CTCP VERSION, if default CTCP replies have not been
 	// overwritten or a VERSION handler was already supplied.
@@ -292,7 +293,7 @@ func (c *Client) Reconnect() (err error) {
 	}
 
 	if c.Config.ReconnectDelay < (10 * time.Second) {
-		c.Config.ReconnectDelay = 10 * time.Second
+		c.Config.ReconnectDelay = 25 * time.Second
 	}
 
 	if c.IsConnected() {
