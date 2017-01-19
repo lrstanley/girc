@@ -16,7 +16,8 @@
 - Event based triggering/responses (and CTCP too!).
 - Documentation is mostly on par.
 - Full support for the IRCv3 spec. [**WIP**]
-- Channel and user tracking. Easily find what users are in a channel, if a user is away, or if they are authenticated.
+- Channel and user tracking. Easily find what users are in a channel, if a
+  user is away, or if they are authenticated.
 - Client state/capability tracking. Easy methods to access capability data.
 - Built-in support for things you would commmonly have to implement yourself.
   - Nick collision detection and prevention.
@@ -32,10 +33,15 @@
   - [ ] [multi-prefix](http://ircv3.net/specs/extensions/multi-prefix-3.1.html)
   - [ ] [sasl](http://ircv3.net/specs/extensions/sasl-3.2.html)
   - [ ] [userhost-in-names](http://ircv3.net/specs/extensions/userhost-in-names-3.2.html)
-  - [ ] [batches?](http://ircv3.net/specs/extensions/batch-3.2.html)
+  - [ ] [batches?](http://ircv3.net/specs/extensions/batch-3.2.html) -- add
+        a new callback type which supports a list of events, which is called
+        upon a batch listener?
   - [ ] [extended-join](http://ircv3.net/specs/extensions/extended-join-3.1.html)
-- [ ] ensure types `User` and `Channel` don't have any unexported fields, and that when they are given publically, it's not a pointer to internal state
-- [ ] track with `NAMES` as well? would require rewrite of user existance logic, could also help track user modes
+- [ ] ensure types `User` and `Channel` don't have any unexported fields, and
+      that when they are given publically, it's not a pointer to internal
+      state.
+- [ ] track with `NAMES` as well? would require rewrite of user existance
+      logic, could also help track user modes.
 - [ ] write more function-specific examples as the api becomes much more stable
 - [ ] client should support ping tracking (sending `PING`'s to the server)
   - [ ] with this, we can potentially find lag. `Client.Lag()` would be useful
@@ -45,7 +51,8 @@
 - [ ] `Client.AddTmpCallback()` for one time use callbacks?
 - [ ] allow support for proxy URLs (passing to `golang.org/x/net/proxy`?)
 - [ ] allow users to specify a local/bind address using `net.Dialer{}.LocalAddr`
-- [ ] add more generic helpers: `Away()`, `Invite()`, `Kick()`, `Oper()`, generic `Ping()` and `Pong()`, `VHost()`, `Whois()` and `Who()`
+- [ ] add more generic helpers: `Away()`, `Invite()`, `Kick()`, `Oper()`,
+      generic `Ping()` and `Pong()`, `VHost()`, `Whois()` and `Who()`
 
 ## Installing
 
@@ -53,17 +60,23 @@
 
 ## Examples
 
-See [the examples](https://godoc.org/github.com/lrstanley/girc#example-package) within the documentation for real-world usecases.
+See [the examples](https://godoc.org/github.com/lrstanley/girc#example-package)
+within the documentation for real-world usecases.
 
 ## Contributing
 
-Below are a few guidelines if you would like to contribute. Keep the code clean, standardized, and much of the quality should match Golang's standard library and common idioms.
+Below are a few guidelines if you would like to contribute. Keep the code
+clean, standardized, and much of the quality should match Golang's standard
+library and common idioms.
 
    * Always test using the latest Go version.
    * Always use `gofmt` before committing anything.
    * Always have proper documentation before committing.
-   * Keep the same whitespacing, documentation, and newline format as the rest of the project.
-   * Only use 3rd party libraries if necessary. If only a small portion of the library is needed, simply rewrite it within the library to prevent useless imports.
+   * Keep the same whitespacing, documentation, and newline format as the
+     rest of the project.
+   * Only use 3rd party libraries if necessary. If only a small portion of
+     the library is needed, simply rewrite it within the library to prevent
+     useless imports.
    * Also see [golang/go/wiki/CodeReviewComments](https://github.com/golang/go/wiki/CodeReviewComments)
 
 ## License
