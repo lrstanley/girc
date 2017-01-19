@@ -54,6 +54,7 @@ func (c *Client) registerHandlers() {
 		c.Callbacks.register(true, CAP_CHGHOST, CallbackFunc(handleCHGHOST))
 		c.Callbacks.register(true, CAP_AWAY, CallbackFunc(handleAWAY))
 		c.Callbacks.register(true, CAP_ACCOUNT, CallbackFunc(handleACCOUNT))
+		c.Callbacks.register(true, ALLEVENTS, CallbackFunc(handleTags))
 	}
 
 	c.Callbacks.mu.Unlock()

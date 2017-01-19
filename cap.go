@@ -13,6 +13,7 @@ import (
 
 var possibleCap = []string{
 	"account-notify",
+	"account-tag",
 	"away-notify",
 	"chghost",
 	"message-tags",
@@ -93,13 +94,11 @@ func handleCHGHOST(c *Client, e Event) {
 	}
 
 	c.state.mu.Lock()
-	for chanName := range c.state.channels {
-		if _, ok := c.state.channels[chanName].users[e.Source.Name]; !ok {
-			continue
-		}
+	users := c.state.getUsers("nick", e.Source.Name)
 
-		c.state.channels[chanName].users[e.Source.Name].Ident = e.Params[0]
-		c.state.channels[chanName].users[e.Source.Name].Host = e.Params[1]
+	for i := 0; i < len(users); i++ {
+		users[i].Ident = e.Params[0]
+		users[i].Host = e.Params[1]
 	}
 	c.state.mu.Unlock()
 }
@@ -108,12 +107,10 @@ func handleCHGHOST(c *Client, e Event) {
 // when users are no longer away, or when they are away.
 func handleAWAY(c *Client, e Event) {
 	c.state.mu.Lock()
-	for chanName := range c.state.channels {
-		if _, ok := c.state.channels[chanName].users[e.Source.Name]; !ok {
-			continue
-		}
+	users := c.state.getUsers("nick", e.Source.Name)
 
-		c.state.channels[chanName].users[e.Source.Name].Extras.Away = e.Trailing
+	for i := 0; i < len(users); i++ {
+		users[i].Extras.Away = e.Trailing
 	}
 	c.state.mu.Unlock()
 }
@@ -133,12 +130,31 @@ func handleACCOUNT(c *Client, e Event) {
 	}
 
 	c.state.mu.Lock()
-	for chanName := range c.state.channels {
-		if _, ok := c.state.channels[chanName].users[e.Source.Name]; !ok {
-			continue
-		}
+	users := c.state.getUsers("nick", e.Source.Name)
 
-		c.state.channels[chanName].users[e.Source.Name].Extras.Account = account
+	for i := 0; i < len(users); i++ {
+		users[i].Extras.Account = account
+	}
+	c.state.mu.Unlock()
+}
+
+// handleTags handles any messages that have tags that will affect state. (e.g.
+// 'account' tags.)
+func handleTags(c *Client, e Event) {
+	if len(e.Tags) == 0 {
+		return
+	}
+
+	account, ok := e.Tags.Get("account")
+	if !ok {
+		return
+	}
+
+	c.state.mu.Lock()
+	users := c.state.getUsers("nick", e.Source.Name)
+
+	for i := 0; i < len(users); i++ {
+		users[i].Extras.Account = account
 	}
 	c.state.mu.Unlock()
 }
