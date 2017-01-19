@@ -15,6 +15,7 @@ var possibleCap = []string{
 	"account-notify",
 	"account-tag",
 	"away-notify",
+	"batch",
 	"cap-notify",
 	"chghost",
 	"message-tags",

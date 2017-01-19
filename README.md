@@ -33,9 +33,6 @@
   - [ ] [multi-prefix](http://ircv3.net/specs/extensions/multi-prefix-3.1.html)
   - [ ] [sasl](http://ircv3.net/specs/extensions/sasl-3.2.html)
   - [ ] [userhost-in-names](http://ircv3.net/specs/extensions/userhost-in-names-3.2.html)
-  - [ ] [batches?](http://ircv3.net/specs/extensions/batch-3.2.html) -- add
-        a new callback type which supports a list of events, which is called
-        upon a batch listener?
   - [ ] [extended-join](http://ircv3.net/specs/extensions/extended-join-3.1.html)
 - [ ] ensure types `User` and `Channel` don't have any unexported fields, and
       that when they are given publically, it's not a pointer to internal
