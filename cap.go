@@ -15,17 +15,32 @@ var possibleCap = []string{
 	"account-notify",
 	"account-tag",
 	"away-notify",
+	"cap-notify",
 	"chghost",
 	"message-tags",
+}
+
+func (c *Client) listCAP() error {
+	if !c.Config.DisableTracking && !c.Config.DisableCapTracking {
+		if err := c.write(&Event{Command: CAP, Params: []string{CAP_LS, "302"}}); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // handleCAP attempts to find out what IRCv3 capabilities the server supports.
 // This will lock further registration until we have acknowledged the
 // capabilities.
 func handleCAP(c *Client, e Event) {
-	// testnet.inspircd.org may potentially be used for testing.
 	possible := c.Config.SupportedCaps
 	possible = append(possible, possibleCap...)
+
+	if len(e.Params) >= 2 && (e.Params[1] == CAP_NEW || e.Params[1] == CAP_DEL) {
+		c.listCAP()
+		return
+	}
 
 	// We can assume there was a failure attempting to enable a capability.
 	if len(e.Params) == 2 && e.Params[1] == CAP_NAK {
@@ -70,6 +85,12 @@ func handleCAP(c *Client, e Event) {
 
 			// Let them know which ones we'd like to enable.
 			c.Send(&Event{Command: CAP, Params: []string{CAP_REQ}, Trailing: strings.Join(c.state.tmpCap, " ")})
+
+			// Re-initialize the tmpCap, so if we get multiple 'CAP LS' requests
+			// due to cap-notify, we can re-evaluate what we can support.
+			c.state.mu.Lock()
+			c.state.tmpCap = []string{}
+			c.state.mu.Unlock()
 		}
 	}
 

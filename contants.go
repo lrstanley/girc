@@ -262,6 +262,8 @@ const (
 	CAP_LS       = "LS"
 	CAP_NAK      = "NAK"
 	CAP_REQ      = "REQ"
+	CAP_NEW      = "NEW"
+	CAP_DEL      = "DEL"
 
 	CAP_CHGHOST = "CHGHOST"
 	CAP_AWAY    = "AWAY"
