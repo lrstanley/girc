@@ -29,13 +29,11 @@
 ## TODO
 
 - [ ] IRCv3 spec -- [details](http://ircv3.net):
-  - [ ] [account-tag](http://ircv3.net/specs/extensions/account-tag-3.2.html)
   - [ ] [multi-prefix](http://ircv3.net/specs/extensions/multi-prefix-3.1.html)
   - [ ] [sasl](http://ircv3.net/specs/extensions/sasl-3.2.html)
   - [ ] [userhost-in-names](http://ircv3.net/specs/extensions/userhost-in-names-3.2.html)
   - [ ] [batches?](http://ircv3.net/specs/extensions/batch-3.2.html)
   - [ ] [extended-join](http://ircv3.net/specs/extensions/extended-join-3.1.html)
-  - [ ] [cap-notify](http://ircv3.net/specs/extensions/cap-notify-3.2.html)
 - [ ] ensure types `User` and `Channel` don't have any unexported fields, and that when they are given publically, it's not a pointer to internal state
 - [ ] track with `NAMES` as well? would require rewrite of user existance logic, could also help track user modes
 - [ ] write more function-specific examples as the api becomes much more stable
