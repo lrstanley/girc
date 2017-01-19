@@ -230,7 +230,7 @@ func (c *Client) Connect() error {
 	c.state.writer = newEncoder(c.state.conn)
 
 	for _, event := range c.connectMessages() {
-		if err := c.Send(event); err != nil {
+		if err := c.write(event); err != nil {
 			return err
 		}
 	}
@@ -238,7 +238,7 @@ func (c *Client) Connect() error {
 	// List the IRCv3 capabilities, specifically with the max protocol we
 	// support.
 	if !c.Config.DisableTracking && !c.Config.DisableCapTracking {
-		if err := c.Send(&Event{Command: CAP, Params: []string{CAP_LS, "302"}}); err != nil {
+		if err := c.write(&Event{Command: CAP, Params: []string{CAP_LS, "302"}}); err != nil {
 			return err
 		}
 	}
