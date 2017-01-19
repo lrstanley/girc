@@ -235,9 +235,6 @@ func (c *Client) Connect() error {
 		}
 	}
 
-	// Start read loop to process messages from the server.
-	go c.readLoop()
-
 	// List the IRCv3 capabilities, specifically with the max protocol we
 	// support.
 	if !c.Config.DisableTracking && !c.Config.DisableCapTracking {
@@ -245,6 +242,9 @@ func (c *Client) Connect() error {
 			return err
 		}
 	}
+
+	// Start read loop to process messages from the server.
+	go c.readLoop()
 
 	// Consider the connection a success at this point.
 	c.tries = 0
