@@ -257,6 +257,11 @@ type Tags map[string]string
 //   @aaa=bbb;ccc;example.com/ddd=eee :nick!ident@host.com PRIVMSG me :Hello
 func ParseTags(raw string) (t Tags) {
 	t = make(Tags)
+
+	if len(raw) > 0 && raw[0] == prefixTag {
+		raw = raw[1:]
+	}
+
 	parts := strings.Split(raw, string(tagSeparator))
 	var hasValue int
 
@@ -265,8 +270,16 @@ func ParseTags(raw string) (t Tags) {
 
 		// The tag doesn't contain a value or has a splitter with no value.
 		if hasValue < 1 || len(parts[i]) < hasValue+1 {
-			// The tag doesn't contain a value.
+			if !validTag(parts[i]) {
+				continue
+			}
+
 			t[parts[i]] = ""
+			continue
+		}
+
+		// Check if tag key or decoded value are invalid.
+		if !validTag(parts[i][:hasValue]) || !validTagValue(tagDecoder.Replace(parts[i][hasValue+1:])) {
 			continue
 		}
 
@@ -276,9 +289,11 @@ func ParseTags(raw string) (t Tags) {
 	return t
 }
 
-// Len determines the length of the string representation of this tag map.
+// Len determines the length of the bytes representation of this tag map. This
+// does not include the trailing space required when creating an event, but
+// does include the tag prefix ("@").
 func (t Tags) Len() (length int) {
-	return len(t.String())
+	return len(t.Bytes())
 }
 
 // Count finds how many total tags that there are.
@@ -286,7 +301,8 @@ func (t Tags) Count() int {
 	return len(t)
 }
 
-// Bytes returns a []byte representation of this tag map.
+// Bytes returns a []byte representation of this tag map, including the tag
+// prefix ("@").
 func (t Tags) Bytes() []byte {
 	max := len(t)
 	if max == 0 {
@@ -294,6 +310,8 @@ func (t Tags) Bytes() []byte {
 	}
 
 	buffer := new(bytes.Buffer)
+	buffer.WriteByte(prefixTag)
+
 	var current int
 
 	for tagName, tagValue := range t {
@@ -411,6 +429,11 @@ func validTag(name string) bool {
 		return false
 	}
 
+	// Allow user tags to be passed to validTag.
+	if len(name) >= 2 && name[0] == prefixUserTag {
+		name = name[1:]
+	}
+
 	for i := 0; i < len(name); i++ {
 		// A-Z, a-z, 0-9, -/._
 		if (name[i] < 0x41 || name[i] > 0x5A) && (name[i] < 0x61 || name[i] > 0x7A) && (name[i] < 0x2D || name[i] > 0x39) && name[i] != 0x5F {
@@ -418,5 +441,17 @@ func validTag(name string) bool {
 		}
 	}
 
+	return true
+}
+
+// validTagValue valids a decoded IRC tag value. If the value is not decoded
+// with tagDecoder first, it may be seen as invalid.
+func validTagValue(value string) bool {
+	for i := 0; i < len(value); i++ {
+		// Don't allow any invisible chars within the tag, or semicolons.
+		if value[i] < 0x21 || value[i] > 0x7E || value[i] == 0x3B {
+			return false
+		}
+	}
 	return true
 }
