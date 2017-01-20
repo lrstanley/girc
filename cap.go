@@ -236,6 +236,7 @@ func handleTags(c *Client, e Event) {
 const (
 	prefixTag      byte = 0x40 // @
 	prefixTagValue byte = 0x3D // =
+	prefixUserTag  byte = 0x2B // +
 	tagSeparator   byte = 0x3B // ;
 	maxTagLength   int  = 511  // 510 + @ and " " (space), though space usually not included.
 )
