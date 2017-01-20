@@ -192,7 +192,12 @@ func (e *Event) Bytes() []byte {
 
 	// We need the limit the buffer length.
 	if buffer.Len() > (maxLength) {
-		buffer.Truncate(maxLength)
+		if e.Tags != nil {
+			// regular message, max tag length, and the splitting space.
+			buffer.Truncate(maxLength + maxTagLength + 1)
+		} else {
+			buffer.Truncate(maxLength)
+		}
 	}
 
 	out := buffer.Bytes()
