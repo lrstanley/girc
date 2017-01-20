@@ -6,7 +6,6 @@ package girc
 
 import (
 	"bytes"
-	"fmt"
 	"strings"
 	"time"
 )
@@ -209,54 +208,10 @@ func (e *Event) Bytes() []byte {
 	return out
 }
 
-// Raw returns a string representation of this event. Strips all newlines
+// String returns a string representation of this event. Strips all newlines
 // and carriage returns.
-func (e *Event) Raw() string {
+func (e *Event) String() string {
 	return string(e.Bytes())
-}
-
-// String returns a prettified string representation of this event. Strips
-// all newlines and carriage returns.
-//
-// Per RFC2812 section 2.3, messages should not exceed 512 characters in
-// length. This method forces that limit by discarding any characters
-// exceeding the length limit.
-func (e *Event) String() (out string) {
-	// Event prefix.
-	if e.Source != nil {
-		if e.Source.Name != "" {
-			out += fmt.Sprintf("[%s] ", e.Source.Name)
-		} else {
-			out += fmt.Sprintf("[%s] ", e.Source)
-		}
-	}
-
-	// Command is required.
-	out += e.Command
-
-	// Space separated list of arguments.
-	if len(e.Params) > 0 {
-		out += " " + strings.Join(e.Params, string(eventSpace))
-	}
-
-	if len(e.Trailing) > 0 || e.EmptyTrailing {
-		out += " :" + e.Trailing
-	}
-
-	// We need the limit the buffer length.
-	if len(out) > (maxLength) {
-		out = out[0 : maxLength-1]
-	}
-
-	// Strip newlines and carriage returns.
-	for i := 0; i < len(out); i++ {
-		if out[i] == 0x0A || out[i] == 0x0D {
-			out = out[:i] + out[i+1:]
-			i-- // Decrease the index so we can pick up where we left off.
-		}
-	}
-
-	return out
 }
 
 // IsAction checks to see if the event is a PRIVMSG, and is an ACTION (/me).
@@ -300,7 +255,8 @@ func (e *Event) IsFromUser() bool {
 	return true
 }
 
-// StripAction strips the action encoding from a PRIVMSG ACTION (/me).
+// StripAction returns the stripped version of the action encoding from a
+// PRIVMSG ACTION (/me).
 func (e *Event) StripAction() string {
 	if !e.IsAction() || len(e.Trailing) < 9 {
 		return e.Trailing

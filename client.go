@@ -388,7 +388,7 @@ func (c *Client) Send(event *Event) error {
 func (c *Client) write(event *Event) error {
 	// log the event
 	if !event.Sensitive {
-		c.log.Print("--> ", StripRaw(event.Raw()))
+		c.log.Print("--> ", StripRaw(event.String()))
 	}
 
 	return c.state.writer.Encode(event)
