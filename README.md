@@ -29,27 +29,9 @@
 
 ## TODO
 
-- [ ] IRCv3 spec -- [details](http://ircv3.net):
-  - [ ] [multi-prefix](http://ircv3.net/specs/extensions/multi-prefix-3.1.html)
-  - [ ] [sasl](http://ircv3.net/specs/extensions/sasl-3.2.html)
-  - [ ] [userhost-in-names](http://ircv3.net/specs/extensions/userhost-in-names-3.2.html)
-  - [ ] [extended-join](http://ircv3.net/specs/extensions/extended-join-3.1.html)
-- [ ] ensure types `User` and `Channel` don't have any unexported fields, and
-      that when they are given publically, it's not a pointer to internal
-      state.
-- [ ] track with `NAMES` as well? would require rewrite of user existance
-      logic, could also help track user modes.
-- [ ] write more function-specific examples as the api becomes much more stable
-- [ ] client should support ping tracking (sending `PING`'s to the server)
-  - [ ] with this, we can potentially find lag. `Client.Lag()` would be useful
-  - [ ] allow support for changing the frequency of this?
-- [ ] users need to be exposed in state some how (other than `GetChannels()`)
-- [ ] `MODE` tracking on a per-channel basis
-- [ ] `Client.AddTmpCallback()` for one time use callbacks?
-- [ ] allow support for proxy URLs (passing to `golang.org/x/net/proxy`?)
-- [ ] allow users to specify a local/bind address using `net.Dialer{}.LocalAddr`
-- [ ] add more generic helpers: `Away()`, `Invite()`, `Kick()`, `Oper()`,
-      generic `Ping()` and `Pong()`, `VHost()`, `Whois()` and `Who()`
+To review what is currently being worked on, or looked into, feel free to head
+over to the [project board](https://github.com/lrstanley/girc/projects/1) or
+the [issues list](https://github.com/lrstanley/girc/issues).
 
 ## Installing
 
