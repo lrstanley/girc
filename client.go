@@ -135,7 +135,7 @@ func New(config Config) *Client {
 	if client.Config.Logger == nil {
 		client.Config.Logger = ioutil.Discard
 	}
-	client.log = log.New(client.Config.Logger, "", log.Ldate|log.Ltime|log.Lshortfile)
+	client.log = log.New(client.Config.Logger, "", log.Ltime)
 
 	// Setup a rate limiter if they requested one.
 	if client.Config.RateLimit == 0 {
@@ -388,7 +388,7 @@ func (c *Client) Send(event *Event) error {
 func (c *Client) write(event *Event) error {
 	// log the event
 	if !event.Sensitive {
-		c.log.Print("--> ", StripRaw(event.String()))
+		c.log.Print(">", StripRaw(event.String()))
 	}
 
 	return c.state.writer.Encode(event)
