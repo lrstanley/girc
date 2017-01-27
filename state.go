@@ -74,6 +74,12 @@ type User struct {
 	// Only usable if from state, not in past.
 	LastActive time.Time
 
+	// Modes are the user modes applied to this user that affect the given
+	// channel. This supports non-rfc style modes like Admin, Owner, and HalfOp.
+	// If you want to easily check if a user has permissions equal or greater
+	// than OP, use Modes.IsAdmin().
+	Modes UserModes
+
 	// Extras are things added on by additional tracking methods, which may
 	// or may not work on the IRC server in mention.
 	Extras struct {
@@ -316,4 +322,101 @@ func (s *state) getUsers(matchType, toMatch string) []*User {
 	}
 
 	return users
+}
+
+// UserModes contains all channel-based user permissions. The minimum op, and
+// voice should be supported on all networks. This also supports non-rfc
+// Owner, Admin, and HalfOp, if the network has support for it.
+type UserModes struct {
+	// Owner (non-rfc) indicates that the user has full permissions to the
+	// channel. More than one user can have owner permission.
+	Owner bool
+	// Admin (non-rfc) is commonly given to users that are trusted enough
+	// to manage channel permissions, as well as higher level service settings.
+	Admin bool
+	// Op is commonly given to trusted users who can manage a given channel
+	// by kicking, and banning users.
+	Op bool
+	// HalfOp (non-rfc) is commonly used to give users permissions like the
+	// ability to kick, without giving them greater abilities to ban all users.
+	HalfOp bool
+	// Voice indicates the user has voice permissions, commonly given to known
+	// users, wih very light trust, or to indicate a user is active.
+	Voice bool
+}
+
+// IsAdmin indicates that the user has banning abilities, and are likely a
+// very trustable user (e.g. op+).
+func (m UserModes) IsAdmin() bool {
+	if m.Owner || m.Admin || m.Op {
+		return true
+	}
+
+	return false
+}
+
+// IsAdmin indicates that the user at least has modes set upon them, higher
+// than a regular joining user.
+func (m UserModes) IsTrusted() bool {
+	if m.IsAdmin() || m.HalfOp || m.Voice {
+		return true
+	}
+
+	return false
+}
+
+// reset resets the modes of a user.
+func (m *UserModes) reset() {
+	m.Owner = false
+	m.Admin = false
+	m.Op = false
+	m.HalfOp = false
+	m.Voice = false
+}
+
+// setMode translates raw mode characters into proper permissions. Only use
+// this function when you have a session lock.
+func (m *UserModes) setModes(modes string, append bool) {
+	if !append {
+		m.reset()
+	}
+
+	for i := 0; i < len(modes); i++ {
+		switch string(modes[i]) {
+		case OwnerPrefix:
+			m.Owner = true
+		case AdminPrefix:
+			m.Admin = true
+		case OperatorPrefix:
+			m.Op = true
+		case HalfOperatorPrefix:
+			m.HalfOp = true
+		case VoicePrefix:
+			m.Voice = true
+		}
+	}
+}
+
+// parseUserModes parses a raw mode line, like "@user" or "@+user".
+func parseUserModes(raw string) (modes, nick string, success bool) {
+	for i := 0; i < len(raw); i++ {
+		char := string(raw[i])
+
+		if char == OwnerPrefix || char == AdminPrefix || char == HalfOperatorPrefix ||
+			char == OperatorPrefix || char == VoicePrefix {
+			modes += char
+			continue
+		}
+
+		// Assume we've gotten to the nickname part.
+		if !IsValidNick(raw[i:]) {
+			return modes, nick, false
+		}
+
+		nick = raw[i:]
+
+		return modes, nick, true
+	}
+
+	return
 }

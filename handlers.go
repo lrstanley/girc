@@ -27,6 +27,7 @@ func (c *Client) registerHandlers() {
 		c.Callbacks.register(true, KICK, CallbackFunc(handleKICK))
 		c.Callbacks.register(true, QUIT, CallbackFunc(handleQUIT))
 		c.Callbacks.register(true, NICK, CallbackFunc(handleNICK))
+		c.Callbacks.register(true, RPL_NAMREPLY, CallbackFunc(handleNAMES))
 
 		// WHO/WHOX responses.
 		c.Callbacks.register(true, RPL_WHOREPLY, CallbackFunc(handleWHO))
@@ -308,5 +309,30 @@ func handleMOTD(c *Client, e Event) {
 
 	c.state.motd += e.Trailing
 
+	c.state.mu.Unlock()
+}
+
+func handleNAMES(c *Client, e Event) {
+	if len(e.Params) < 1 || !IsValidChannel(e.Params[len(e.Params)-1]) {
+		return
+	}
+
+	parts := strings.Split(e.Trailing, " ")
+
+	c.state.mu.Lock()
+	for i := 0; i < len(parts); i++ {
+		modes, nick, ok := parseUserModes(parts[i])
+		if !ok {
+			continue
+		}
+
+		user := c.state.createUserIfNotExists(e.Params[len(e.Params)-1], nick)
+		if user == nil {
+			continue
+		}
+
+		// Don't append modes, overwrite them.
+		user.Modes.setModes(modes, false)
+	}
 	c.state.mu.Unlock()
 }
