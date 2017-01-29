@@ -10,7 +10,7 @@
 // solid API that you don't necessarily have to work with out of the box if
 // you don't want to.
 //
-// See "examples/simple/main.go" for a brief and very useful example taking
-// advantage of girc, that should give you a general idea of how the API
-// works.
+// See https://github.com/lrstanley/girc#examples for a few brief and useful
+// examples taking advantage of girc, which should give you a general idea
+// of how the API works.
 package girc
