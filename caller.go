@@ -14,7 +14,12 @@ import (
 // RunCallbacks manually runs callbacks for a given event.
 func (c *Client) RunCallbacks(event *Event) {
 	// Log the event.
-	c.log.Print("<" + StripRaw(event.String()))
+	c.debug.Print("< " + StripRaw(event.String()))
+
+	// Log the prettified version of the event.
+	if pretty, ok := event.Pretty(); ok {
+		c.log.Print(StripRaw(pretty))
+	}
 
 	// Regular wildcard callbacks.
 	c.Callbacks.exec(ALLEVENTS, c, event)

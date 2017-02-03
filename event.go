@@ -6,6 +6,7 @@ package girc
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -217,6 +218,50 @@ func (e *Event) Bytes() []byte {
 // and carriage returns.
 func (e *Event) String() string {
 	return string(e.Bytes())
+}
+
+// Pretty returns a prettified string of the event. If the event doesn't
+// support prettification, ok is false.
+func (e *Event) Pretty() (out string, ok bool) {
+	if (e.Command == PRIVMSG || e.Command == NOTICE) && len(e.Params) > 0 {
+		return fmt.Sprintf("[%s] (%s) %s", strings.Join(e.Params, ","), e.Source.Name, e.Trailing), true
+	}
+
+	if e.Command == RPL_MOTD || e.Command == RPL_MOTDSTART ||
+		e.Command == RPL_WELCOME || e.Command == RPL_YOURHOST ||
+		e.Command == RPL_CREATED || e.Command == RPL_LUSERCLIENT {
+		return fmt.Sprintf("[*] " + e.Trailing), true
+	}
+
+	if e.Command == JOIN {
+		return fmt.Sprintf("[*] %s has joined %s", e.Source.Name, strings.Join(e.Params, ", ")), true
+	}
+
+	if e.Command == PART {
+		return fmt.Sprintf("[*] %s has left %s (%s)", e.Source.Name, strings.Join(e.Params, ", "), e.Trailing), true
+	}
+
+	if e.Command == ERROR {
+		return fmt.Sprintf("[*] an error occurred: %s", e.Trailing), true
+	}
+
+	if e.Command == QUIT {
+		return fmt.Sprintf("[*] %s has quit (%s)", e.Source.Name, e.Trailing), true
+	}
+
+	if e.Command == KICK && len(e.Params) == 2 {
+		return fmt.Sprintf("[%s] *** %s has kicked %s: %s", e.Params[0], e.Source.Name, e.Params[1], e.Trailing), true
+	}
+
+	if e.Command == NICK && len(e.Params) == 1 {
+		return fmt.Sprintf("[*] %s is now known as %s", e.Source.Name, e.Params[0]), true
+	}
+
+	if e.Command == TOPIC && len(e.Params) > 0 {
+		return fmt.Sprintf("[%s] *** %s has set the topic to: %s", e.Params[len(e.Params)-1], e.Source.Name, e.Trailing), true
+	}
+
+	return "", false
 }
 
 // IsAction checks to see if the event is a PRIVMSG, and is an ACTION (/me).

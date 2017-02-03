@@ -40,6 +40,8 @@ type Client struct {
 	limiter *EventLimiter
 	// log is used if a writer is supplied for Client.Config.Logger.
 	log *log.Logger
+	// debug is used if a writer is supplied for Client.Config.Debugger.
+	debug *log.Logger
 	// quitChan is used to stop the read loop. See Client.Quit().
 	quitChan chan struct{}
 	// stopChan is used to stop the client loop. See Client.Stop().
@@ -72,9 +74,13 @@ type Config struct {
 	// RateLimit is the delay in seconds between events sent to the server,
 	// with a burst of 4 messages. Set to -1 to disable.
 	RateLimit int
-	// Logger is an optional, user supplied logger to log the raw lines sent
-	// from the server. Useful for debugging. Defaults to ioutil.Discard.
+	// Logger is an optional, user supplied location to write prettified log
+	// lines to. Defaults to ioutil.Discard.
 	Logger io.Writer
+	// Debugger is an optional, user supplied location to log the raw lines
+	// sent from the server, or other useful debug logs. Defaults to
+	// ioutil.Discard.
+	Debugger io.Writer
 	// SupportedCaps are the IRCv3 capabilities you would like the client to
 	// support. Only use this if DisableTracking and DisableCapTracking are
 	// not enabled, otherwise you will need to handle CAP negotiation yourself.
@@ -135,7 +141,11 @@ func New(config Config) *Client {
 	if client.Config.Logger == nil {
 		client.Config.Logger = ioutil.Discard
 	}
+	if client.Config.Debugger == nil {
+		client.Config.Debugger = ioutil.Discard
+	}
 	client.log = log.New(client.Config.Logger, "", log.Ltime)
+	client.debug = log.New(client.Config.Debugger, "debug:", log.Ltime|log.Lshortfile)
 
 	// Setup a rate limiter if they requested one.
 	if client.Config.RateLimit == 0 {
@@ -209,7 +219,8 @@ func (c *Client) Connect() error {
 	// Reset the state.
 	c.state = newState()
 
-	c.log.Printf("connecting to %s...", c.Server())
+	c.log.Printf("[-] connecting to %s...", c.Server())
+	c.debug.Printf("connecting to %s...", c.Server())
 
 	// Allow the user to specify their own net.Conn.
 	if c.Config.Conn == nil {
@@ -305,12 +316,14 @@ func (c *Client) Reconnect() (err error) {
 
 		// Delay so we're not slaughtering the server with a bunch of
 		// connections.
-		c.log.Printf("reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
+		c.log.Printf("[-] reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
+		c.debug.Printf("reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
 		time.Sleep(c.Config.ReconnectDelay)
 
 		for err = c.Connect(); err != nil && c.tries < c.Config.MaxRetries; c.tries++ {
 			c.state.reconnecting = true
-			c.log.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
+			c.log.Printf("[-] reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
+			c.debug.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
 			time.Sleep(c.Config.ReconnectDelay)
 		}
 
@@ -388,7 +401,7 @@ func (c *Client) Send(event *Event) error {
 func (c *Client) write(event *Event) error {
 	// log the event
 	if !event.Sensitive {
-		c.log.Print(">", StripRaw(event.String()))
+		c.debug.Print("> ", StripRaw(event.String()))
 	}
 
 	return c.state.writer.Encode(event)
