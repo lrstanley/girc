@@ -16,7 +16,7 @@ func (c *Client) registerHandlers() {
 	c.Callbacks.mu.Lock()
 
 	// Built-in things that should always be supported.
-	c.Callbacks.register(true, SUCCESS, CallbackFunc(func(c *Client, e Event) {
+	c.Callbacks.register(true, RPL_WELCOME, CallbackFunc(func(c *Client, e Event) {
 		go handleConnect(c, e)
 	}))
 	c.Callbacks.register(true, PING, CallbackFunc(handlePING))
@@ -76,7 +76,7 @@ func handleConnect(c *Client, e Event) {
 
 	time.Sleep(2 * time.Second)
 
-	c.Events <- &Event{Command: CONNECTED}
+	c.Events <- &Event{Command: CONNECTED, Trailing: c.Server()}
 }
 
 // nickCollisionHandler helps prevent the client from having conflicting

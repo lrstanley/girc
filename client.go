@@ -234,6 +234,9 @@ func (c *Client) Connect() error {
 	c.state.reader = newDecoder(c.state.conn)
 	c.state.writer = newEncoder(c.state.conn)
 
+	// Send a virtual event allowing hooks for successful socket connection.
+	c.Events <- &Event{Command: INITIALIZED, Trailing: c.Server()}
+
 	for _, event := range c.connectMessages() {
 		if err := c.write(event); err != nil {
 			return err

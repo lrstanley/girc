@@ -16,11 +16,12 @@ const (
 	CTCP_ERRMSG     = "ERRMSG"
 )
 
-// Misc constants for use with the client.
+// Misc constants for use with the client. Most of these are "fake" events
+// emitted/emulated by the client for various hooks.
 const (
-	ALLEVENTS = "*"         // trigger on all events
-	CONNECTED = "CONNECTED" // event command which can be used to start responding, after SUCCESS
-	SUCCESS   = "001"       // RPL_WELCOME alias, assumes successful connection
+	ALLEVENTS   = "*"         // trigger on all events
+	CONNECTED   = "CONNECTED" // when it's safe to send arbitrary commands (joins, list, who, etc), trailing is host:port
+	INITIALIZED = "INIT"      // verifies successful socket connection, trailing is host:port
 )
 
 // User/channel prefixes :: RFC1459
