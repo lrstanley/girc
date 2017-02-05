@@ -223,6 +223,14 @@ func (e *Event) String() string {
 // Pretty returns a prettified string of the event. If the event doesn't
 // support prettification, ok is false.
 func (e *Event) Pretty() (out string, ok bool) {
+	if e.Command == INITIALIZED {
+		return fmt.Sprintf("[*] connection to %s initialized", e.Trailing), true
+	}
+
+	if e.Command == CONNECTED {
+		return fmt.Sprintf("[*] successfully connected to %s", e.Trailing), true
+	}
+
 	if (e.Command == PRIVMSG || e.Command == NOTICE) && len(e.Params) > 0 {
 		return fmt.Sprintf("[%s] (%s) %s", strings.Join(e.Params, ","), e.Source.Name, e.Trailing), true
 	}
