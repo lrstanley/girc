@@ -9,13 +9,22 @@
   <a href="https://raw.githubusercontent.com/lrstanley/girc/master/LICENSE"><img src="https://img.shields.io/github/license/lrstanley/girc.svg" alt="License"></a>
 </p>
 
+## Status
+
+**EXPECT BREAKING CHANGES TO OCCUR FREQUENTLY**. girc has **not hit version
+1.0.0 yet!**
+
+Changes are actively being made. At this time, most of the stateful parts of
+girc are not accessible, as well as other minor consistencies while things
+are still being flushed out. Not production ready! **_You've been warned!_**
+
 ## Features
 
 - Focuses on simplicity, yet tries to still be flexible.
 - Only requires standard library packages.
 - Event based triggering/responses (and CTCP too!).
 - Documentation is mostly on par.
-- Full support for the IRCv3 spec. [**WIP**]
+- Full support for the IRCv3 spec.
 - Channel and user tracking. Easily find what users are in a channel, if a
   user is away, or if they are authenticated.
 - Client state/capability tracking. Easy methods to access capability data.
@@ -24,8 +33,6 @@
   - Event/message rate limiting.
   - Channel, nick, and user validation on connection methods.
   - CTCP handling and auto-responses.
-
-- At this time, **expect breaking changes to occur frequently**. girc has **not hit version 1.0.0 yet!**
 
 ## TODO
 
