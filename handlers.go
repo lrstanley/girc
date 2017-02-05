@@ -12,6 +12,7 @@ import (
 // registerHandlers sets up built-in callbacks/helpers, based on client
 // configuration.
 func (c *Client) registerHandlers() {
+	c.debug.Print("registering built-in handlers")
 	c.Callbacks.mu.Lock()
 
 	// Built-in things that should always be supported.

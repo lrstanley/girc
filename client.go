@@ -124,19 +124,22 @@ func (e *ErrInvalidTarget) Error() string { return "invalid target: " + e.Target
 // New creates a new IRC client with the specified server, name and config.
 func New(config Config) *Client {
 	client := &Client{
-		Config:    config,
-		Events:    make(chan *Event, 100), // buffer 100 events
-		quitChan:  make(chan struct{}, 1),
-		stopChan:  make(chan struct{}, 1),
-		Callbacks: newCaller(),
-		CTCP:      newCTCP(),
-		initTime:  time.Now(),
+		Config:   config,
+		Events:   make(chan *Event, 100), // buffer 100 events
+		quitChan: make(chan struct{}, 1),
+		stopChan: make(chan struct{}, 1),
+		CTCP:     newCTCP(),
+		initTime: time.Now(),
 	}
 
 	if client.Config.Debugger == nil {
 		client.Config.Debugger = ioutil.Discard
 	}
 	client.debug = log.New(client.Config.Debugger, "debug:", log.Ltime|log.Lshortfile)
+	client.debug.Print("initializing debugging")
+
+	// Setup the caller.
+	client.Callbacks = newCaller(client.debug)
 
 	// Setup a rate limiter if they requested one.
 	if client.Config.RateLimit == 0 {

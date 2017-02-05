@@ -6,9 +6,11 @@ package girc
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"strings"
 	"sync"
+	"time"
 )
 
 // RunCallbacks manually runs callbacks for a given event.
@@ -59,13 +61,16 @@ type Caller struct {
 	external map[string]map[string]Callback
 	// internal is a map of internally used callbacks for the client.
 	internal map[string]map[string]Callback
+	// debug is the clients logger used for debugging.
+	debug *log.Logger
 }
 
 // newCaller creates and initializes a new callback handler.
-func newCaller() *Caller {
+func newCaller(debugger *log.Logger) *Caller {
 	c := &Caller{
 		external: map[string]map[string]Callback{},
 		internal: map[string]map[string]Callback{},
+		debug:    debugger,
 	}
 
 	return c
@@ -135,6 +140,11 @@ func (c *Caller) cuidToID(input string) (cmd, uid string) {
 	return cmd, uid
 }
 
+type execStack struct {
+	Callback Callback
+	cuid     string
+}
+
 // exec executes all callbacks pertaining to specified event. Internal first,
 // then external.
 //
@@ -142,20 +152,21 @@ func (c *Caller) cuidToID(input string) (cmd, uid string) {
 // callback types themselves or the callbacks are executed.
 func (c *Caller) exec(command string, client *Client, event *Event) {
 	// Build a stack of callbacks which can be executed concurrently.
-	var execstack []Callback
+	var stack []execStack
+	// var execstack []Callback
 
 	c.mu.RLock()
 	// Get internal callbacks first.
 	if _, ok := c.internal[command]; ok {
 		for cuid := range c.internal[command] {
-			execstack = append(execstack, c.internal[command][cuid])
+			stack = append(stack, execStack{c.internal[command][cuid], cuid})
 		}
 	}
 
 	// Aaand then external callbacks.
 	if _, ok := c.external[command]; ok {
 		for cuid := range c.external[command] {
-			execstack = append(execstack, c.external[command][cuid])
+			stack = append(stack, execStack{c.external[command][cuid], cuid})
 		}
 	}
 	c.mu.RUnlock()
@@ -163,10 +174,15 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 	// Run all callbacks concurrently across the same event. This should
 	// still help prevent mis-ordered events, while speeding up the
 	// execution speed.
-	c.wg.Add(len(execstack))
-	for i := 0; i < len(execstack); i++ {
+	c.wg.Add(len(stack))
+	for i := 0; i < len(stack); i++ {
 		go func(index int) {
-			execstack[index].Execute(client, *event)
+			c.debug.Printf("executing callback %s for event %s", stack[index].cuid, command)
+			start := time.Now()
+
+			stack[index].Callback.Execute(client, *event)
+
+			c.debug.Printf("execution of %s took %s", stack[index].cuid, time.Since(start))
 			c.wg.Done()
 		}(i)
 	}
@@ -182,6 +198,8 @@ func (c *Caller) ClearAll() {
 	c.mu.Lock()
 	c.external = map[string]map[string]Callback{}
 	c.mu.Unlock()
+
+	c.debug.Print("cleared all callbacks")
 }
 
 // Clear clears all of the callbacks for the given event.
@@ -194,6 +212,8 @@ func (c *Caller) Clear(cmd string) {
 		delete(c.external, cmd)
 	}
 	c.mu.Unlock()
+
+	c.debug.Printf("cleared callbacks for %q", cmd)
 }
 
 // Remove removes the callback with cuid from the callback stack. success
@@ -226,6 +246,8 @@ func (c *Caller) remove(cuid string) (success bool) {
 	}
 
 	delete(c.external[cmd], uid)
+
+	c.debug.Printf("removed callback %q", cuid)
 
 	// Assume success.
 	return true
@@ -263,6 +285,8 @@ func (c *Caller) register(internal bool, cmd string, callback Callback) (cuid st
 		cuid, uid = c.cuid(cmd, 20)
 		c.external[cmd][uid] = callback
 	}
+
+	c.debug.Printf("registering callback for %q with cuid %q (internal: %t)", cmd, cuid, internal)
 
 	return cuid
 }
