@@ -87,7 +87,7 @@ func nickCollisionHandler(c *Client, e Event) {
 
 // handlePING helps respond to ping requests from the server.
 func handlePING(c *Client, e Event) {
-	c.Send(&Event{Command: PONG, Params: e.Params, Trailing: e.Trailing})
+	c.Pong(e.Trailing)
 }
 
 // handleJOIN ensures that the state has updated users and channels.
