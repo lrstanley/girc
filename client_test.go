@@ -18,13 +18,11 @@ import (
 // "hello" with "hello world!".
 func Example() {
 	conf := girc.Config{
-		Server:     "irc.byteirc.org",
-		Port:       6667,
-		Nick:       "test",
-		User:       "user",
-		Name:       "Example bot",
-		MaxRetries: 3,
-		Logger:     os.Stdout,
+		Server: "irc.byteirc.org",
+		Port:   6667,
+		Nick:   "test",
+		User:   "user",
+		Name:   "Example bot",
 	}
 
 	client := girc.New(conf)
@@ -50,13 +48,11 @@ func Example() {
 // responses to things. E.g. "!hello", "!stop", and "!restart".
 func Example_commands() {
 	conf := girc.Config{
-		Server:     "irc.byteirc.org",
-		Port:       6667,
-		Nick:       "test",
-		User:       "user",
-		Name:       "Example bot",
-		MaxRetries: 3,
-		Logger:     os.Stdout,
+		Server: "irc.byteirc.org",
+		Port:   6667,
+		Nick:   "test",
+		User:   "user",
+		Name:   "Example bot",
 	}
 	channels := []string{"#dev"}
 
@@ -95,13 +91,11 @@ func Example_commands() {
 // one can enter raw IRC commands, which will then be sent to the server.
 func Example_prompt() {
 	conf := girc.Config{
-		Server:     "irc.byteirc.org",
-		Port:       6667,
-		Nick:       "test",
-		User:       "user",
-		Name:       "Example bot",
-		MaxRetries: 3,
-		Logger:     os.Stdout,
+		Server: "irc.byteirc.org",
+		Port:   6667,
+		Nick:   "test",
+		User:   "user",
+		Name:   "Example bot",
 	}
 	channels := []string{"#dev"}
 
@@ -139,11 +133,11 @@ func Example_prompt() {
 	reader := bufio.NewReader(os.Stdin)
 
 	client.Callbacks.Add(girc.ALLEVENTS, func(c *girc.Client, e girc.Event) {
-		fmt.Print("\r>> ")
+		fmt.Print("\r> ")
 	})
 
 	for {
-		fmt.Print("\r>> ")
+		fmt.Print("\r> ")
 		input, _ := reader.ReadString('\n')
 		input = strings.TrimSpace(input)
 		if len(input) == 0 {

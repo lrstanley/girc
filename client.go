@@ -38,8 +38,6 @@ type Client struct {
 	tries int
 	// limiter is a configurable EventLimiter by the end user.
 	limiter *EventLimiter
-	// log is used if a writer is supplied for Client.Config.Logger.
-	log *log.Logger
 	// debug is used if a writer is supplied for Client.Config.Debugger.
 	debug *log.Logger
 	// quitChan is used to stop the read loop. See Client.Quit().
@@ -74,9 +72,6 @@ type Config struct {
 	// RateLimit is the delay in seconds between events sent to the server,
 	// with a burst of 4 messages. Set to -1 to disable.
 	RateLimit int
-	// Logger is an optional, user supplied location to write prettified log
-	// lines to. Defaults to ioutil.Discard.
-	Logger io.Writer
 	// Debugger is an optional, user supplied location to log the raw lines
 	// sent from the server, or other useful debug logs. Defaults to
 	// ioutil.Discard.
@@ -138,13 +133,9 @@ func New(config Config) *Client {
 		initTime:  time.Now(),
 	}
 
-	if client.Config.Logger == nil {
-		client.Config.Logger = ioutil.Discard
-	}
 	if client.Config.Debugger == nil {
 		client.Config.Debugger = ioutil.Discard
 	}
-	client.log = log.New(client.Config.Logger, "", log.Ltime)
 	client.debug = log.New(client.Config.Debugger, "debug:", log.Ltime|log.Lshortfile)
 
 	// Setup a rate limiter if they requested one.
@@ -219,7 +210,6 @@ func (c *Client) Connect() error {
 	// Reset the state.
 	c.state = newState()
 
-	c.log.Printf("[-] connecting to %s...", c.Server())
 	c.debug.Printf("connecting to %s...", c.Server())
 
 	// Allow the user to specify their own net.Conn.
@@ -316,13 +306,11 @@ func (c *Client) Reconnect() (err error) {
 
 		// Delay so we're not slaughtering the server with a bunch of
 		// connections.
-		c.log.Printf("[-] reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
 		c.debug.Printf("reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
 		time.Sleep(c.Config.ReconnectDelay)
 
 		for err = c.Connect(); err != nil && c.tries < c.Config.MaxRetries; c.tries++ {
 			c.state.reconnecting = true
-			c.log.Printf("[-] reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
 			c.debug.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
 			time.Sleep(c.Config.ReconnectDelay)
 		}
