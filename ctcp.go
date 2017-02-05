@@ -251,8 +251,8 @@ func handleCTCPPong(client *Client, ctcp CTCPEvent) {
 // as the os type (darwin, linux, windows, etc) and architecture type (x86,
 // arm, etc).
 func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
-	if client.Config.Version != "" {
-		client.SendCTCPReply(ctcp.Source.Name, CTCP_VERSION, client.Config.Version)
+	if client.config.Version != "" {
+		client.SendCTCPReply(ctcp.Source.Name, CTCP_VERSION, client.config.Version)
 		return
 	}
 

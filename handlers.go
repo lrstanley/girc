@@ -21,7 +21,7 @@ func (c *Client) registerHandlers() {
 	}))
 	c.Callbacks.register(true, PING, CallbackFunc(handlePING))
 
-	if !c.Config.DisableTracking {
+	if !c.config.DisableTracking {
 		// Joins/parts/anything that may add/remove/rename users.
 		c.Callbacks.register(true, JOIN, CallbackFunc(handleJOIN))
 		c.Callbacks.register(true, PART, CallbackFunc(handlePART))
@@ -44,14 +44,14 @@ func (c *Client) registerHandlers() {
 	}
 
 	// Nickname collisions.
-	if !c.Config.DisableNickCollision {
+	if !c.config.DisableNickCollision {
 		c.Callbacks.register(true, ERR_NICKNAMEINUSE, CallbackFunc(nickCollisionHandler))
 		c.Callbacks.register(true, ERR_NICKCOLLISION, CallbackFunc(nickCollisionHandler))
 		c.Callbacks.register(true, ERR_UNAVAILRESOURCE, CallbackFunc(nickCollisionHandler))
 	}
 
 	// CAP IRCv3-specific tracking and functionality.
-	if !c.Config.DisableTracking && !c.Config.DisableCapTracking {
+	if !c.config.DisableTracking && !c.config.DisableCapTracking {
 		c.Callbacks.register(true, CAP, CallbackFunc(handleCAP))
 		c.Callbacks.register(true, CAP_CHGHOST, CallbackFunc(handleCHGHOST))
 		c.Callbacks.register(true, CAP_AWAY, CallbackFunc(handleAWAY))
