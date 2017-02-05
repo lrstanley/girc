@@ -707,16 +707,16 @@ func (c *Client) Topic(channel, message string) error {
 // See http://faerion.sourceforge.net/doc/irc/whox.var for more details. This
 // sends "%tcuhnr,2" per default. Do not use "1" as this will conflict with
 // girc's builtin tracking functionality.
-func (c *Client) Who(nick string) error {
-	if !IsValidNick(nick) {
-		return &ErrInvalidTarget{Target: nick}
+func (c *Client) Who(target string) error {
+	if !IsValidNick(target) && !IsValidChannel(target) && !IsValidUser(target) {
+		return &ErrInvalidTarget{Target: target}
 	}
 
 	if !c.IsConnected() {
 		return ErrNotConnected
 	}
 
-	return c.Send(&Event{Command: WHO, Params: []string{nick, "%tcuhnr,2"}})
+	return c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhnr,2"}})
 }
 
 // Whowas sends a WHOWAS query to the server. amount is the amount of results
