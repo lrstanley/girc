@@ -221,7 +221,9 @@ func (e *Event) String() string {
 }
 
 // Pretty returns a prettified string of the event. If the event doesn't
-// support prettification, ok is false.
+// support prettification, ok is false. Pretty is not just useful to make
+// an event prettier, but also to filter out events that most don't visually
+// see in normal IRC clients. e.g. most clients don't show WHO queries.
 func (e *Event) Pretty() (out string, ok bool) {
 	if e.Command == INITIALIZED {
 		return fmt.Sprintf("[*] connection to %s initialized", e.Trailing), true
