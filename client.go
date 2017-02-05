@@ -700,18 +700,6 @@ func (c *Client) Topic(channel, message string) error {
 	return c.Send(&Event{Command: TOPIC, Params: []string{channel}, Trailing: message})
 }
 
-// ErrCallbackTimedout is used when we need to wait for temporary callbacks.
-type ErrCallbackTimedout struct {
-	// ID is the identified of the callback in the callback stack.
-	ID string
-	// Timeout is the time that past before the callback timed out.
-	Timeout time.Duration
-}
-
-func (e *ErrCallbackTimedout) Error() string {
-	return "callback [" + e.ID + "] timed out while waiting for response from the server: " + e.Timeout.String()
-}
-
 // Who sends a WHO query to the server, which will attempt WHOX by default.
 // See http://faerion.sourceforge.net/doc/irc/whox.var for more details. This
 // sends "%tcuhnr,2" per default. Do not use "1" as this will conflict with
