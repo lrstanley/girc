@@ -5,6 +5,7 @@
 package girc_test
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -31,6 +32,18 @@ func Example() {
 	client.Callbacks.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
 		if strings.Contains(e.Trailing, "hello") {
 			c.Message(e.Params[0], "hello world!")
+		}
+	})
+
+	// Log useful IRC events.
+	client.Callbacks.Add(girc.ALLEVENTS, func(c *girc.Client, e girc.Event) {
+		// girc.Event.Pretty() returns true for events which are useful and
+		// that can be prettified. Use Event.String() to get the raw string
+		// for all events.
+		if pretty, ok := e.Pretty(); ok {
+			// The use of girc.StripRaw() is to get rid of any potential
+			// non-printable characters.
+			fmt.Println(girc.StripRaw(pretty))
 		}
 	})
 
@@ -75,6 +88,13 @@ func Example_commands() {
 			go c.Reconnect()
 			return
 		}
+	})
+
+	// Log ALL events.
+	client.Callbacks.Add(girc.ALLEVENTS, func(c *girc.Client, e girc.Event) {
+		// The use of girc.StripRaw() is to get rid of any potential
+		// non-printable characters.
+		fmt.Println(girc.StripRaw(e.String()))
 	})
 
 	if err := client.Connect(); err != nil {
