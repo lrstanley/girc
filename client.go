@@ -825,16 +825,16 @@ func (c *Client) Whowas(nick string, amount int) error {
 //
 //   nickLen, success := GetServerOption("MAXNICKLEN")
 //
-func (c *Client) GetServerOption(key string) (result string, success bool) {
+func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	if c.config.DisableTracking {
 		panic("GetServerOption() used when tracking is disabled")
 	}
 
 	c.state.mu.Lock()
-	result, success = c.state.serverOptions[key]
+	result, ok = c.state.serverOptions[key]
 	c.state.mu.Unlock()
 
-	return result, success
+	return result, ok
 }
 
 // ServerName returns the server host/name that the server itself identifies
