@@ -30,6 +30,10 @@ func (c *Client) registerHandlers() {
 		c.Callbacks.register(true, NICK, CallbackFunc(handleNICK))
 		c.Callbacks.register(true, RPL_NAMREPLY, CallbackFunc(handleNAMES))
 
+		// Modes.
+		c.Callbacks.register(true, MODE, CallbackFunc(handleMODE))
+		c.Callbacks.register(true, RPL_CHANNELMODEIS, CallbackFunc(handleMODE))
+
 		// WHO/WHOX responses.
 		c.Callbacks.register(true, RPL_WHOREPLY, CallbackFunc(handleWHO))
 		c.Callbacks.register(true, RPL_WHOSPCRPL, CallbackFunc(handleWHO))
@@ -108,6 +112,9 @@ func handleJOIN(c *Client, e Event) {
 		// If it's us, don't just add our user to the list. Run a WHO which
 		// will tell us who exactly is in the entire channel.
 		c.Send(&Event{Command: WHO, Params: []string{e.Params[0], "%tacuhnr,1"}})
+
+		// Also send a MODE to obtain the list of channel modes.
+		c.Send(&Event{Command: MODE, Params: []string{e.Params[0]}})
 		return
 	}
 

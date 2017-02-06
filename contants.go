@@ -26,6 +26,10 @@ const (
 
 // User/channel prefixes :: RFC1459
 const (
+	DefaultPrefixes = "(ov)@+" // the most common default prefixes
+	ModeAddPrefix   = "+"      // modes are being added
+	ModeDelPrefix   = "-"      // modes are being removed
+
 	ChannelPrefix      = "#" // regular channel
 	DistributedPrefix  = "&" // distributed channel
 	OwnerPrefix        = "~" // user owner +q (non-rfc)
@@ -33,8 +37,6 @@ const (
 	HalfOperatorPrefix = "%" // user half operator +h (non-rfc)
 	OperatorPrefix     = "@" // user operator +o
 	VoicePrefix        = "+" // user has voice +v
-	ModeAddPrefix      = "+" // modes are being added
-	ModeDelPrefix      = "-" // modes are being removed
 )
 
 // User modes :: RFC1459; section 4.2.3.2
@@ -47,18 +49,21 @@ const (
 
 // Channel modes :: RFC1459; section 4.2.3.1
 const (
+	ModeDefaults = "beI,k,l,imnpst" // the most common default modes
+
+	ModeInviteOnly = "i" // only join with an invite
+	ModeKey        = "k" // channel password
+	ModeLimit      = "l" // user limit
+	ModeModerated  = "m" // only voiced users and operators can talk
+	ModeOperator   = "o" // operator
+	ModePrivate    = "p" // private
+	ModeSecret     = "s" // secret
+	ModeTopic      = "t" // must be op to set topic
+	ModeVoice      = "v" // speak during moderation mode
+
+	ModeOwner        = "q" // owner privileges (non-rfc)
 	ModeAdmin        = "a" // admin privileges (non-rfc)
 	ModeHalfOperator = "h" // half-operator privileges (non-rfc)
-	ModeInviteOnly   = "i" // only join with an invite
-	ModeKey          = "k" // channel password
-	ModeLimit        = "l" // user limit
-	ModeModerated    = "m" // only voiced users and operators can talk
-	ModeOperator     = "o" // operator
-	ModeOwner        = "q" // owner privileges (non-rfc)
-	ModePrivate      = "p" // private
-	ModeSecret       = "s" // secret
-	ModeTopic        = "t" // must be op to set topic
-	ModeVoice        = "v" // speak during moderation mode
 )
 
 // IRC commands :: RFC2812; section 3 :: RFC2813; section 4

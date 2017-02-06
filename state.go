@@ -155,6 +155,7 @@ type Channel struct {
 	users map[string]*User
 	// Joined represents the first time that the client joined the channel.
 	Joined time.Time
+	Modes  CModes
 }
 
 // Message returns an event which can be used to send a response to the channel.
@@ -194,12 +195,16 @@ func (s *state) createChanIfNotExists(name string) (channel *Channel) {
 		return nil
 	}
 
+	supported := s.chanModes()
+	prefixes, _ := parsePrefixes(s.userPrefixes())
+
 	name = strings.ToLower(name)
 	if _, ok := s.channels[name]; !ok {
 		channel = &Channel{
 			Name:   name,
 			users:  make(map[string]*User),
 			Joined: time.Now(),
+			Modes:  newCModes(supported, prefixes),
 		}
 		s.channels[name] = channel
 	} else {
@@ -220,6 +225,14 @@ func (s *state) deleteChannel(name string) {
 	if _, ok := s.channels[channel.Name]; ok {
 		delete(s.channels, channel.Name)
 	}
+}
+
+func (s *state) lookupChannel(name string) *Channel {
+	if !IsValidChannel(name) {
+		return nil
+	}
+
+	return s.channels[strings.ToLower(name)]
 }
 
 // createUserIfNotExists creates the channel and user in state, if not already
@@ -322,101 +335,4 @@ func (s *state) lookupUsers(matchType, toMatch string) []*User {
 	}
 
 	return users
-}
-
-// UserPerms contains all channel-based user permissions. The minimum op, and
-// voice should be supported on all networks. This also supports non-rfc
-// Owner, Admin, and HalfOp, if the network has support for it.
-type UserPerms struct {
-	// Owner (non-rfc) indicates that the user has full permissions to the
-	// channel. More than one user can have owner permission.
-	Owner bool
-	// Admin (non-rfc) is commonly given to users that are trusted enough
-	// to manage channel permissions, as well as higher level service settings.
-	Admin bool
-	// Op is commonly given to trusted users who can manage a given channel
-	// by kicking, and banning users.
-	Op bool
-	// HalfOp (non-rfc) is commonly used to give users permissions like the
-	// ability to kick, without giving them greater abilities to ban all users.
-	HalfOp bool
-	// Voice indicates the user has voice permissions, commonly given to known
-	// users, wih very light trust, or to indicate a user is active.
-	Voice bool
-}
-
-// IsAdmin indicates that the user has banning abilities, and are likely a
-// very trustable user (e.g. op+).
-func (m UserPerms) IsAdmin() bool {
-	if m.Owner || m.Admin || m.Op {
-		return true
-	}
-
-	return false
-}
-
-// IsAdmin indicates that the user at least has modes set upon them, higher
-// than a regular joining user.
-func (m UserPerms) IsTrusted() bool {
-	if m.IsAdmin() || m.HalfOp || m.Voice {
-		return true
-	}
-
-	return false
-}
-
-// reset resets the modes of a user.
-func (m *UserPerms) reset() {
-	m.Owner = false
-	m.Admin = false
-	m.Op = false
-	m.HalfOp = false
-	m.Voice = false
-}
-
-// set translates raw mode characters into proper permissions. Only
-// use this function when you have a session lock.
-func (m *UserPerms) set(modes string, append bool) {
-	if !append {
-		m.reset()
-	}
-
-	for i := 0; i < len(modes); i++ {
-		switch string(modes[i]) {
-		case OwnerPrefix:
-			m.Owner = true
-		case AdminPrefix:
-			m.Admin = true
-		case OperatorPrefix:
-			m.Op = true
-		case HalfOperatorPrefix:
-			m.HalfOp = true
-		case VoicePrefix:
-			m.Voice = true
-		}
-	}
-}
-
-// parseUserPrefix parses a raw mode line, like "@user" or "@+user".
-func parseUserPrefix(raw string) (modes, nick string, success bool) {
-	for i := 0; i < len(raw); i++ {
-		char := string(raw[i])
-
-		if char == OwnerPrefix || char == AdminPrefix || char == HalfOperatorPrefix ||
-			char == OperatorPrefix || char == VoicePrefix {
-			modes += char
-			continue
-		}
-
-		// Assume we've gotten to the nickname part.
-		if !IsValidNick(raw[i:]) {
-			return modes, nick, false
-		}
-
-		nick = raw[i:]
-
-		return modes, nick, true
-	}
-
-	return
 }
