@@ -168,7 +168,7 @@ func handleCHGHOST(c *Client, e Event) {
 	}
 
 	c.state.mu.Lock()
-	users := c.state.getUsers("nick", e.Source.Name)
+	users := c.state.lookupUsers("nick", e.Source.Name)
 
 	for i := 0; i < len(users); i++ {
 		users[i].Ident = e.Params[0]
@@ -181,7 +181,7 @@ func handleCHGHOST(c *Client, e Event) {
 // when users are no longer away, or when they are away.
 func handleAWAY(c *Client, e Event) {
 	c.state.mu.Lock()
-	users := c.state.getUsers("nick", e.Source.Name)
+	users := c.state.lookupUsers("nick", e.Source.Name)
 
 	for i := 0; i < len(users); i++ {
 		users[i].Extras.Away = e.Trailing
@@ -204,7 +204,7 @@ func handleACCOUNT(c *Client, e Event) {
 	}
 
 	c.state.mu.Lock()
-	users := c.state.getUsers("nick", e.Source.Name)
+	users := c.state.lookupUsers("nick", e.Source.Name)
 
 	for i := 0; i < len(users); i++ {
 		users[i].Extras.Account = account
@@ -225,7 +225,7 @@ func handleTags(c *Client, e Event) {
 	}
 
 	c.state.mu.Lock()
-	users := c.state.getUsers("nick", e.Source.Name)
+	users := c.state.lookupUsers("nick", e.Source.Name)
 
 	for i := 0; i < len(users); i++ {
 		users[i].Extras.Account = account

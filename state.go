@@ -291,7 +291,7 @@ func (s *state) renameUser(from, to string) {
 	}
 }
 
-func (s *state) getUsers(matchType, toMatch string) []*User {
+func (s *state) lookupUsers(matchType, toMatch string) []*User {
 	var users []*User
 
 	for c := range s.channels {
