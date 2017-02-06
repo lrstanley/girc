@@ -74,11 +74,11 @@ type User struct {
 	// Only usable if from state, not in past.
 	LastActive time.Time
 
-	// Modes are the user modes applied to this user that affect the given
+	// Perms are the user permissions applied to this user that affect the given
 	// channel. This supports non-rfc style modes like Admin, Owner, and HalfOp.
 	// If you want to easily check if a user has permissions equal or greater
-	// than OP, use Modes.IsAdmin().
-	Modes UserModes
+	// than OP, use Perms.IsAdmin().
+	Perms UserPerms
 
 	// Extras are things added on by additional tracking methods, which may
 	// or may not work on the IRC server in mention.
@@ -324,10 +324,10 @@ func (s *state) lookupUsers(matchType, toMatch string) []*User {
 	return users
 }
 
-// UserModes contains all channel-based user permissions. The minimum op, and
+// UserPerms contains all channel-based user permissions. The minimum op, and
 // voice should be supported on all networks. This also supports non-rfc
 // Owner, Admin, and HalfOp, if the network has support for it.
-type UserModes struct {
+type UserPerms struct {
 	// Owner (non-rfc) indicates that the user has full permissions to the
 	// channel. More than one user can have owner permission.
 	Owner bool
@@ -347,7 +347,7 @@ type UserModes struct {
 
 // IsAdmin indicates that the user has banning abilities, and are likely a
 // very trustable user (e.g. op+).
-func (m UserModes) IsAdmin() bool {
+func (m UserPerms) IsAdmin() bool {
 	if m.Owner || m.Admin || m.Op {
 		return true
 	}
@@ -357,7 +357,7 @@ func (m UserModes) IsAdmin() bool {
 
 // IsAdmin indicates that the user at least has modes set upon them, higher
 // than a regular joining user.
-func (m UserModes) IsTrusted() bool {
+func (m UserPerms) IsTrusted() bool {
 	if m.IsAdmin() || m.HalfOp || m.Voice {
 		return true
 	}
@@ -366,7 +366,7 @@ func (m UserModes) IsTrusted() bool {
 }
 
 // reset resets the modes of a user.
-func (m *UserModes) reset() {
+func (m *UserPerms) reset() {
 	m.Owner = false
 	m.Admin = false
 	m.Op = false
@@ -374,9 +374,9 @@ func (m *UserModes) reset() {
 	m.Voice = false
 }
 
-// setMode translates raw mode characters into proper permissions. Only use
-// this function when you have a session lock.
-func (m *UserModes) setModes(modes string, append bool) {
+// set translates raw mode characters into proper permissions. Only
+// use this function when you have a session lock.
+func (m *UserPerms) set(modes string, append bool) {
 	if !append {
 		m.reset()
 	}
@@ -397,8 +397,8 @@ func (m *UserModes) setModes(modes string, append bool) {
 	}
 }
 
-// parseUserModes parses a raw mode line, like "@user" or "@+user".
-func parseUserModes(raw string) (modes, nick string, success bool) {
+// parseUserPrefix parses a raw mode line, like "@user" or "@+user".
+func parseUserPrefix(raw string) (modes, nick string, success bool) {
 	for i := 0; i < len(raw); i++ {
 		char := string(raw[i])
 

@@ -322,7 +322,7 @@ func handleNAMES(c *Client, e Event) {
 
 	c.state.mu.Lock()
 	for i := 0; i < len(parts); i++ {
-		modes, nick, ok := parseUserModes(parts[i])
+		modes, nick, ok := parseUserPrefix(parts[i])
 		if !ok {
 			continue
 		}
@@ -333,7 +333,7 @@ func handleNAMES(c *Client, e Event) {
 		}
 
 		// Don't append modes, overwrite them.
-		user.Modes.setModes(modes, false)
+		user.Perms.set(modes, false)
 	}
 	c.state.mu.Unlock()
 }

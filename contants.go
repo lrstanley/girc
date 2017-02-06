@@ -33,6 +33,8 @@ const (
 	HalfOperatorPrefix = "%" // user half operator +h (non-rfc)
 	OperatorPrefix     = "@" // user operator +o
 	VoicePrefix        = "+" // user has voice +v
+	ModeAddPrefix      = "+" // modes are being added
+	ModeDelPrefix      = "-" // modes are being removed
 )
 
 // User modes :: RFC1459; section 4.2.3.2
