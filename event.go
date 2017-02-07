@@ -270,6 +270,10 @@ func (e *Event) Pretty() (out string, ok bool) {
 		return fmt.Sprintf("[%s] *** %s has set the topic to: %s", e.Params[len(e.Params)-1], e.Source.Name, e.Trailing), true
 	}
 
+	if e.Command == MODE && len(e.Params) > 2 {
+		return fmt.Sprintf("[%s] %s set modes: %s", e.Params[0], e.Source.Name, strings.Join(e.Params[1:], " ")), true
+	}
+
 	return "", false
 }
 
