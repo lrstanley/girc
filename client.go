@@ -5,6 +5,7 @@
 package girc
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -36,14 +37,22 @@ type Client struct {
 
 	// tries represents the internal reconnect count to the IRC server.
 	tries int
+	// stopped determins if Client.Stop() has been called.
+	stopped bool
 	// limiter is a configurable EventLimiter by the end user.
 	limiter *EventLimiter
 	// debug is used if a writer is supplied for Client.Config.Debugger.
 	debug *log.Logger
-	// quitChan is used to stop the read loop. See Client.Quit().
-	quitChan chan struct{}
-	// stopChan is used to stop the client loop. See Client.Stop().
-	stopChan chan struct{}
+
+	// closeRead is the function which sends a close to the readLoop function
+	// context.
+	closeRead context.CancelFunc
+	// closeExec is the function which sends a close to the execLoop function
+	// context.
+	closeExec context.CancelFunc
+	// closeLoop is the function which sends a close to the Loop function
+	// context.
+	closeLoop context.CancelFunc
 }
 
 // Config contains configuration options for an IRC client
@@ -113,6 +122,10 @@ var ErrNotConnected = errors.New("client is not connected to server")
 // ErrAlreadyConnecting implies that a connection attempt is already happening.
 var ErrAlreadyConnecting = errors.New("a connection attempt is already occurring")
 
+// ErrCalledAfterStop is used when one uses Client.Stop(), and subsequently
+// attempts to use the client again.
+var ErrCalledAfterStop = errors.New("attempted use after stop has been called")
+
 // ErrInvalidTarget should be returned if the target which you are
 // attempting to send an event to is invalid or doesn't match RFC spec.
 type ErrInvalidTarget struct {
@@ -125,9 +138,7 @@ func (e *ErrInvalidTarget) Error() string { return "invalid target: " + e.Target
 func New(config Config) *Client {
 	client := &Client{
 		config:   config,
-		Events:   make(chan *Event, 100), // buffer 100 events
-		quitChan: make(chan struct{}, 1),
-		stopChan: make(chan struct{}, 1),
+		Events:   make(chan *Event, 100), // buffer 100 events max.
 		CTCP:     newCTCP(),
 		initTime: time.Now(),
 	}
@@ -161,39 +172,78 @@ func New(config Config) *Client {
 	return client
 }
 
-// Quit disconnects from the server.
-func (c *Client) Quit(message string) {
-	c.state.quitting = true
-	c.quitChan <- struct{}{}
-	defer func() {
-		// Unset c.quitting, so we can reconnect if we want to.
-		c.state.quitting = false
-	}()
+func (c *Client) cleanup(all bool) {
+	if c.closeRead != nil {
+		c.closeRead()
+	}
+	if c.closeExec != nil {
+		c.closeExec()
+	}
 
-	c.Send(&Event{Command: QUIT, Trailing: message})
+	if all {
+		if c.closeLoop != nil {
+			c.closeLoop()
+		}
+
+		// Close and limiters they have, otherwise the client could be easily
+		// held in memory.
+		if c.limiter != nil {
+			c.limiter.Stop()
+		}
+	}
+}
+
+// quit is the underlying wrapper to quit from the network and cleanup.
+func (c *Client) quit(sendMessage bool) {
+	if sendMessage {
+		c.Send(&Event{Command: QUIT, Trailing: "disconnecting..."})
+	}
 
 	c.state.connected = false
 	if c.state.conn != nil {
 		c.state.conn.Close()
 	}
+
+	// Close out the read and exec loops.
+	c.cleanup(false)
 }
 
-// Stop exits the clients main loop. Use Client.Quit() first if you want to
-// disconnect the client from the server/connection.
+// Quit disconnects from the server.
+func (c *Client) Quit() {
+	c.quit(true)
+}
+
+// Quit disconnects from the server with a given message.
+func (c *Client) QuitWithMessage(message string) {
+	c.Send(&Event{Command: QUIT, Trailing: message})
+
+	c.quit(false)
+}
+
+// Stop exits the clients main loop and any other goroutines created by
+// the client itself. This does not include callbacks, as they will run for
+// any incoming events prior to when Stop() or Quit() was called, until the
+// event queue is empty and execution has completed for those callbacks. This
+// means that you are responsible to ensure that your callbacks due not
+// execute forever. Use Client.Quit() first if you want to disconnect the
+// client from the server/connection gracefully. Once Stop is called, the
+// client is no longer useable, and will panic if used again.
 func (c *Client) Stop() {
-	// Close and limiters they have, otherwise the client could be easily
-	// held in memory.
-	if c.limiter != nil {
-		c.limiter.Stop()
+	if c.stopped {
+		panic(ErrCalledAfterStop)
 	}
 
-	// Send to the stop channel, so if Client.Loop() is being used, this will
-	// return.
-	c.stopChan <- struct{}{}
+	// Close out any other running loops.
+	c.cleanup(true)
+	c.stopped = true
 }
 
 // Connect attempts to connect to the given IRC server
 func (c *Client) Connect() error {
+	if c.stopped {
+		panic(ErrCalledAfterStop)
+	}
+
 	var conn net.Conn
 	var err error
 
@@ -250,7 +300,11 @@ func (c *Client) Connect() error {
 	}
 
 	// Start read loop to process messages from the server.
-	go c.readLoop()
+	var rctx, ectx context.Context
+	rctx, c.closeRead = context.WithCancel(context.Background())
+	ectx, c.closeRead = context.WithCancel(context.Background())
+	go c.readLoop(rctx)
+	go c.execLoop(ectx)
 
 	// Consider the connection a success at this point.
 	c.tries = 0
@@ -285,15 +339,23 @@ func (c *Client) connectMessages() (events []*Event) {
 	return events
 }
 
-// Reconnect checks to make sure we want to, and then attempts to reconnect
+// reconnect checks to make sure we want to, and then attempts to reconnect
 // to the server.
-func (c *Client) Reconnect() (err error) {
+func (c *Client) reconnect(remoteInvoked bool) (err error) {
+	if c.stopped {
+		panic(ErrCalledAfterStop)
+	}
+
 	if c.state.reconnecting {
 		return ErrAlreadyConnecting
 	}
 
-	// Doesn't need to be set to false because a connect should reset it.
 	c.state.reconnecting = true
+	// A successful connect should reset the state, however if Connect() fails,
+	// this will ensure it gets unset so reconnect() can be used again.
+	defer func() {
+		c.state.reconnecting = false
+	}()
 
 	if c.state.quitting {
 		return nil
@@ -303,51 +365,59 @@ func (c *Client) Reconnect() (err error) {
 		c.config.ReconnectDelay = 25 * time.Second
 	}
 
-	if c.IsConnected() {
-		c.Quit("reconnecting...")
+	// Make sure we're not connected.
+	c.Quit()
+
+	if c.config.MaxRetries < 1 && !remoteInvoked {
+		return errors.New("unexpectedly disconnected")
 	}
 
-	if c.config.MaxRetries > 0 {
-		var err error
+	// Delay so we're not slaughtering the server with a bunch of
+	// connections.
+	c.debug.Printf("reconnecting to %s in %s", c.Server(), c.config.ReconnectDelay)
+	time.Sleep(c.config.ReconnectDelay)
 
-		// Delay so we're not slaughtering the server with a bunch of
-		// connections.
-		c.debug.Printf("reconnecting to %s in %s", c.Server(), c.config.ReconnectDelay)
+	for err = c.Connect(); err != nil && c.tries < c.config.MaxRetries; c.tries++ {
+		c.state.reconnecting = true
+		c.debug.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.config.ReconnectDelay, c.tries)
 		time.Sleep(c.config.ReconnectDelay)
-
-		for err = c.Connect(); err != nil && c.tries < c.config.MaxRetries; c.tries++ {
-			c.state.reconnecting = true
-			c.debug.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.config.ReconnectDelay, c.tries)
-			time.Sleep(c.config.ReconnectDelay)
-		}
-
-		if err != nil {
-			// Too many errors. Stop the client.
-			c.Stop()
-		}
-
-		return err
 	}
 
-	close(c.Events)
-	return nil
+	if err != nil {
+		// Too many errors. Stop the client.
+		c.Stop()
+	}
+
+	return err
+}
+
+// reconnect checks to make sure we want to, and then attempts to reconnect
+// to the server.
+func (c *Client) Reconnect() error {
+	return c.reconnect(true)
 }
 
 // readLoop sets a timeout of 300 seconds, and then attempts to read from the
 // IRC server. If there is an error, it calls Reconnect.
-func (c *Client) readLoop() {
+func (c *Client) readLoop(ctx context.Context) {
+	var event *Event
+	var err error
+
 	for {
 		select {
-		case <-c.quitChan:
+		case <-ctx.Done():
 			return
 		default:
-			c.state.conn.SetDeadline(time.Now().Add(300 * time.Second))
-			event, err := c.state.reader.Decode()
+			c.state.conn.SetDeadline(time.Now().Add(10 * time.Second))
+			event, err = c.state.reader.Decode()
 			if err != nil {
 				// And attempt a reconnect (if applicable).
-				c.Reconnect()
-				<-c.quitChan
+				c.reconnect(false)
 				return
+			}
+
+			if event == nil {
+				continue
 			}
 
 			c.Events <- event
@@ -355,17 +425,24 @@ func (c *Client) readLoop() {
 	}
 }
 
+func (c *Client) execLoop(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event := <-c.Events:
+			c.RunCallbacks(event)
+		}
+	}
+}
+
 // Loop reads from the events channel and sends the events to be handled for
 // every message it receives.
 func (c *Client) Loop() {
-	for {
-		select {
-		case event := <-c.Events:
-			c.RunCallbacks(event)
-		case <-c.stopChan:
-			return
-		}
-	}
+	var ctx context.Context
+	ctx, c.closeLoop = context.WithCancel(context.Background())
+
+	<-ctx.Done()
 }
 
 // Server returns the string representation of host+port pair for net.Conn.
