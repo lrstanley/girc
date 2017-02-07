@@ -71,6 +71,17 @@ func (c *CModes) String() string {
 	return out + args
 }
 
+// HasMode checks if the CModes state has a given mode. E.g. "m", or "I".
+func (c *CModes) HasMode(mode string) bool {
+	for i := 0; i < len(c.modes); i++ {
+		if string(c.modes[i].name) == mode {
+			return true
+		}
+	}
+
+	return false
+}
+
 // hasArg checks to see if the mode supports arguments. What ones support this?:
 //   A = Mode that adds or removes a nick or address to a list. Always has a parameter.
 //   B = Mode that changes a setting and always has a parameter.
