@@ -6,13 +6,16 @@ package girc
 
 import "strings"
 
+// CMode represents a single step of a given mode change.
 type CMode struct {
-	add     bool
-	name    byte
-	setting bool
-	args    string
+	add     bool   // if it's a +, or -.
+	name    byte   // character representation of the given mode.
+	setting bool   // if it's a setting (should be stored) or temporary (op/voice/etc).
+	args    string // arguments to the mode, if arguments are supported.
 }
 
+// Short returns a short representation of a mode without arguments. E.g. "+a",
+// or "-b".
 func (c *CMode) Short() string {
 	var status string
 	if c.add {
@@ -24,6 +27,8 @@ func (c *CMode) Short() string {
 	return status + string(c.name)
 }
 
+// String returns a string representation of a mode, including optional
+// arguments. E.g. "+b user*!ident@host.*.com"
 func (c *CMode) String() string {
 	if len(c.args) == 0 {
 		return c.Short()
@@ -32,17 +37,21 @@ func (c *CMode) String() string {
 	return c.Short() + " " + c.args
 }
 
+// CModes is a representation of a set of modes. This may be the given state
+// of a channel/user, or the given state changes to a given channel/user.
 type CModes struct {
-	raw           string
-	modesListArgs string
-	modesArgs     string
-	modesSetArgs  string
-	modesNoArgs   string
+	raw           string // raw supported modes.
+	modesListArgs string // modes that add/remove users from lists and support args.
+	modesArgs     string // modes that support args.
+	modesSetArgs  string // modes that support args ONLY when set.
+	modesNoArgs   string // modes that do not support args.
 
-	prefixes string
-	modes    []CMode
+	prefixes string  // user permission prefixes. these aren't a CMode.setting.
+	modes    []CMode // the list of modes for this given state.
 }
 
+// String returns a complete set of modes for this given state (change?). For
+// example, "+a-b+cde some-arg".
 func (c *CModes) String() string {
 	var out string
 	var args string
@@ -62,14 +71,14 @@ func (c *CModes) String() string {
 	return out + args
 }
 
-// "modes" is a list of channel modes according to 4 types: "A,B,C,D".
-// A = Mode that adds or removes a nick or address to a list. Always has a parameter.
-// B = Mode that changes a setting and always has a parameter.
-// C = Mode that changes a setting and only has a parameter when set.
-// D = Mode that changes a setting and never has a parameter.
-// Note: Modes of type A return the list when there is no parameter present.
-// Note: Some clients assumes that any mode not listed is of type D.
-// Note: Modes in PREFIX are not listed but could be considered type B.
+// hasArg checks to see if the mode supports arguments. What ones support this?:
+//   A = Mode that adds or removes a nick or address to a list. Always has a parameter.
+//   B = Mode that changes a setting and always has a parameter.
+//   C = Mode that changes a setting and only has a parameter when set.
+//   D = Mode that changes a setting and never has a parameter.
+//   Note: Modes of type A return the list when there is no parameter present.
+//   Note: Some clients assumes that any mode not listed is of type D.
+//   Note: Modes in PREFIX are not listed but could be considered type B.
 func (c *CModes) hasArg(set bool, mode byte) (hasArgs, isSetting bool) {
 	if len(c.raw) < 1 {
 		return false, true
@@ -98,6 +107,9 @@ func (c *CModes) hasArg(set bool, mode byte) (hasArgs, isSetting bool) {
 	return false, true
 }
 
+// apply merges two state changes, or one state change into a state of modes.
+// For example, the latter would mean applying an incoming MODE with the modes
+// stored for a channel.
 func (c *CModes) apply(modes []CMode) {
 	var new []CMode
 
@@ -140,6 +152,8 @@ func (c *CModes) apply(modes []CMode) {
 	c.modes = new
 }
 
+// parse parses a set of flags and args, returning the necessary list of
+// mappings for the mode flags.
 func (c *CModes) parse(flags string, args []string) (out []CMode) {
 	// add is the mode state we're currently in. Adding, or removing modes.
 	add := true
@@ -173,6 +187,10 @@ func (c *CModes) parse(flags string, args []string) (out []CMode) {
 	return out
 }
 
+// newCModes returns a new CModes reference. channelModes and userPrefixes
+// would be something you see from the server's "CHANMODES" and "PREFIX"
+// ISUPPORT capability messages (alternatively, fall back to the standard)
+// DefaultPrefixes and ModeDefaults.
 func newCModes(channelModes, userPrefixes string) CModes {
 	split := strings.SplitN(channelModes, ",", 4)
 	if len(split) != 4 {
@@ -193,6 +211,7 @@ func newCModes(channelModes, userPrefixes string) CModes {
 	}
 }
 
+// isValidChannelMode validates a channel mode (CHANMODES).
 func isValidChannelMode(raw string) bool {
 	if len(raw) < 1 {
 		return false
@@ -208,6 +227,7 @@ func isValidChannelMode(raw string) bool {
 	return true
 }
 
+// isValidUserPrefix validates a list of ISUPPORT-style user prefixes (PREFIX).
 func isValidUserPrefix(raw string) bool {
 	if len(raw) < 1 {
 		return false
@@ -237,6 +257,8 @@ func isValidUserPrefix(raw string) bool {
 	return keys == rep
 }
 
+// parsePrefixes parses the mode character mappings from the symbols of a
+// ISUPPORT-style user prefixes list (PREFIX).
 func parsePrefixes(raw string) (modes, prefixes string) {
 	if !isValidUserPrefix(raw) {
 		return modes, prefixes
@@ -250,6 +272,9 @@ func parsePrefixes(raw string) (modes, prefixes string) {
 	return raw[1:i], raw[i+1:]
 }
 
+// handleMODE handles incoming MODE messages, and updates the tracking
+// information for each channel, as well as if any of the modes affect user
+// permissions.
 func handleMODE(c *Client, e Event) {
 	// Check if it's a RPL_CHANNELMODEIS.
 	if e.Command == RPL_CHANNELMODEIS && len(e.Params) > 2 {
@@ -293,6 +318,8 @@ func handleMODE(c *Client, e Event) {
 	c.state.mu.Unlock()
 }
 
+// chanModes returns the ISUPPORT list of server-supported channel modes,
+// alternatively falling back to ModeDefaults.
 func (s *state) chanModes() string {
 	if modes, ok := s.serverOptions["CHANMODES"]; ok && isValidChannelMode(modes) {
 		return modes
@@ -301,6 +328,9 @@ func (s *state) chanModes() string {
 	return ModeDefaults
 }
 
+// userPrefixes returns the ISUPPORT list of server-supported user prefixes.
+// This includes mode characters, as well as user prefix symbols. Falls back
+// to DefaultPrefixes if not server-supported.
 func (s *state) userPrefixes() string {
 	if prefix, ok := s.serverOptions["PREFIX"]; ok && isValidUserPrefix(prefix) {
 		return prefix
@@ -382,6 +412,8 @@ func (m *UserPerms) set(prefix string, append bool) {
 	}
 }
 
+// setFromMode sets user-permissions based on channel user mode chars. E.g.
+// "o" being oper, "v" being voice, etc.
 func (m *UserPerms) setFromMode(mode CMode) {
 	switch string(mode.name) {
 	case ModeOwner:

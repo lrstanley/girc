@@ -155,7 +155,8 @@ type Channel struct {
 	users map[string]*User
 	// Joined represents the first time that the client joined the channel.
 	Joined time.Time
-	Modes  CModes
+	// Modes are the known channel modes that the bot has captured.
+	Modes CModes
 }
 
 // Message returns an event which can be used to send a response to the channel.
@@ -227,6 +228,8 @@ func (s *state) deleteChannel(name string) {
 	}
 }
 
+// lookupChannel returns a reference to a channel with a given case-insensitive
+// name. nil returned if no results found.
 func (s *state) lookupChannel(name string) *Channel {
 	if !IsValidChannel(name) {
 		return nil
@@ -304,6 +307,8 @@ func (s *state) renameUser(from, to string) {
 	}
 }
 
+// lookupUsers returns a slice of references to users matching a given
+// query. mathType is of "nick", "name", "ident" or "account".
 func (s *state) lookupUsers(matchType, toMatch string) []*User {
 	var users []*User
 
