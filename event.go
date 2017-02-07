@@ -53,7 +53,7 @@ func ParseEvent(raw string) (e *Event) {
 	}
 
 	i, j := 0, 0
-	e = new(Event)
+	e = &Event{}
 
 	if raw[0] == prefixTag {
 		// Tags end with a space.
@@ -123,7 +123,6 @@ func ParseEvent(raw string) (e *Event) {
 	}
 
 	return e
-
 }
 
 // Len calculates the length of the string representation of event.
@@ -338,10 +337,7 @@ type EventLimiter struct {
 func (el *EventLimiter) loop() {
 	// This should exit itself once el.Stop() is called.
 	for t := range el.tick.C {
-		select {
-		case el.throttle <- t:
-		default:
-		}
+		el.throttle <- t
 	}
 }
 
