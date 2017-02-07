@@ -43,8 +43,8 @@ func newDecoder(r io.Reader) *ircDecoder {
 }
 
 // Decode attempts to read a single Event from the stream, returns non-nil
-// error if read failed.
-func (dec *ircDecoder) Decode() (e *Event, err error) {
+// error if read failed. event may be nil if unparseable.
+func (dec *ircDecoder) Decode() (event *Event, err error) {
 	dec.mu.Lock()
 	dec.line, err = dec.reader.ReadString(delim)
 	dec.mu.Unlock()
