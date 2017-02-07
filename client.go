@@ -75,9 +75,9 @@ type Config struct {
 	// TLSConfig is an optional user-supplied tls configuration, used during
 	// socket creation to the server.
 	TLSConfig *tls.Config
-	// MaxRetries is the number of times the client will attempt to reconnect
+	// Retries is the number of times the client will attempt to reconnect
 	// to the server after the last disconnect.
-	MaxRetries int
+	Retries int
 	// RateLimit is the delay in seconds between events sent to the server,
 	// with a burst of 4 messages. Set to -1 to disable.
 	RateLimit int
@@ -368,7 +368,7 @@ func (c *Client) reconnect(remoteInvoked bool) (err error) {
 	// Make sure we're not connected.
 	c.Quit()
 
-	if c.config.MaxRetries < 1 && !remoteInvoked {
+	if c.config.Retries < 1 && !remoteInvoked {
 		return errors.New("unexpectedly disconnected")
 	}
 
@@ -377,7 +377,7 @@ func (c *Client) reconnect(remoteInvoked bool) (err error) {
 	c.debug.Printf("reconnecting to %s in %s", c.Server(), c.config.ReconnectDelay)
 	time.Sleep(c.config.ReconnectDelay)
 
-	for err = c.Connect(); err != nil && c.tries < c.config.MaxRetries; c.tries++ {
+	for err = c.Connect(); err != nil && c.tries < c.config.Retries; c.tries++ {
 		c.state.reconnecting = true
 		c.debug.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.config.ReconnectDelay, c.tries)
 		time.Sleep(c.config.ReconnectDelay)
