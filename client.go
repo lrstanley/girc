@@ -408,7 +408,7 @@ func (c *Client) readLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			c.state.conn.SetDeadline(time.Now().Add(10 * time.Second))
+			c.state.conn.SetDeadline(time.Now().Add(300 * time.Second))
 			event, err = c.state.reader.Decode()
 			if err != nil {
 				// And attempt a reconnect (if applicable).
