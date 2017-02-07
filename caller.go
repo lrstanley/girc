@@ -15,6 +15,10 @@ import (
 
 // RunCallbacks manually runs callbacks for a given event.
 func (c *Client) RunCallbacks(event *Event) {
+	if event == nil {
+		return
+	}
+
 	// Log the event.
 	c.debug.Print("< " + StripRaw(event.String()))
 
