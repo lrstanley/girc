@@ -105,7 +105,10 @@ func StripRaw(text string) string {
 
 // IsValidChannel validates if channel is an RFC complaint channel or not.
 //
-// NOTE: If you do not need to validate against servers that support Unicode,
+// NOTE: If you are using this to validate a channel that contains a channel
+// ID, (!<channelid>NAME), this only supports the standard 5 character length.
+//
+// NOTE: If you do not need to validate against servers that support unicode,
 // you may want to ensure that all channel chars are within the range of
 // all ASCII printable chars. This function will NOT do that for
 // compatibility reasons.
@@ -130,6 +133,8 @@ func IsValidChannel(channel string) bool {
 	// !<channelid> -- not very commonly supported, but we'll check it anyway.
 	// The ID must be 5 chars. This means min-channel size should be:
 	//   1 (prefix) + 5 (id) + 1 (+, channel name)
+	// On some networks, this may be extended with ISUPPORT capabilities,
+	// however this is extremely uncommon.
 	if channel[0] == 0x21 {
 		if len(channel) < 7 {
 			return false
