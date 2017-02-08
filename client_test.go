@@ -7,23 +7,45 @@ package girc_test
 import (
 	"fmt"
 	"log"
+	"os"
 	"strings"
 
 	"github.com/lrstanley/girc"
 )
 
+// The bare-minimum needed to get started with girc. Just connects and idles.
+func Example_bare() {
+	errHandler := func(err error) {
+		if err == nil {
+			return
+		}
+
+		log.Fatalf("error occurred: %s", err)
+	}
+
+	client := girc.New(girc.Config{
+		Server:      "irc.byteirc.org",
+		Port:        6667,
+		Nick:        "test",
+		User:        "user",
+		Debugger:    os.Stdout,
+		HandleError: errHandler,
+	})
+
+	errHandler(client.Connect())
+	client.Loop()
+}
+
 // Very simple example that connects, joins a channel, and responds to
 // "hello" with "hello world!".
-func Example() {
-	conf := girc.Config{
+func Example_simple() {
+	client := girc.New(girc.Config{
 		Server: "irc.byteirc.org",
 		Port:   6667,
 		Nick:   "test",
 		User:   "user",
 		Name:   "Example bot",
-	}
-
-	client := girc.New(conf)
+	})
 
 	client.Callbacks.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
 		c.Join("#dev")
@@ -57,19 +79,16 @@ func Example() {
 // Another basic example, however with this, we add simple !<command>
 // responses to things. E.g. "!hello", "!stop", and "!restart".
 func Example_commands() {
-	conf := girc.Config{
+	client := girc.New(girc.Config{
 		Server: "irc.byteirc.org",
 		Port:   6667,
 		Nick:   "test",
 		User:   "user",
 		Name:   "Example bot",
-	}
-	channels := []string{"#dev"}
-
-	client := girc.New(conf)
+	})
 
 	client.Callbacks.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
-		c.Join(channels...)
+		c.Join("#channel", "#other-channel")
 	})
 
 	client.Callbacks.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
