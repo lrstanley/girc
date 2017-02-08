@@ -243,11 +243,11 @@ func (e *Event) Pretty() (out string, ok bool) {
 	}
 
 	if e.Command == JOIN && len(e.Params) > 0 {
-		return fmt.Sprintf("[*] %s has joined %s", e.Source.Name, e.Params[0]), true
+		return fmt.Sprintf("[*] %s (%s) has joined %s", e.Source.Name, e.Source.Host, e.Params[0]), true
 	}
 
 	if e.Command == PART && len(e.Params) > 0 {
-		return fmt.Sprintf("[*] %s has left %s (%s)", e.Source.Name, e.Params[0], e.Trailing), true
+		return fmt.Sprintf("[*] %s (%s) has left %s (%s)", e.Source.Name, e.Source.Host, e.Params[0], e.Trailing), true
 	}
 
 	if e.Command == ERROR {
