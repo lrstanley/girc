@@ -282,6 +282,10 @@ func (e *Event) Pretty() (out string, ok bool) {
 		return fmt.Sprintf("[*] %s is no longer away", e.Source.Name), true
 	}
 
+	if e.Command == CAP_CHGHOST && len(e.Params) == 2 {
+		return fmt.Sprintf("[*] %s has changed their host to %s (was %s)", e.Source.Name, e.Params[1], e.Source.Host), true
+	}
+
 	return "", false
 }
 
