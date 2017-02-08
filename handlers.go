@@ -45,6 +45,12 @@ func (c *Client) registerHandlers() {
 		c.Callbacks.register(true, RPL_ISUPPORT, CallbackFunc(handleISUPPORT))
 		c.Callbacks.register(true, RPL_MOTDSTART, CallbackFunc(handleMOTD))
 		c.Callbacks.register(true, RPL_MOTD, CallbackFunc(handleMOTD))
+
+		// Keep users lastactive times up to date.
+		c.Callbacks.register(true, PRIVMSG, CallbackFunc(updateLastActive))
+		c.Callbacks.register(true, NOTICE, CallbackFunc(updateLastActive))
+		c.Callbacks.register(true, TOPIC, CallbackFunc(updateLastActive))
+		c.Callbacks.register(true, KICK, CallbackFunc(updateLastActive))
 	}
 
 	// Nickname collisions.
@@ -247,6 +253,7 @@ func handleNICK(c *Client, e Event) {
 	}
 
 	c.state.mu.Lock()
+	// renameUser updates the LastActive time automatically.
 	c.state.renameUser(e.Source.Name, e.Params[0])
 	c.state.mu.Unlock()
 }
@@ -379,6 +386,16 @@ func handleNAMES(c *Client, e Event) {
 
 		// Don't append modes, overwrite them.
 		user.Perms.set(modes, false)
+	}
+	c.state.mu.Unlock()
+}
+
+func updateLastActive(c *Client, e Event) {
+	c.state.mu.Lock()
+	// Update the users last active time, if they exist.
+	users := c.state.lookupUsers("nick", e.Source.Name)
+	for i := 0; i < len(users); i++ {
+		users[i].LastActive = time.Now()
 	}
 	c.state.mu.Unlock()
 }
