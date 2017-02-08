@@ -20,8 +20,8 @@ import (
 // Client contains all of the information necessary to run a single IRC
 // client.
 type Client struct {
-	// config represents the configuration
-	config Config
+	// Config represents the configuration
+	Config Config
 	// Events is a buffer of events waiting to be processed.
 	Events chan *Event
 
@@ -70,6 +70,7 @@ type Config struct {
 	User string
 	// Name is the "realname" that's used during connect.
 	Name string
+
 	// Conn is an optional network connection to use (overrides TLSConfig).
 	Conn *net.Conn
 	// TLSConfig is an optional user-supplied tls configuration, used during
@@ -79,7 +80,8 @@ type Config struct {
 	// to the server after the last disconnect.
 	Retries int
 	// RateLimit is the delay in seconds between events sent to the server,
-	// with a burst of 4 messages. Set to -1 to disable.
+	// with a burst of 4 messages. Set to -1 to disable. Cannot be changed
+	// once the client has been created.
 	RateLimit int
 	// Debugger is an optional, user supplied location to log the raw lines
 	// sent from the server, or other useful debug logs. Defaults to
@@ -97,22 +99,20 @@ type Config struct {
 	// ReconnectDelay is the a duration of time to delay before attempting a
 	// reconnection. Defaults to 10s (minimum of 10s).
 	ReconnectDelay time.Duration
-	// DisableTracking disables all channel and user-level tracking. Useful
+
+	// disableTracking disables all channel and user-level tracking. Useful
 	// for highly embedded scripts with single purposes.
-	DisableTracking bool
-	// DisableDefaultCTCP disables all default CTCP responses. Though, any
-	// set CTCP's will override any pre-set ones, by default.
-	DisableDefaultCTCP bool
-	// DisableCapTracking disables all network/server capability tracking.
+	disableTracking bool
+	// disableCapTracking disables all network/server capability tracking.
 	// This includes determining what feature the IRC server supports, what
 	// the "NETWORK=" variables are, and other useful stuff. DisableTracking
 	// cannot be enabled if you want to also tracking capabilities.
-	DisableCapTracking bool
-	// DisableNickCollision disables the clients auto-response to nickname
+	disableCapTracking bool
+	// disableNickCollision disables the clients auto-response to nickname
 	// collisions. For example, if "test" is already in use, or is blocked by
 	// the network/a service, the client will try and use "test_", then it
 	// will attempt "test__", "test___", and so on.
-	DisableNickCollision bool
+	disableNickCollision bool
 }
 
 // ErrNotConnected is returned if a method is used when the client isn't
@@ -137,26 +137,26 @@ func (e *ErrInvalidTarget) Error() string { return "invalid target: " + e.Target
 // New creates a new IRC client with the specified server, name and config.
 func New(config Config) *Client {
 	client := &Client{
-		config:   config,
+		Config:   config,
 		Events:   make(chan *Event, 100), // buffer 100 events max.
 		CTCP:     newCTCP(),
 		initTime: time.Now(),
 	}
 
-	if client.config.Debugger == nil {
-		client.config.Debugger = ioutil.Discard
+	if client.Config.Debugger == nil {
+		client.Config.Debugger = ioutil.Discard
 	}
-	client.debug = log.New(client.config.Debugger, "debug:", log.Ltime|log.Lshortfile)
+	client.debug = log.New(client.Config.Debugger, "debug:", log.Ltime|log.Lshortfile)
 	client.debug.Print("initializing debugging")
 
 	// Setup the caller.
 	client.Callbacks = newCaller(client.debug)
 
 	// Setup a rate limiter if they requested one.
-	if client.config.RateLimit == 0 {
+	if client.Config.RateLimit == 0 {
 		client.limiter = NewEventLimiter(4, 1*time.Second, client.write)
-	} else if client.config.RateLimit > 0 {
-		client.limiter = NewEventLimiter(4, time.Duration(client.config.RateLimit)*time.Second, client.write)
+	} else if client.Config.RateLimit > 0 {
+		client.limiter = NewEventLimiter(4, time.Duration(client.Config.RateLimit)*time.Second, client.write)
 	}
 
 	// Give ourselves a new state.
@@ -166,10 +166,54 @@ func New(config Config) *Client {
 	client.registerHandlers()
 
 	// Register default CTCP responses.
-	client.CTCP.disableDefault = client.config.DisableDefaultCTCP
 	client.CTCP.addDefaultHandlers()
 
 	return client
+}
+
+// DisableTracking disables all channel and user-level tracking, and clears
+// all internal callbacks. Useful for highly embedded scripts with single
+// purposes. This cannot be un-done.
+func (c *Client) DisableTracking() {
+	c.debug.Print("disabling tracking")
+	c.Config.disableTracking = true
+	c.Callbacks.clearInternal()
+	c.state.mu.Lock()
+	c.state.channels = nil
+	c.state.mu.Unlock()
+	c.registerHandlers()
+}
+
+// DisableCapTracking disables all network/server capability tracking, and
+// clears all internal callbacks. This includes determining what feature the
+// IRC server supports, what the "NETWORK=" variables are, and other useful
+// stuff. DisableTracking() cannot be called if you want to also track
+// capabilities.
+func (c *Client) DisableCapTracking() {
+	// No need to mess with internal callbacks. That should already be
+	// handled by the clear in Client.DisableTracking().
+	if c.Config.disableCapTracking {
+		return
+	}
+
+	c.debug.Print("disabling CAP tracking")
+	c.Config.disableCapTracking = true
+	c.Callbacks.clearInternal()
+	c.registerHandlers()
+}
+
+// DisableNickCollision disables the clients auto-response to nickname
+// collisions. For example, if "test" is already in use, or is blocked by the
+// network/a service, the client will try and use "test_", then it will
+// attempt "test__", "test___", and so on.
+func (c *Client) DisableNickCollision() {
+	c.debug.Print("disabling nick collision prevention")
+	c.Config.disableNickCollision = true
+	c.Callbacks.clearInternal()
+	c.state.mu.Lock()
+	c.state.channels = nil
+	c.state.mu.Unlock()
+	c.registerHandlers()
 }
 
 func (c *Client) cleanup(all bool) {
@@ -248,15 +292,15 @@ func (c *Client) Connect() error {
 	var err error
 
 	// Sanity check a few options.
-	if c.config.Server == "" {
+	if c.Config.Server == "" {
 		return errors.New("invalid server specified")
 	}
 
-	if c.config.Port < 21 || c.config.Port > 65535 {
+	if c.Config.Port < 21 || c.Config.Port > 65535 {
 		return errors.New("invalid port (21-65535)")
 	}
 
-	if !IsValidNick(c.config.Nick) || !IsValidUser(c.config.User) {
+	if !IsValidNick(c.Config.Nick) || !IsValidUser(c.Config.User) {
 		return errors.New("invalid nickname or user")
 	}
 
@@ -266,11 +310,11 @@ func (c *Client) Connect() error {
 	c.debug.Printf("connecting to %s...", c.Server())
 
 	// Allow the user to specify their own net.Conn.
-	if c.config.Conn == nil {
-		if c.config.TLSConfig == nil {
+	if c.Config.Conn == nil {
+		if c.Config.TLSConfig == nil {
 			conn, err = net.Dial("tcp", c.Server())
 		} else {
-			conn, err = tls.Dial("tcp", c.Server(), c.config.TLSConfig)
+			conn, err = tls.Dial("tcp", c.Server(), c.Config.TLSConfig)
 		}
 		if err != nil {
 			return err
@@ -278,7 +322,7 @@ func (c *Client) Connect() error {
 
 		c.state.conn = conn
 	} else {
-		c.state.conn = *c.config.Conn
+		c.state.conn = *c.Config.Conn
 	}
 
 	c.state.reader = newDecoder(c.state.conn)
@@ -322,19 +366,19 @@ func (c *Client) Connect() error {
 // connect to the IRC server.
 func (c *Client) connectMessages() (events []*Event) {
 	// Passwords first.
-	if c.config.Password != "" {
-		events = append(events, &Event{Command: PASS, Params: []string{c.config.Password}})
+	if c.Config.Password != "" {
+		events = append(events, &Event{Command: PASS, Params: []string{c.Config.Password}})
 	}
 
 	// Then nickname.
-	events = append(events, &Event{Command: NICK, Params: []string{c.config.Nick}})
+	events = append(events, &Event{Command: NICK, Params: []string{c.Config.Nick}})
 
 	// Then username and realname.
-	if c.config.Name == "" {
-		c.config.Name = c.config.User
+	if c.Config.Name == "" {
+		c.Config.Name = c.Config.User
 	}
 
-	events = append(events, &Event{Command: USER, Params: []string{c.config.User, "+iw", "*"}, Trailing: c.config.Name})
+	events = append(events, &Event{Command: USER, Params: []string{c.Config.User, "+iw", "*"}, Trailing: c.Config.Name})
 
 	return events
 }
@@ -361,26 +405,26 @@ func (c *Client) reconnect(remoteInvoked bool) (err error) {
 		return nil
 	}
 
-	if c.config.ReconnectDelay < (10 * time.Second) {
-		c.config.ReconnectDelay = 25 * time.Second
+	if c.Config.ReconnectDelay < (10 * time.Second) {
+		c.Config.ReconnectDelay = 25 * time.Second
 	}
 
 	// Make sure we're not connected.
 	c.Quit()
 
-	if c.config.Retries < 1 && !remoteInvoked {
+	if c.Config.Retries < 1 && !remoteInvoked {
 		return errors.New("unexpectedly disconnected")
 	}
 
 	// Delay so we're not slaughtering the server with a bunch of
 	// connections.
-	c.debug.Printf("reconnecting to %s in %s", c.Server(), c.config.ReconnectDelay)
-	time.Sleep(c.config.ReconnectDelay)
+	c.debug.Printf("reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
+	time.Sleep(c.Config.ReconnectDelay)
 
-	for err = c.Connect(); err != nil && c.tries < c.config.Retries; c.tries++ {
+	for err = c.Connect(); err != nil && c.tries < c.Config.Retries; c.tries++ {
 		c.state.reconnecting = true
-		c.debug.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.config.ReconnectDelay, c.tries)
-		time.Sleep(c.config.ReconnectDelay)
+		c.debug.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
+		time.Sleep(c.Config.ReconnectDelay)
 	}
 
 	if err != nil {
@@ -447,7 +491,7 @@ func (c *Client) Loop() {
 
 // Server returns the string representation of host+port pair for net.Conn.
 func (c *Client) Server() string {
-	return fmt.Sprintf("%s:%d", c.config.Server, c.config.Port)
+	return fmt.Sprintf("%s:%d", c.Config.Server, c.Config.Port)
 }
 
 // Lifetime returns the amount of time that has passed since the client was
@@ -518,13 +562,13 @@ func (c *Client) IsConnected() (connected bool) {
 // GetNick returns the current nickname of the active connection. Returns
 // empty string if tracking is disabled.
 func (c *Client) GetNick() (nick string) {
-	if c.config.DisableTracking {
+	if c.Config.disableTracking {
 		panic("GetNick() used when tracking is disabled")
 	}
 
 	c.state.mu.RLock()
 	if c.state.nick == "" {
-		nick = c.config.Nick
+		nick = c.Config.Nick
 	} else {
 		nick = c.state.nick
 	}
@@ -550,7 +594,7 @@ func (c *Client) Nick(name string) error {
 // Channels returns the active list of channels that the client is in.
 // Panics if tracking is disabled.
 func (c *Client) Channels() []string {
-	if c.config.DisableTracking {
+	if c.Config.disableTracking {
 		panic("Channels() used when tracking is disabled")
 	}
 
@@ -570,7 +614,7 @@ func (c *Client) Channels() []string {
 // IsInChannel returns true if the client is in channel. Panics if tracking
 // is disabled.
 func (c *Client) IsInChannel(channel string) bool {
-	if c.config.DisableTracking {
+	if c.Config.disableTracking {
 		panic("Channels() used when tracking is disabled")
 	}
 
@@ -903,7 +947,7 @@ func (c *Client) Whowas(nick string, amount int) error {
 //   nickLen, success := GetServerOption("MAXNICKLEN")
 //
 func (c *Client) GetServerOption(key string) (result string, ok bool) {
-	if c.config.DisableTracking {
+	if c.Config.disableTracking {
 		panic("GetServerOption() used when tracking is disabled")
 	}
 
@@ -918,7 +962,7 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 // as. May be empty if the server does not support RPL_MYINFO. Will panic if
 // used when tracking has been disabled.
 func (c *Client) ServerName() (name string) {
-	if c.config.DisableTracking {
+	if c.Config.disableTracking {
 		panic("ServerName() used when tracking is disabled")
 	}
 
@@ -931,7 +975,7 @@ func (c *Client) ServerName() (name string) {
 // May be empty if the server does not support RPL_ISUPPORT (or RPL_PROTOCTL).
 // Will panic if used when tracking has been disabled.
 func (c *Client) NetworkName() (name string) {
-	if c.config.DisableTracking {
+	if c.Config.disableTracking {
 		panic("NetworkName() used when tracking is disabled")
 	}
 
@@ -945,7 +989,7 @@ func (c *Client) NetworkName() (name string) {
 // does not support RPL_MYINFO. Will panic if used when tracking has been
 // disabled.
 func (c *Client) ServerVersion() (version string) {
-	if c.config.DisableTracking {
+	if c.Config.disableTracking {
 		panic("ServerVersion() used when tracking is disabled")
 	}
 
@@ -957,7 +1001,7 @@ func (c *Client) ServerVersion() (version string) {
 // ServerMOTD returns the servers message of the day, if the server has sent
 // it upon connect. Will panic if used when tracking has been disabled.
 func (c *Client) ServerMOTD() (motd string) {
-	if c.config.DisableTracking {
+	if c.Config.disableTracking {
 		panic("ServerMOTD() used when tracking is disabled")
 	}
 

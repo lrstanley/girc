@@ -111,7 +111,6 @@ func encodeCTCPRaw(cmd, text string) (out string) {
 // CTCP handles the storage and execution of CTCP handlers against incoming
 // CTCP events.
 type CTCP struct {
-	disableDefault bool
 	// mu is the mutex that should be used when accessing callbacks.
 	mu sync.RWMutex
 	// handlers is a map of CTCP message -> functions.
@@ -190,8 +189,7 @@ func (c *CTCP) SetBg(cmd string, handler func(client *Client, ctcp CTCPEvent)) {
 	})
 }
 
-// Clear removes currently setup handler for cmd, if one is set. This will
-// also disable default handlers for a specific cmd.
+// Clear removes currently setup handler for cmd, if one is set.
 func (c *CTCP) Clear(cmd string) {
 	if cmd = c.parseCMD(cmd); cmd == "" {
 		return
@@ -202,8 +200,7 @@ func (c *CTCP) Clear(cmd string) {
 	c.mu.Unlock()
 }
 
-// ClearAll removes all currently setup and re-sets the default handlers,
-// unless configured not to. See Client.Config.DisableDefaultCTCP.
+// ClearAll removes all currently setup and re-sets the default handlers.
 func (c *CTCP) ClearAll() {
 	c.mu.Lock()
 	c.handlers = map[string]CTCPHandler{}
@@ -217,13 +214,8 @@ func (c *CTCP) ClearAll() {
 // implement a CTCP handler.
 type CTCPHandler func(client *Client, ctcp CTCPEvent)
 
-// addDefaultHandlers adds some useful default CTCP response handlers, unless
-// requested by the client not to.
+// addDefaultHandlers adds some useful default CTCP response handlers.
 func (c *CTCP) addDefaultHandlers() {
-	if c.disableDefault {
-		return
-	}
-
 	c.SetBg(CTCP_PING, handleCTCPPing)
 	c.SetBg(CTCP_PONG, handleCTCPPong)
 	c.SetBg(CTCP_VERSION, handleCTCPVersion)
@@ -251,8 +243,8 @@ func handleCTCPPong(client *Client, ctcp CTCPEvent) {
 // as the os type (darwin, linux, windows, etc) and architecture type (x86,
 // arm, etc).
 func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
-	if client.config.Version != "" {
-		client.SendCTCPReply(ctcp.Source.Name, CTCP_VERSION, client.config.Version)
+	if client.Config.Version != "" {
+		client.SendCTCPReply(ctcp.Source.Name, CTCP_VERSION, client.Config.Version)
 		return
 	}
 

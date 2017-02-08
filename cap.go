@@ -25,7 +25,7 @@ var possibleCap = map[string][]string{
 }
 
 func (c *Client) listCAP() error {
-	if !c.config.DisableTracking && !c.config.DisableCapTracking {
+	if !c.Config.disableTracking && !c.Config.disableCapTracking {
 		if err := c.write(&Event{Command: CAP, Params: []string{CAP_LS, "302"}}); err != nil {
 			return err
 		}
@@ -37,8 +37,8 @@ func (c *Client) listCAP() error {
 func possibleCapList(c *Client) map[string][]string {
 	out := make(map[string][]string)
 
-	for k := range c.config.SupportedCaps {
-		out[k] = c.config.SupportedCaps[k]
+	for k := range c.Config.SupportedCaps {
+		out[k] = c.Config.SupportedCaps[k]
 	}
 
 	for k := range possibleCap {
