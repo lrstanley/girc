@@ -12,14 +12,15 @@ import (
 )
 
 var possibleCap = map[string][]string{
-	"account-notify": nil,
-	"account-tag":    nil,
-	"away-notify":    nil,
-	"batch":          nil,
-	"cap-notify":     nil,
-	"chghost":        nil,
-	"extended-join":  nil,
-	"message-tags":   nil,
+	"account-notify":    nil,
+	"account-tag":       nil,
+	"away-notify":       nil,
+	"batch":             nil,
+	"cap-notify":        nil,
+	"chghost":           nil,
+	"extended-join":     nil,
+	"message-tags":      nil,
+	"userhost-in-names": nil,
 }
 
 func (c *Client) listCAP() error {

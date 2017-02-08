@@ -338,16 +338,43 @@ func handleNAMES(c *Client, e Event) {
 
 	parts := strings.Split(e.Trailing, " ")
 
+	var host, ident, modes, nick string
+	var ok bool
+
 	c.state.mu.Lock()
 	for i := 0; i < len(parts); i++ {
-		modes, nick, ok := parseUserPrefix(parts[i])
+		modes, nick, ok = parseUserPrefix(parts[i])
 		if !ok {
+			continue
+		}
+
+		// If userhost-in-names.
+		if strings.Contains(nick, "@") {
+			s := ParseSource(nick)
+			if s == nil {
+				continue
+			}
+
+			host = s.Host
+			nick = s.Name
+			ident = s.Ident
+		}
+
+		if !IsValidNick(nick) {
 			continue
 		}
 
 		user := c.state.createUserIfNotExists(e.Params[len(e.Params)-1], nick)
 		if user == nil {
 			continue
+		}
+
+		// Add necessary userhost-in-names data into the user.
+		if host != "" {
+			user.Host = host
+		}
+		if ident != "" {
+			user.Ident = ident
 		}
 
 		// Don't append modes, overwrite them.

@@ -452,13 +452,7 @@ func parseUserPrefix(raw string) (modes, nick string, success bool) {
 		}
 
 		// Assume we've gotten to the nickname part.
-		if !IsValidNick(raw[i:]) {
-			return modes, nick, false
-		}
-
-		nick = raw[i:]
-
-		return modes, nick, true
+		return modes, raw[i:], true
 	}
 
 	return
