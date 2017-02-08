@@ -23,13 +23,13 @@ func (c *Client) RunCallbacks(event *Event) {
 	c.debug.Print("< " + StripRaw(event.String()))
 
 	// Regular wildcard callbacks.
-	c.Callbacks.exec(ALLEVENTS, c, event)
+	c.Callbacks.exec(ALLEVENTS, c, event.Copy())
 
 	// Then regular callbacks.
-	c.Callbacks.exec(event.Command, c, event)
+	c.Callbacks.exec(event.Command, c, event.Copy())
 
 	// Check if it's a CTCP.
-	if ctcp := decodeCTCP(event); ctcp != nil {
+	if ctcp := decodeCTCP(event.Copy()); ctcp != nil {
 		// Execute it.
 		c.CTCP.call(ctcp, c)
 	}

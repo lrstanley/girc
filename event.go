@@ -125,6 +125,25 @@ func ParseEvent(raw string) (e *Event) {
 	return e
 }
 
+func (e *Event) Copy() *Event {
+	newEvent := &Event{}
+
+	*newEvent = *e
+
+	// Copy Source field, as it's a pointer and needs to be dereferenced.
+	*newEvent.Source = *e.Source
+
+	// Copy tags as necessary.
+	if e.Tags != nil {
+		newEvent.Tags = Tags{}
+		for k, v := range e.Tags {
+			newEvent.Tags[k] = v
+		}
+	}
+
+	return newEvent
+}
+
 // Len calculates the length of the string representation of event.
 func (e *Event) Len() (length int) {
 	if e.Tags != nil {
