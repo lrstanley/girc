@@ -203,7 +203,17 @@ func (c *Caller) ClearAll() {
 	c.external = map[string]map[string]Callback{}
 	c.mu.Unlock()
 
-	c.debug.Print("cleared all callbacks")
+	c.debug.Print("cleared all external callbacks")
+}
+
+// clearInternal clears all internal callbacks currently setup within the
+// client.
+func (c *Caller) clearInternal() {
+	c.mu.Lock()
+	c.internal = map[string]map[string]Callback{}
+	c.mu.Unlock()
+
+	c.debug.Print("cleared all internal callbacks")
 }
 
 // Clear clears all of the callbacks for the given event.
@@ -217,7 +227,7 @@ func (c *Caller) Clear(cmd string) {
 	}
 	c.mu.Unlock()
 
-	c.debug.Printf("cleared callbacks for %q", cmd)
+	c.debug.Printf("cleared external callbacks for %q", cmd)
 }
 
 // Remove removes the callback with cuid from the callback stack. success
