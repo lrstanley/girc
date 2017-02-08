@@ -274,6 +274,14 @@ func (e *Event) Pretty() (out string, ok bool) {
 		return fmt.Sprintf("[%s] %s set modes: %s", e.Params[0], e.Source.Name, strings.Join(e.Params[1:], " ")), true
 	}
 
+	if e.Command == AWAY {
+		if len(e.Trailing) > 0 {
+			return fmt.Sprintf("[*] %s is now away: %s", e.Source.Name, e.Trailing), true
+		}
+
+		return fmt.Sprintf("[*] %s is no longer away", e.Source.Name), true
+	}
+
 	return "", false
 }
 
