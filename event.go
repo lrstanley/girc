@@ -242,12 +242,12 @@ func (e *Event) Pretty() (out string, ok bool) {
 		return fmt.Sprintf("[*] " + e.Trailing), true
 	}
 
-	if e.Command == JOIN {
-		return fmt.Sprintf("[*] %s has joined %s", e.Source.Name, strings.Join(e.Params, ", ")), true
+	if e.Command == JOIN && len(e.Params) > 0 {
+		return fmt.Sprintf("[*] %s has joined %s", e.Source.Name, e.Params[0]), true
 	}
 
-	if e.Command == PART {
-		return fmt.Sprintf("[*] %s has left %s (%s)", e.Source.Name, strings.Join(e.Params, ", "), e.Trailing), true
+	if e.Command == PART && len(e.Params) > 0 {
+		return fmt.Sprintf("[*] %s has left %s (%s)", e.Source.Name, e.Params[0], e.Trailing), true
 	}
 
 	if e.Command == ERROR {
