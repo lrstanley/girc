@@ -131,7 +131,9 @@ func (e *Event) Copy() *Event {
 	*newEvent = *e
 
 	// Copy Source field, as it's a pointer and needs to be dereferenced.
-	*newEvent.Source = *e.Source
+	if e.Source != nil {
+		*newEvent.Source = *e.Source
+	}
 
 	// Copy tags as necessary.
 	if e.Tags != nil {
