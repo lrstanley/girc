@@ -99,6 +99,9 @@ type Config struct {
 	// ReconnectDelay is the a duration of time to delay before attempting a
 	// reconnection. Defaults to 10s (minimum of 10s).
 	ReconnectDelay time.Duration
+	// HandleError if supplied, is called when one is disconnected from the
+	// server, with a given error.
+	HandleError func(error)
 
 	// disableTracking disables all channel and user-level tracking. Useful
 	// for highly embedded scripts with single purposes.
@@ -121,6 +124,8 @@ var ErrNotConnected = errors.New("client is not connected to server")
 
 // ErrAlreadyConnecting implies that a connection attempt is already happening.
 var ErrAlreadyConnecting = errors.New("a connection attempt is already occurring")
+
+var ErrDisconnected = errors.New("unexpectedly disconnected")
 
 // ErrCalledAfterStop is used when one uses Client.Stop(), and subsequently
 // attempts to use the client again.
@@ -413,7 +418,7 @@ func (c *Client) reconnect(remoteInvoked bool) (err error) {
 	c.Quit()
 
 	if c.Config.Retries < 1 && !remoteInvoked {
-		return errors.New("unexpectedly disconnected")
+		return ErrDisconnected
 	}
 
 	// Delay so we're not slaughtering the server with a bunch of
@@ -455,8 +460,14 @@ func (c *Client) readLoop(ctx context.Context) {
 			c.state.conn.SetDeadline(time.Now().Add(300 * time.Second))
 			event, err = c.state.reader.Decode()
 			if err != nil {
-				// And attempt a reconnect (if applicable).
-				c.reconnect(false)
+				// Attempt a reconnect (if applicable). If it fails, send
+				// the error to c.Config.HandleError to be dealt with, if
+				// the handler exists.
+				err = c.reconnect(false)
+				if err != nil && c.Config.HandleError != nil {
+					c.Config.HandleError(err)
+				}
+
 				return
 			}
 
