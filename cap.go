@@ -20,6 +20,7 @@ var possibleCap = map[string][]string{
 	"chghost":           nil,
 	"extended-join":     nil,
 	"message-tags":      nil,
+	"multi-prefix":      nil,
 	"userhost-in-names": nil,
 }
 
