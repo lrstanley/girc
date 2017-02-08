@@ -18,6 +18,7 @@ var possibleCap = map[string][]string{
 	"batch":          nil,
 	"cap-notify":     nil,
 	"chghost":        nil,
+	"extended-join":  nil,
 	"message-tags":   nil,
 }
 

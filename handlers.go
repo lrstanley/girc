@@ -108,6 +108,17 @@ func handleJOIN(c *Client, e Event) {
 		return
 	}
 
+	// Assume extended-join (ircv3).
+	if len(e.Params) == 2 {
+		if e.Params[1] != "*" {
+			user.Extras.Account = e.Params[1]
+		}
+
+		if len(e.Trailing) > 0 {
+			user.Extras.Name = e.Trailing
+		}
+	}
+
 	if e.Source.Name == c.GetNick() {
 		// If it's us, don't just add our user to the list. Run a WHO which
 		// will tell us who exactly is in the entire channel.
