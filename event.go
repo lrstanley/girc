@@ -274,7 +274,7 @@ func (e *Event) Pretty() (out string, ok bool) {
 		return fmt.Sprintf("[%s] %s set modes: %s", e.Params[0], e.Source.Name, strings.Join(e.Params[1:], " ")), true
 	}
 
-	if e.Command == AWAY {
+	if e.Command == CAP_AWAY {
 		if len(e.Trailing) > 0 {
 			return fmt.Sprintf("[*] %s is now away: %s", e.Source.Name, e.Trailing), true
 		}
@@ -284,6 +284,14 @@ func (e *Event) Pretty() (out string, ok bool) {
 
 	if e.Command == CAP_CHGHOST && len(e.Params) == 2 {
 		return fmt.Sprintf("[*] %s has changed their host to %s (was %s)", e.Source.Name, e.Params[1], e.Source.Host), true
+	}
+
+	if e.Command == CAP_ACCOUNT && len(e.Params) == 1 {
+		if e.Params[0] == "*" {
+			return fmt.Sprintf("[*] %s has become un-authenticated", e.Source.Name), true
+		}
+
+		return fmt.Sprintf("[*] %s has authenticated for account: %s", e.Source.Name, e.Params[0]), true
 	}
 
 	return "", false
