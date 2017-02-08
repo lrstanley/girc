@@ -5,8 +5,6 @@
   <a href="https://godoc.org/github.com/lrstanley/girc"><img src="https://godoc.org/github.com/lrstanley/girc?status.png" alt="GoDoc"></a>
   <a href="https://goreportcard.com/report/github.com/lrstanley/girc"><img src="https://goreportcard.com/badge/github.com/lrstanley/girc" alt="Go Report Card"></a>
   <a href="http://byteirc.org/channel/L"><img src="https://img.shields.io/badge/ByteIRC-%23L-blue.svg" alt="IRC Chat"></a>
-  <a href="https://github.com/lrstanley/girc/issues"><img src="https://img.shields.io/github/issues/lrstanley/girc.svg" alt="GitHub Issues"></a>
-  <a href="https://raw.githubusercontent.com/lrstanley/girc/master/LICENSE"><img src="https://img.shields.io/github/license/lrstanley/girc.svg" alt="License"></a>
 </p>
 
 ## Status
