@@ -37,7 +37,7 @@ type Client struct {
 
 	// tries represents the internal reconnect count to the IRC server.
 	tries int
-	// stopped determins if Client.Stop() has been called.
+	// stopped determines if Client.Stop() has been called.
 	stopped bool
 	// limiter is a configurable EventLimiter by the end user.
 	limiter *EventLimiter

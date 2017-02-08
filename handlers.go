@@ -258,6 +258,7 @@ func handleNICK(c *Client, e Event) {
 	c.state.mu.Unlock()
 }
 
+// handleQUIT handles users that are quitting from the network.
 func handleQUIT(c *Client, e Event) {
 	c.state.mu.Lock()
 	c.state.deleteUser(e.Source.Name)
@@ -338,6 +339,9 @@ func handleMOTD(c *Client, e Event) {
 	c.state.mu.Unlock()
 }
 
+// handleNAMES handles incoming NAMES queries, of which lists all users in
+// a given channel. Optionally also obtains ident/host values, as well as
+// permissions for each user, depending on what capabilities are enabled.
 func handleNAMES(c *Client, e Event) {
 	if len(e.Params) < 1 || !IsValidChannel(e.Params[len(e.Params)-1]) {
 		return
@@ -390,6 +394,10 @@ func handleNAMES(c *Client, e Event) {
 	c.state.mu.Unlock()
 }
 
+// updateLastActive is a wrapper for any event which the source author
+// should have it's LastActive time updated. This is useful for things like
+// a KICK where we know they are active, as they just kicked another user,
+// even though they may not be talking.
 func updateLastActive(c *Client, e Event) {
 	c.state.mu.Lock()
 	// Update the users last active time, if they exist.
