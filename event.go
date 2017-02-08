@@ -271,7 +271,7 @@ func (e *Event) Pretty() (out string, ok bool) {
 	}
 
 	if e.Command == MODE && len(e.Params) > 2 {
-		return fmt.Sprintf("[%s] %s set modes: %s", e.Params[0], e.Source.Name, strings.Join(e.Params[1:], " ")), true
+		return fmt.Sprintf("[%s] *** %s set modes: %s", e.Params[0], e.Source.Name, strings.Join(e.Params[1:], " ")), true
 	}
 
 	if e.Command == CAP_AWAY {
@@ -292,6 +292,10 @@ func (e *Event) Pretty() (out string, ok bool) {
 		}
 
 		return fmt.Sprintf("[*] %s has authenticated for account: %s", e.Source.Name, e.Params[0]), true
+	}
+
+	if e.Command == RPL_TOPIC && len(e.Params) > 0 && len(e.Trailing) > 0 {
+		return fmt.Sprintf("[*] topic for %s is: %s", e.Params[len(e.Params)-1], e.Trailing), true
 	}
 
 	return "", false
