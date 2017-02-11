@@ -392,7 +392,7 @@ func (c *Client) connectMessages() (events []*Event) {
 // to the server.
 func (c *Client) reconnect(remoteInvoked bool) (err error) {
 	if c.stopped {
-		panic(ErrCalledAfterStop)
+		return nil
 	}
 
 	if c.state.reconnecting {
@@ -443,6 +443,10 @@ func (c *Client) reconnect(remoteInvoked bool) (err error) {
 // reconnect checks to make sure we want to, and then attempts to reconnect
 // to the server.
 func (c *Client) Reconnect() error {
+	if c.stopped {
+		panic(ErrCalledAfterStop)
+	}
+
 	return c.reconnect(true)
 }
 
