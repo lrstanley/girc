@@ -118,7 +118,8 @@ type Config struct {
 	// overwritten or a VERSION handler was already supplied.
 	Version string
 	// ReconnectDelay is the a duration of time to delay before attempting a
-	// reconnection. Defaults to 10s (minimum of 10s).
+	// reconnection. Defaults to 10s (minimum of 10s). This is ignored if
+	// Reconnect() is called directly.
 	ReconnectDelay time.Duration
 	// HandleError if supplied, is called when one is disconnected from the
 	// server, with a given error.
@@ -278,10 +279,12 @@ func (c *Client) reconnect(remoteInvoked bool) (err error) {
 		return ErrDisconnected
 	}
 
-	// Delay so we're not slaughtering the server with a bunch of
-	// connections.
-	c.debug.Printf("reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
-	time.Sleep(c.Config.ReconnectDelay)
+	if !remoteInvoked {
+		// Delay so we're not slaughtering the server with a bunch of
+		// connections.
+		c.debug.Printf("reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
+		time.Sleep(c.Config.ReconnectDelay)
+	}
 
 	for err = c.Connect(); err != nil && c.tries < c.Config.Retries; c.tries++ {
 		c.debug.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
@@ -297,7 +300,7 @@ func (c *Client) reconnect(remoteInvoked bool) (err error) {
 }
 
 // reconnect checks to make sure we want to, and then attempts to reconnect
-// to the server.
+// to the server. This will ignore the reconnect delay.
 func (c *Client) Reconnect() error {
 	return c.reconnect(true)
 }
