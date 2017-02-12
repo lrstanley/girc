@@ -31,8 +31,8 @@ type Client struct {
 	// initTime represents the creation time of the client.
 	initTime time.Time
 
-	// Callbacks is a handler which manages internal and external callbacks.
-	Callbacks *Caller
+	// Handlers is a handler which manages internal and external handlers.
+	Handlers *Caller
 	// CTCP is a handler which manages internal and external CTCP handlers.
 	CTCP *CTCP
 
@@ -155,13 +155,13 @@ func New(config Config) *Client {
 	c.debug.Print("initializing debugging")
 
 	// Setup the caller.
-	c.Callbacks = newCaller(c.debug)
+	c.Handlers = newCaller(c.debug)
 
 	// Give ourselves a new state.
 	c.state = newState()
 
 	// Register builtin handlers.
-	c.registerHandlers()
+	c.registerBuiltin()
 
 	// Register default CTCP responses.
 	c.CTCP.addDefaultHandlers()
@@ -170,25 +170,25 @@ func New(config Config) *Client {
 }
 
 // DisableTracking disables all channel and user-level tracking, and clears
-// all internal callbacks. Useful for highly embedded scripts with single
+// all internal handlers. Useful for highly embedded scripts with single
 // purposes. This cannot be un-done.
 func (c *Client) DisableTracking() {
 	c.debug.Print("disabling tracking")
 	c.Config.disableTracking = true
-	c.Callbacks.clearInternal()
+	c.Handlers.clearInternal()
 	c.state.mu.Lock()
 	c.state.channels = nil
 	c.state.mu.Unlock()
-	c.registerHandlers()
+	c.registerBuiltin()
 }
 
 // DisableCapTracking disables all network/server capability tracking, and
-// clears all internal callbacks. This includes determining what feature the
+// clears all internal handlers. This includes determining what feature the
 // IRC server supports, what the "NETWORK=" variables are, and other useful
 // stuff. DisableTracking() cannot be called if you want to also track
 // capabilities.
 func (c *Client) DisableCapTracking() {
-	// No need to mess with internal callbacks. That should already be
+	// No need to mess with internal handlers. That should already be
 	// handled by the clear in Client.DisableTracking().
 	if c.Config.disableCapTracking {
 		return
@@ -196,8 +196,8 @@ func (c *Client) DisableCapTracking() {
 
 	c.debug.Print("disabling CAP tracking")
 	c.Config.disableCapTracking = true
-	c.Callbacks.clearInternal()
-	c.registerHandlers()
+	c.Handlers.clearInternal()
+	c.registerBuiltin()
 }
 
 // DisableNickCollision disables the clients auto-response to nickname
@@ -207,11 +207,11 @@ func (c *Client) DisableCapTracking() {
 func (c *Client) DisableNickCollision() {
 	c.debug.Print("disabling nick collision prevention")
 	c.Config.disableNickCollision = true
-	c.Callbacks.clearInternal()
+	c.Handlers.clearInternal()
 	c.state.mu.Lock()
 	c.state.channels = nil
 	c.state.mu.Unlock()
-	c.registerHandlers()
+	c.registerBuiltin()
 }
 
 // cleanup is used to close out all threads used by the client, like read and
@@ -264,10 +264,10 @@ func (c *Client) QuitWithMessage(message string) {
 }
 
 // Stop exits the clients main loop and any other goroutines created by
-// the client itself. This does not include callbacks, as they will run for
+// the client itself. This does not include handlers, as they will run for
 // any incoming events prior to when Stop() or Quit() was called, until the
-// event queue is empty and execution has completed for those callbacks. This
-// means that you are responsible to ensure that your callbacks due not
+// event queue is empty and execution has completed for those handlers. This
+// means that you are responsible to ensure that your handlers due not
 // execute forever. Use Client.Quit() first if you want to disconnect the
 // client from the server/connection gracefully.
 func (c *Client) Stop() {
@@ -467,7 +467,7 @@ func (c *Client) execLoop(ctx context.Context) {
 	for {
 		select {
 		case event := <-c.Events:
-			c.RunCallbacks(event)
+			c.RunHandlers(event)
 		case <-ctx.Done():
 			return
 		}
@@ -494,8 +494,8 @@ func (c *Client) Lifetime() time.Duration {
 	return time.Since(c.initTime)
 }
 
-// Send sends an event to the server. Use Client.RunCallback() if you are
-// simply looking to trigger callbacks with an event.
+// Send sends an event to the server. Use Client.RunHandlers() if you are
+// simply looking to trigger handlers with an event.
 func (c *Client) Send(event *Event) error {
 	if !c.Config.AllowFlood {
 		<-time.After(c.state.rate(event.Len()))

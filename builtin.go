@@ -9,67 +9,67 @@ import (
 	"time"
 )
 
-// registerHandlers sets up built-in callbacks/helpers, based on client
+// registerBuiltin sets up built-in handlers, based on client
 // configuration.
-func (c *Client) registerHandlers() {
+func (c *Client) registerBuiltin() {
 	c.debug.Print("registering built-in handlers")
-	c.Callbacks.mu.Lock()
+	c.Handlers.mu.Lock()
 
 	// Built-in things that should always be supported.
-	c.Callbacks.register(true, RPL_WELCOME, CallbackFunc(func(c *Client, e Event) {
+	c.Handlers.register(true, RPL_WELCOME, HandlerFunc(func(c *Client, e Event) {
 		go handleConnect(c, e)
 	}))
-	c.Callbacks.register(true, PING, CallbackFunc(handlePING))
+	c.Handlers.register(true, PING, HandlerFunc(handlePING))
 
 	if !c.Config.disableTracking {
 		// Joins/parts/anything that may add/remove/rename users.
-		c.Callbacks.register(true, JOIN, CallbackFunc(handleJOIN))
-		c.Callbacks.register(true, PART, CallbackFunc(handlePART))
-		c.Callbacks.register(true, KICK, CallbackFunc(handleKICK))
-		c.Callbacks.register(true, QUIT, CallbackFunc(handleQUIT))
-		c.Callbacks.register(true, NICK, CallbackFunc(handleNICK))
-		c.Callbacks.register(true, RPL_NAMREPLY, CallbackFunc(handleNAMES))
+		c.Handlers.register(true, JOIN, HandlerFunc(handleJOIN))
+		c.Handlers.register(true, PART, HandlerFunc(handlePART))
+		c.Handlers.register(true, KICK, HandlerFunc(handleKICK))
+		c.Handlers.register(true, QUIT, HandlerFunc(handleQUIT))
+		c.Handlers.register(true, NICK, HandlerFunc(handleNICK))
+		c.Handlers.register(true, RPL_NAMREPLY, HandlerFunc(handleNAMES))
 
 		// Modes.
-		c.Callbacks.register(true, MODE, CallbackFunc(handleMODE))
-		c.Callbacks.register(true, RPL_CHANNELMODEIS, CallbackFunc(handleMODE))
+		c.Handlers.register(true, MODE, HandlerFunc(handleMODE))
+		c.Handlers.register(true, RPL_CHANNELMODEIS, HandlerFunc(handleMODE))
 
 		// WHO/WHOX responses.
-		c.Callbacks.register(true, RPL_WHOREPLY, CallbackFunc(handleWHO))
-		c.Callbacks.register(true, RPL_WHOSPCRPL, CallbackFunc(handleWHO))
+		c.Handlers.register(true, RPL_WHOREPLY, HandlerFunc(handleWHO))
+		c.Handlers.register(true, RPL_WHOSPCRPL, HandlerFunc(handleWHO))
 
 		// Other misc. useful stuff.
-		c.Callbacks.register(true, TOPIC, CallbackFunc(handleTOPIC))
-		c.Callbacks.register(true, RPL_TOPIC, CallbackFunc(handleTOPIC))
-		c.Callbacks.register(true, RPL_MYINFO, CallbackFunc(handleMYINFO))
-		c.Callbacks.register(true, RPL_ISUPPORT, CallbackFunc(handleISUPPORT))
-		c.Callbacks.register(true, RPL_MOTDSTART, CallbackFunc(handleMOTD))
-		c.Callbacks.register(true, RPL_MOTD, CallbackFunc(handleMOTD))
+		c.Handlers.register(true, TOPIC, HandlerFunc(handleTOPIC))
+		c.Handlers.register(true, RPL_TOPIC, HandlerFunc(handleTOPIC))
+		c.Handlers.register(true, RPL_MYINFO, HandlerFunc(handleMYINFO))
+		c.Handlers.register(true, RPL_ISUPPORT, HandlerFunc(handleISUPPORT))
+		c.Handlers.register(true, RPL_MOTDSTART, HandlerFunc(handleMOTD))
+		c.Handlers.register(true, RPL_MOTD, HandlerFunc(handleMOTD))
 
 		// Keep users lastactive times up to date.
-		c.Callbacks.register(true, PRIVMSG, CallbackFunc(updateLastActive))
-		c.Callbacks.register(true, NOTICE, CallbackFunc(updateLastActive))
-		c.Callbacks.register(true, TOPIC, CallbackFunc(updateLastActive))
-		c.Callbacks.register(true, KICK, CallbackFunc(updateLastActive))
+		c.Handlers.register(true, PRIVMSG, HandlerFunc(updateLastActive))
+		c.Handlers.register(true, NOTICE, HandlerFunc(updateLastActive))
+		c.Handlers.register(true, TOPIC, HandlerFunc(updateLastActive))
+		c.Handlers.register(true, KICK, HandlerFunc(updateLastActive))
 
 		// CAP IRCv3-specific tracking and functionality.
 		if !c.Config.disableCapTracking {
-			c.Callbacks.register(true, CAP, CallbackFunc(handleCAP))
-			c.Callbacks.register(true, CAP_CHGHOST, CallbackFunc(handleCHGHOST))
-			c.Callbacks.register(true, CAP_AWAY, CallbackFunc(handleAWAY))
-			c.Callbacks.register(true, CAP_ACCOUNT, CallbackFunc(handleACCOUNT))
-			c.Callbacks.register(true, ALLEVENTS, CallbackFunc(handleTags))
+			c.Handlers.register(true, CAP, HandlerFunc(handleCAP))
+			c.Handlers.register(true, CAP_CHGHOST, HandlerFunc(handleCHGHOST))
+			c.Handlers.register(true, CAP_AWAY, HandlerFunc(handleAWAY))
+			c.Handlers.register(true, CAP_ACCOUNT, HandlerFunc(handleACCOUNT))
+			c.Handlers.register(true, ALLEVENTS, HandlerFunc(handleTags))
 		}
 	}
 
 	// Nickname collisions.
 	if !c.Config.disableNickCollision {
-		c.Callbacks.register(true, ERR_NICKNAMEINUSE, CallbackFunc(nickCollisionHandler))
-		c.Callbacks.register(true, ERR_NICKCOLLISION, CallbackFunc(nickCollisionHandler))
-		c.Callbacks.register(true, ERR_UNAVAILRESOURCE, CallbackFunc(nickCollisionHandler))
+		c.Handlers.register(true, ERR_NICKNAMEINUSE, HandlerFunc(nickCollisionHandler))
+		c.Handlers.register(true, ERR_NICKCOLLISION, HandlerFunc(nickCollisionHandler))
+		c.Handlers.register(true, ERR_UNAVAILRESOURCE, HandlerFunc(nickCollisionHandler))
 	}
 
-	c.Callbacks.mu.Unlock()
+	c.Handlers.mu.Unlock()
 }
 
 // handleConnect is a helper function which lets the client know that enough
@@ -286,7 +286,7 @@ func handleMYINFO(c *Client, e Event) {
 // For example, things like max channel name length, or nickname length.
 func handleISUPPORT(c *Client, e Event) {
 	// Must be a ISUPPORT-based message. 005 is also used for server bounce
-	// related things, so this callback may be triggered during other
+	// related things, so this handler may be triggered during other
 	// situations.
 
 	// Also known as RPL_PROTOCTL.

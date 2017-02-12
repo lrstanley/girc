@@ -47,18 +47,18 @@ func Example_simple() {
 		Name:   "Example bot",
 	})
 
-	client.Callbacks.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
+	client.Handlers.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
 		c.Join("#dev")
 	})
 
-	client.Callbacks.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
+	client.Handlers.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
 		if strings.Contains(e.Trailing, "hello") {
 			c.Message(e.Params[0], "hello world!")
 		}
 	})
 
 	// Log useful IRC events.
-	client.Callbacks.Add(girc.ALLEVENTS, func(c *girc.Client, e girc.Event) {
+	client.Handlers.Add(girc.ALLEVENTS, func(c *girc.Client, e girc.Event) {
 		// girc.Event.Pretty() returns true for events which are useful and
 		// that can be prettified. Use Event.String() to get the raw string
 		// for all events.
@@ -87,11 +87,11 @@ func Example_commands() {
 		Name:   "Example bot",
 	})
 
-	client.Callbacks.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
+	client.Handlers.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
 		c.Join("#channel", "#other-channel")
 	})
 
-	client.Callbacks.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
+	client.Handlers.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
 		if strings.HasPrefix(e.Trailing, "!hello") {
 			c.Message(e.Params[0], "hello world!")
 			return
@@ -110,7 +110,7 @@ func Example_commands() {
 	})
 
 	// Log ALL events.
-	client.Callbacks.Add(girc.ALLEVENTS, func(c *girc.Client, e girc.Event) {
+	client.Handlers.Add(girc.ALLEVENTS, func(c *girc.Client, e girc.Event) {
 		// The use of girc.StripRaw() is to get rid of any potential
 		// non-printable characters.
 		fmt.Println(girc.StripRaw(e.String()))

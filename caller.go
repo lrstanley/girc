@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-// RunCallbacks manually runs callbacks for a given event.
-func (c *Client) RunCallbacks(event *Event) {
+// RunHandlers manually runs handlers for a given event.
+func (c *Client) RunHandlers(event *Event) {
 	if event == nil {
 		return
 	}
@@ -22,11 +22,11 @@ func (c *Client) RunCallbacks(event *Event) {
 	// Log the event.
 	c.debug.Print("< " + StripRaw(event.String()))
 
-	// Regular wildcard callbacks.
-	c.Callbacks.exec(ALLEVENTS, c, event.Copy())
+	// Regular wildcard handlers.
+	c.Handlers.exec(ALLEVENTS, c, event.Copy())
 
-	// Then regular callbacks.
-	c.Callbacks.exec(event.Command, c, event.Copy())
+	// Then regular handlers.
+	c.Handlers.exec(event.Command, c, event.Copy())
 
 	// Check if it's a CTCP.
 	if ctcp := decodeCTCP(event.Copy()); ctcp != nil {
@@ -35,52 +35,52 @@ func (c *Client) RunCallbacks(event *Event) {
 	}
 }
 
-// Callback is lower level implementation of a callback. See
+// Handler is lower level implementation of a handler. See
 // Caller.AddHandler()
-type Callback interface {
+type Handler interface {
 	Execute(*Client, Event)
 }
 
-// CallbackFunc is a type that represents the function necessary to
-// implement Callback.
-type CallbackFunc func(c *Client, e Event)
+// HandlerFunc is a type that represents the function necessary to
+// implement Handler.
+type HandlerFunc func(c *Client, e Event)
 
-// Execute calls the CallbackFunc with the sender and irc message.
-func (f CallbackFunc) Execute(c *Client, e Event) {
+// Execute calls the HandlerFunc with the sender and irc message.
+func (f HandlerFunc) Execute(c *Client, e Event) {
 	f(c, e)
 }
 
-// Caller manages internal and external (user facing) callbacks.
-//
-// external/internal keys are of structure:
-//   map[COMMAND][CUID]Callback
-//
-// Also of note: "COMMAND" should always be uppercase for normalization.
+// Caller manages internal and external (user facing) handlers.
 type Caller struct {
-	// mu is the mutex that should be used when accessing callbacks.
+	// mu is the mutex that should be used when accessing handlers.
 	mu sync.RWMutex
-	// wg is the waitgroup which is used to execute all callbacks concurrently.
+	// wg is the waitgroup which is used to execute all handlers concurrently.
 	wg sync.WaitGroup
-	// external is a map of user facing callbacks.
-	external map[string]map[string]Callback
-	// internal is a map of internally used callbacks for the client.
-	internal map[string]map[string]Callback
+
+	// external/internal keys are of structure:
+	//   map[COMMAND][CUID]Handler
+	// Also of note: "COMMAND" should always be uppercase for normalization.
+
+	// external is a map of user facing handlers.
+	external map[string]map[string]Handler
+	// internal is a map of internally used handlers for the client.
+	internal map[string]map[string]Handler
 	// debug is the clients logger used for debugging.
 	debug *log.Logger
 }
 
-// newCaller creates and initializes a new callback handler.
+// newCaller creates and initializes a new handler.
 func newCaller(debugger *log.Logger) *Caller {
 	c := &Caller{
-		external: map[string]map[string]Callback{},
-		internal: map[string]map[string]Callback{},
+		external: map[string]map[string]Handler{},
+		internal: map[string]map[string]Handler{},
 		debug:    debugger,
 	}
 
 	return c
 }
 
-// Len returns the total amount of user-entered registered callbacks.
+// Len returns the total amount of user-entered registered handlers.
 func (c *Caller) Len() int {
 	var total int
 
@@ -94,7 +94,7 @@ func (c *Caller) Len() int {
 }
 
 // Count is much like Caller.Len(), however it counts the number of
-// registered callbacks for a given command.
+// registered handlers for a given command.
 func (c *Caller) Count(cmd string) int {
 	var total int
 
@@ -125,7 +125,7 @@ func (c *Caller) String() string {
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-// cuid generates a unique UID string for each callback for ease of removal.
+// cuid generates a unique UID string for each handler for ease of removal.
 func (c *Caller) cuid(cmd string, n int) (cuid, uid string) {
 	b := make([]byte, n)
 
@@ -137,7 +137,7 @@ func (c *Caller) cuid(cmd string, n int) (cuid, uid string) {
 }
 
 // cuidToID allows easy mapping between a generated cuid and the caller
-// external/internal callback maps.
+// external/internal handler maps.
 func (c *Caller) cuidToID(input string) (cmd, uid string) {
 	// Ignore the errors because the strings will default to empty anyway.
 	_, _ = fmt.Sscanf(input, "%s:%s", &cmd, &uid)
@@ -145,29 +145,28 @@ func (c *Caller) cuidToID(input string) (cmd, uid string) {
 }
 
 type execStack struct {
-	Callback Callback
-	cuid     string
+	Handler
+	cuid string
 }
 
-// exec executes all callbacks pertaining to specified event. Internal first,
+// exec executes all handlers pertaining to specified event. Internal first,
 // then external.
 //
 // Please note that there is no specific order/priority for which the
-// callback types themselves or the callbacks are executed.
+// handler types themselves or the handlers are executed.
 func (c *Caller) exec(command string, client *Client, event *Event) {
-	// Build a stack of callbacks which can be executed concurrently.
+	// Build a stack of handlers which can be executed concurrently.
 	var stack []execStack
-	// var execstack []Callback
 
 	c.mu.RLock()
-	// Get internal callbacks first.
+	// Get internal handlers first.
 	if _, ok := c.internal[command]; ok {
 		for cuid := range c.internal[command] {
 			stack = append(stack, execStack{c.internal[command][cuid], cuid})
 		}
 	}
 
-	// Aaand then external callbacks.
+	// Aaand then external handlers.
 	if _, ok := c.external[command]; ok {
 		for cuid := range c.external[command] {
 			stack = append(stack, execStack{c.external[command][cuid], cuid})
@@ -175,49 +174,49 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 	}
 	c.mu.RUnlock()
 
-	// Run all callbacks concurrently across the same event. This should
+	// Run all handlers concurrently across the same event. This should
 	// still help prevent mis-ordered events, while speeding up the
 	// execution speed.
 	c.wg.Add(len(stack))
 	for i := 0; i < len(stack); i++ {
 		go func(index int) {
-			c.debug.Printf("executing callback %s for event %s", stack[index].cuid, command)
+			c.debug.Printf("executing handler %s for event %s", stack[index].cuid, command)
 			start := time.Now()
 
-			stack[index].Callback.Execute(client, *event)
+			stack[index].Execute(client, *event)
 
 			c.debug.Printf("execution of %s took %s", stack[index].cuid, time.Since(start))
 			c.wg.Done()
 		}(i)
 	}
 
-	// Wait for all of the callbacks to complete. Not doing this may cause
-	// new events from becoming ahead of older callbacks.
+	// Wait for all of the handlers to complete. Not doing this may cause
+	// new events from becoming ahead of older handlers.
 	c.wg.Wait()
 }
 
-// ClearAll clears all external callbacks currently setup within the client.
-// This ignores internal callbacks.
+// ClearAll clears all external handlers currently setup within the client.
+// This ignores internal handlers.
 func (c *Caller) ClearAll() {
 	c.mu.Lock()
-	c.external = map[string]map[string]Callback{}
+	c.external = map[string]map[string]Handler{}
 	c.mu.Unlock()
 
-	c.debug.Print("cleared all external callbacks")
+	c.debug.Print("cleared all external handlers")
 }
 
-// clearInternal clears all internal callbacks currently setup within the
+// clearInternal clears all internal handlers currently setup within the
 // client.
 func (c *Caller) clearInternal() {
 	c.mu.Lock()
-	c.internal = map[string]map[string]Callback{}
+	c.internal = map[string]map[string]Handler{}
 	c.mu.Unlock()
 
-	c.debug.Print("cleared all internal callbacks")
+	c.debug.Print("cleared all internal handlers")
 }
 
-// Clear clears all of the callbacks for the given event.
-// This ignores internal callbacks.
+// Clear clears all of the handlers for the given event.
+// This ignores internal handlers.
 func (c *Caller) Clear(cmd string) {
 	cmd = strings.ToUpper(cmd)
 
@@ -227,12 +226,12 @@ func (c *Caller) Clear(cmd string) {
 	}
 	c.mu.Unlock()
 
-	c.debug.Printf("cleared external callbacks for %q", cmd)
+	c.debug.Printf("cleared external handlers for %q", cmd)
 }
 
-// Remove removes the callback with cuid from the callback stack. success
+// Remove removes the handler with cuid from the handler stack. success
 // indicates that it existed, and has been removed. If not success, it
-// wasn't a registered callback.
+// wasn't a registered handler.
 func (c *Caller) Remove(cuid string) (success bool) {
 	c.mu.Lock()
 	success = c.remove(cuid)
@@ -249,19 +248,19 @@ func (c *Caller) remove(cuid string) (success bool) {
 		return false
 	}
 
-	// Check if the irc command/event has any callbacks on it.
+	// Check if the irc command/event has any handlers on it.
 	if _, ok := c.external[cmd]; !ok {
 		return false
 	}
 
-	// Check to see if it's actually a registered callback.
+	// Check to see if it's actually a registered handler.
 	if _, ok := c.external[cmd][cuid]; !ok {
 		return false
 	}
 
 	delete(c.external[cmd], uid)
 
-	c.debug.Printf("removed callback %q", cuid)
+	c.debug.Printf("removed handler %q", cuid)
 
 	// Assume success.
 	return true
@@ -269,60 +268,60 @@ func (c *Caller) remove(cuid string) (success bool) {
 
 // sregister is much like Caller.register(), except that it safely locks
 // the Caller mutex.
-func (c *Caller) sregister(internal bool, cmd string, callback Callback) (cuid string) {
+func (c *Caller) sregister(internal bool, cmd string, handler Handler) (cuid string) {
 	c.mu.Lock()
-	cuid = c.register(internal, cmd, callback)
+	cuid = c.register(internal, cmd, handler)
 	c.mu.Unlock()
 
 	return cuid
 }
 
-// register will register a callback in the internal tracker. Unsafe (you
+// register will register a handler in the internal tracker. Unsafe (you
 // must lock c.mu yourself!)
-func (c *Caller) register(internal bool, cmd string, callback Callback) (cuid string) {
+func (c *Caller) register(internal bool, cmd string, handler Handler) (cuid string) {
 	var uid string
 
 	cmd = strings.ToUpper(cmd)
 
 	if internal {
 		if _, ok := c.internal[cmd]; !ok {
-			c.internal[cmd] = map[string]Callback{}
+			c.internal[cmd] = map[string]Handler{}
 		}
 
 		cuid, uid = c.cuid(cmd, 20)
-		c.internal[cmd][uid] = callback
+		c.internal[cmd][uid] = handler
 	} else {
 		if _, ok := c.external[cmd]; !ok {
-			c.external[cmd] = map[string]Callback{}
+			c.external[cmd] = map[string]Handler{}
 		}
 
 		cuid, uid = c.cuid(cmd, 20)
-		c.external[cmd][uid] = callback
+		c.external[cmd][uid] = handler
 	}
 
-	c.debug.Printf("registering callback for %q with cuid %q (internal: %t)", cmd, cuid, internal)
+	c.debug.Printf("registering handler for %q with cuid %q (internal: %t)", cmd, cuid, internal)
 
 	return cuid
 }
 
-// AddHandler registers a callback (matching the Callback interface) for the
-// given event. cuid is the callback uid which can be used to remove the
-// callback with Caller.Remove().
-func (c *Caller) AddHandler(cmd string, callback Callback) (cuid string) {
-	return c.sregister(false, cmd, callback)
+// AddHandler registers a handler (matching the handler interface) for the
+// given event. cuid is the handler uid which can be used to remove the
+// handler with Caller.Remove().
+func (c *Caller) AddHandler(cmd string, handler Handler) (cuid string) {
+	return c.sregister(false, cmd, handler)
 }
 
-// Add registers the callback function for the given event. cuid is the
-// callback uid which can be used to remove the callback with Caller.Remove().
-func (c *Caller) Add(cmd string, callback func(c *Client, e Event)) (cuid string) {
-	return c.sregister(false, cmd, CallbackFunc(callback))
+// Add registers the handler function for the given event. cuid is the
+// handler uid which can be used to remove the handler with Caller.Remove().
+func (c *Caller) Add(cmd string, handler func(c *Client, e Event)) (cuid string) {
+	return c.sregister(false, cmd, HandlerFunc(handler))
 }
 
-// AddBg registers the callback function for the given event and executes it
-// in a go-routine. cuid is the callback uid which can be used to remove the
-// callback with Caller.Remove().
-func (c *Caller) AddBg(cmd string, callback func(c *Client, e Event)) (cuid string) {
-	return c.sregister(false, cmd, CallbackFunc(func(c *Client, e Event) {
-		go callback(c, e)
+// AddBg registers the handler function for the given event and executes it
+// in a go-routine. cuid is the handler uid which can be used to remove the
+// handler with Caller.Remove().
+func (c *Caller) AddBg(cmd string, handler func(c *Client, e Event)) (cuid string) {
+	return c.sregister(false, cmd, HandlerFunc(func(c *Client, e Event) {
+		go handler(c, e)
 	}))
 }

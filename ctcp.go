@@ -111,7 +111,7 @@ func encodeCTCPRaw(cmd, text string) (out string) {
 // CTCP handles the storage and execution of CTCP handlers against incoming
 // CTCP events.
 type CTCP struct {
-	// mu is the mutex that should be used when accessing callbacks.
+	// mu is the mutex that should be used when accessing any ctcp handlers.
 	mu sync.RWMutex
 	// handlers is a map of CTCP message -> functions.
 	handlers map[string]CTCPHandler
