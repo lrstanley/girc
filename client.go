@@ -13,9 +13,12 @@ import (
 	"io/ioutil"
 	"log"
 	"net"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/proxy"
 )
 
 // Client contains all of the information necessary to run a single IRC
@@ -75,11 +78,27 @@ type Config struct {
 	User string
 	// Name is the "realname" that's used during connect.
 	Name string
-
-	// Conn is an optional network connection to use (overrides TLSConfig).
-	Conn *net.Conn
+	// Proxy is a proxy based address, used during the dial process when
+	// connecting to the server. Currently, x/net/proxy only supports socks5,
+	// however you can add your own proxy functionality using:
+	//    proxy.RegisterDialerType
+	//
+	// Examples of how Proxy may be used:
+	//    socks5://localhost:8080
+	//    socks5://1.2.3.4:8888
+	//    customProxy://example.com:8000
+	//
+	Proxy string
+	// Bind is used to bind to a specific host or port during the dial
+	// process when connecting to the server. This can be a hostname, however
+	// it must resolve to an IPv4/IPv6 address bindable on your system.
+	// Otherwise, you can simply use a IPv4/IPv6 address directly.
+	Bind string
+	// If we should connect via SSL. See TLSConfig to set your own TLS
+	// configuration.
+	SSL bool
 	// TLSConfig is an optional user-supplied tls configuration, used during
-	// socket creation to the server.
+	// socket creation to the server. SSL must be enabled for this to be used.
 	TLSConfig *tls.Config
 	// Retries is the number of times the client will attempt to reconnect
 	// to the server after the last disconnect.
@@ -169,117 +188,8 @@ func New(config Config) *Client {
 	return c
 }
 
-// DisableTracking disables all channel and user-level tracking, and clears
-// all internal handlers. Useful for highly embedded scripts with single
-// purposes. This cannot be un-done.
-func (c *Client) DisableTracking() {
-	c.debug.Print("disabling tracking")
-	c.Config.disableTracking = true
-	c.Handlers.clearInternal()
-	c.state.mu.Lock()
-	c.state.channels = nil
-	c.state.mu.Unlock()
-	c.registerBuiltins()
-}
-
-// DisableCapTracking disables all network/server capability tracking, and
-// clears all internal handlers. This includes determining what feature the
-// IRC server supports, what the "NETWORK=" variables are, and other useful
-// stuff. DisableTracking() cannot be called if you want to also track
-// capabilities.
-func (c *Client) DisableCapTracking() {
-	// No need to mess with internal handlers. That should already be
-	// handled by the clear in Client.DisableTracking().
-	if c.Config.disableCapTracking {
-		return
-	}
-
-	c.debug.Print("disabling CAP tracking")
-	c.Config.disableCapTracking = true
-	c.Handlers.clearInternal()
-	c.registerBuiltins()
-}
-
-// DisableNickCollision disables the clients auto-response to nickname
-// collisions. For example, if "test" is already in use, or is blocked by the
-// network/a service, the client will try and use "test_", then it will
-// attempt "test__", "test___", and so on.
-func (c *Client) DisableNickCollision() {
-	c.debug.Print("disabling nick collision prevention")
-	c.Config.disableNickCollision = true
-	c.Handlers.clearInternal()
-	c.state.mu.Lock()
-	c.state.channels = nil
-	c.state.mu.Unlock()
-	c.registerBuiltins()
-}
-
-// cleanup is used to close out all threads used by the client, like read and
-// write loops.
-func (c *Client) cleanup(all bool) {
-	c.cmux.Lock()
-
-	c.state.mu.Lock()
-	// Close any connections they have open.
-	if c.state.conn != nil {
-		c.state.conn.Close()
-	}
-	c.state.mu.Unlock()
-
-	if c.closeRead != nil {
-		c.closeRead()
-	}
-	if c.closeExec != nil {
-		c.closeExec()
-	}
-
-	if all {
-		if c.closeLoop != nil {
-			c.closeLoop()
-		}
-	}
-
-	c.cmux.Unlock()
-}
-
-// quit is the underlying wrapper to quit from the network and cleanup.
-func (c *Client) quit(sendMessage bool) {
-	if sendMessage {
-		c.Send(&Event{Command: QUIT, Trailing: "disconnecting..."})
-	}
-
-	c.Events <- &Event{Command: DISCONNECTED, Trailing: c.Server()}
-	c.cleanup(false)
-}
-
-// Quit disconnects from the server.
-func (c *Client) Quit() {
-	c.quit(true)
-}
-
-// Quit disconnects from the server with a given message.
-func (c *Client) QuitWithMessage(message string) {
-	c.Send(&Event{Command: QUIT, Trailing: message})
-	c.quit(false)
-}
-
-// Stop exits the clients main loop and any other goroutines created by
-// the client itself. This does not include handlers, as they will run for
-// any incoming events prior to when Stop() or Quit() was called, until the
-// event queue is empty and execution has completed for those handlers. This
-// means that you are responsible to ensure that your handlers due not
-// execute forever. Use Client.Quit() first if you want to disconnect the
-// client from the server/connection gracefully.
-func (c *Client) Stop() {
-	c.quit(false)
-	c.Events <- &Event{Command: STOPPED, Trailing: c.Server()}
-}
-
 // Connect attempts to connect to the given IRC server
 func (c *Client) Connect() error {
-	var conn net.Conn
-	var err error
-
 	// Sanity check a few options.
 	if c.Config.Server == "" {
 		return errors.New("invalid server specified")
@@ -305,25 +215,65 @@ func (c *Client) Connect() error {
 
 	c.debug.Printf("connecting to %s...", c.Server())
 
-	// Allow the user to specify their own net.Conn.
-	if c.Config.Conn == nil {
-		if c.Config.TLSConfig == nil {
-			conn, err = net.Dial("tcp", c.Server())
-		} else {
-			conn, err = tls.Dial("tcp", c.Server(), c.Config.TLSConfig)
-		}
+	var conn net.Conn
+	var err error
+
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+
+	if c.Config.Bind != "" {
+		var local *net.TCPAddr
+		local, err = net.ResolveTCPAddr("tcp", c.Config.Bind+":0")
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to resolve bind address %s: %s", c.Config.Bind, err)
 		}
 
-		c.state.mu.Lock()
-		c.state.conn = conn
-		c.state.mu.Unlock()
-	} else {
-		c.state.mu.Lock()
-		c.state.conn = *c.Config.Conn
-		c.state.mu.Unlock()
+		dialer.LocalAddr = local
 	}
+
+	if c.Config.Proxy != "" {
+		var proxyUri *url.URL
+		var proxyDialer proxy.Dialer
+
+		proxyUri, err = url.Parse(c.Config.Proxy)
+		if err != nil {
+			return fmt.Errorf("unable to use proxy %q: %s", c.Config.Proxy, err)
+		}
+
+		proxyDialer, err = proxy.FromURL(proxyUri, dialer)
+		if err != nil {
+			return fmt.Errorf("unable to use proxy %q: %s", c.Config.Proxy, err)
+		}
+
+		conn, err = proxyDialer.Dial("tcp", c.Server())
+		if err != nil {
+			return fmt.Errorf("unable to use proxy %q: %s", c.Config.Proxy, err)
+		}
+	} else {
+		conn, err = dialer.Dial("tcp", c.Server())
+		if err != nil {
+			return fmt.Errorf("unable to connect to %q: %s", c.Server(), err)
+		}
+	}
+
+	if c.Config.SSL {
+		var sslConf *tls.Config
+
+		if c.Config.TLSConfig == nil {
+			sslConf = &tls.Config{ServerName: c.Config.Server}
+		} else {
+			sslConf = c.Config.TLSConfig
+		}
+
+		tlsConn := tls.Client(conn, sslConf)
+		if err = tlsConn.Handshake(); err != nil {
+			return fmt.Errorf("failed handshake during tls conn to %q: %s", c.Server(), err)
+		}
+		conn = tlsConn
+	}
+
+	c.state.mu.Lock()
+	c.state.conn = conn
+	c.state.mu.Unlock()
 
 	c.state.reader = newDecoder(c.state.conn)
 	c.state.writer = newEncoder(c.state.conn)
@@ -429,6 +379,67 @@ func (c *Client) Reconnect() error {
 	return c.reconnect(true)
 }
 
+// cleanup is used to close out all threads used by the client, like read and
+// write loops.
+func (c *Client) cleanup(all bool) {
+	c.cmux.Lock()
+
+	c.state.mu.Lock()
+	// Close any connections they have open.
+	if c.state.conn != nil {
+		c.state.conn.Close()
+	}
+	c.state.mu.Unlock()
+
+	if c.closeRead != nil {
+		c.closeRead()
+	}
+	if c.closeExec != nil {
+		c.closeExec()
+	}
+
+	if all {
+		if c.closeLoop != nil {
+			c.closeLoop()
+		}
+	}
+
+	c.cmux.Unlock()
+}
+
+// quit is the underlying wrapper to quit from the network and cleanup.
+func (c *Client) quit(sendMessage bool) {
+	if sendMessage {
+		c.Send(&Event{Command: QUIT, Trailing: "disconnecting..."})
+	}
+
+	c.Events <- &Event{Command: DISCONNECTED, Trailing: c.Server()}
+	c.cleanup(false)
+}
+
+// Quit disconnects from the server.
+func (c *Client) Quit() {
+	c.quit(true)
+}
+
+// Quit disconnects from the server with a given message.
+func (c *Client) QuitWithMessage(message string) {
+	c.Send(&Event{Command: QUIT, Trailing: message})
+	c.quit(false)
+}
+
+// Stop exits the clients main loop and any other goroutines created by
+// the client itself. This does not include handlers, as they will run for
+// any incoming events prior to when Stop() or Quit() was called, until the
+// event queue is empty and execution has completed for those handlers. This
+// means that you are responsible to ensure that your handlers due not
+// execute forever. Use Client.Quit() first if you want to disconnect the
+// client from the server/connection gracefully.
+func (c *Client) Stop() {
+	c.quit(false)
+	c.Events <- &Event{Command: STOPPED, Trailing: c.Server()}
+}
+
 // readLoop sets a timeout of 300 seconds, and then attempts to read from the
 // IRC server. If there is an error, it calls Reconnect.
 func (c *Client) readLoop(ctx context.Context) {
@@ -481,6 +492,51 @@ func (c *Client) Loop() {
 	ctx, c.closeLoop = context.WithCancel(context.Background())
 
 	<-ctx.Done()
+}
+
+// DisableTracking disables all channel and user-level tracking, and clears
+// all internal handlers. Useful for highly embedded scripts with single
+// purposes. This cannot be un-done.
+func (c *Client) DisableTracking() {
+	c.debug.Print("disabling tracking")
+	c.Config.disableTracking = true
+	c.Handlers.clearInternal()
+	c.state.mu.Lock()
+	c.state.channels = nil
+	c.state.mu.Unlock()
+	c.registerBuiltins()
+}
+
+// DisableCapTracking disables all network/server capability tracking, and
+// clears all internal handlers. This includes determining what feature the
+// IRC server supports, what the "NETWORK=" variables are, and other useful
+// stuff. DisableTracking() cannot be called if you want to also track
+// capabilities.
+func (c *Client) DisableCapTracking() {
+	// No need to mess with internal handlers. That should already be
+	// handled by the clear in Client.DisableTracking().
+	if c.Config.disableCapTracking {
+		return
+	}
+
+	c.debug.Print("disabling CAP tracking")
+	c.Config.disableCapTracking = true
+	c.Handlers.clearInternal()
+	c.registerBuiltins()
+}
+
+// DisableNickCollision disables the clients auto-response to nickname
+// collisions. For example, if "test" is already in use, or is blocked by the
+// network/a service, the client will try and use "test_", then it will
+// attempt "test__", "test___", and so on.
+func (c *Client) DisableNickCollision() {
+	c.debug.Print("disabling nick collision prevention")
+	c.Config.disableNickCollision = true
+	c.Handlers.clearInternal()
+	c.state.mu.Lock()
+	c.state.channels = nil
+	c.state.mu.Unlock()
+	c.registerBuiltins()
 }
 
 // Server returns the string representation of host+port pair for net.Conn.
