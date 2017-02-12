@@ -16,12 +16,14 @@ const (
 	CTCP_ERRMSG     = "ERRMSG"
 )
 
-// Misc constants for use with the client. Most of these are "fake" events
-// emitted/emulated by the client for various hooks.
+// Emulated event commands used to allow easier hooks into the changing
+// state of the client.
 const (
-	ALLEVENTS   = "*"         // trigger on all events
-	CONNECTED   = "CONNECTED" // when it's safe to send arbitrary commands (joins, list, who, etc), trailing is host:port
-	INITIALIZED = "INIT"      // verifies successful socket connection, trailing is host:port
+	ALLEVENTS    = "*"            // trigger on all events
+	CONNECTED    = "CONNECTED"    // when it's safe to send arbitrary commands (joins, list, who, etc), trailing is host:port
+	INITIALIZED  = "INIT"         // verifies successful socket connection, trailing is host:port
+	DISCONNECTED = "DISCONNECTED" // occurs when we're disconnected from the server (user-requested or not)
+	STOPPED      = "STOPPED"      // occurs when Client.Stop() has been called
 )
 
 // User/channel prefixes :: RFC1459
