@@ -195,7 +195,7 @@ func (c *Client) String() string {
 	}
 
 	return fmt.Sprintf(
-		"<Client init:%q handlers:%s connected:%t reconnecting:%t tries:%d>",
+		"<Client init:%q handlers:%d connected:%t reconnecting:%t tries:%d>",
 		c.initTime.String(), c.Handlers.Len(), connected, c.reconnecting, c.tries,
 	)
 }
