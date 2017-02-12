@@ -253,6 +253,13 @@ func (e *Event) Pretty() (out string, ok bool) {
 	}
 
 	if (e.Command == PRIVMSG || e.Command == NOTICE) && len(e.Params) > 0 {
+		if ctcp := decodeCTCP(e); ctcp != nil {
+			if ctcp.Reply {
+				return
+			}
+
+			return fmt.Sprintf("[*] CTCP query from %s: %s%s", ctcp.Source.Name, ctcp.Command, " "+ctcp.Text), true
+		}
 		return fmt.Sprintf("[%s] (%s) %s", strings.Join(e.Params, ","), e.Source.Name, e.Trailing), true
 	}
 
