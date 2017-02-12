@@ -35,6 +35,8 @@ type Client struct {
 	// CTCP is a handler which manages internal and external CTCP handlers.
 	CTCP *CTCP
 
+	// conn is a net.Conn reference to the IRC server.
+	conn *ircConn
 	// tries represents the internal reconnect count to the IRC server.
 	tries int
 	// reconnecting is true if the client is reconnecting, used so multiple
@@ -203,9 +205,7 @@ func (c *Client) Connect() error {
 		return err
 	}
 
-	c.state.mu.Lock()
-	c.state.conn = conn
-	c.state.mu.Unlock()
+	c.conn = conn
 
 	// Send a virtual event allowing hooks for successful socket connection.
 	c.Events <- &Event{Command: INITIALIZED, Trailing: c.Server()}
@@ -225,12 +225,6 @@ func (c *Client) Connect() error {
 	// Consider the connection a success at this point.
 	c.tries = 0
 	c.reconnecting = false
-
-	c.state.mu.Lock()
-	ctime := time.Now()
-	c.state.connTime = &ctime
-	c.state.connected = true
-	c.state.mu.Unlock()
 
 	// Start read loop to process messages from the server.
 	var rctx, ectx context.Context
@@ -313,12 +307,10 @@ func (c *Client) Reconnect() error {
 func (c *Client) cleanup(all bool) {
 	c.cmux.Lock()
 
-	c.state.mu.Lock()
 	// Close any connections they have open.
-	if c.state.conn != nil {
-		c.state.conn.Close()
+	if c.conn != nil {
+		c.conn.Close()
 	}
-	c.state.mu.Unlock()
 
 	if c.closeRead != nil {
 		c.closeRead()
@@ -380,8 +372,8 @@ func (c *Client) readLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			c.state.conn.lconn.SetDeadline(time.Now().Add(300 * time.Second))
-			event, err = c.state.conn.Decode()
+			c.conn.setTimeout(300 * time.Second)
+			event, err = c.conn.Decode()
 			if err != nil {
 				// Attempt a reconnect (if applicable). If it fails, send
 				// the error to c.Config.HandleError to be dealt with, if
@@ -483,7 +475,7 @@ func (c *Client) Lifetime() time.Duration {
 // simply looking to trigger handlers with an event.
 func (c *Client) Send(event *Event) error {
 	if !c.Config.AllowFlood {
-		<-time.After(c.state.rate(event.Len()))
+		<-time.After(c.conn.rate(event.Len()))
 	}
 
 	return c.write(event)
@@ -491,14 +483,14 @@ func (c *Client) Send(event *Event) error {
 
 // write is the lower level function to write an event.
 func (c *Client) write(event *Event) error {
-	c.state.lastWrite = time.Now()
+	c.conn.lastWrite = time.Now()
 
 	// log the event
 	if !event.Sensitive {
 		c.debug.Print("> ", StripRaw(event.String()))
 	}
 
-	return c.state.conn.Encode(event)
+	return c.conn.Encode(event)
 }
 
 // Uptime is the time at which the client successfully connected to the
@@ -508,9 +500,7 @@ func (c *Client) Uptime() (up *time.Time, err error) {
 		return nil, ErrNotConnected
 	}
 
-	c.state.mu.RLock()
-	up = c.state.connTime
-	c.state.mu.RUnlock()
+	up = c.conn.connTime
 
 	return up, nil
 }
@@ -522,20 +512,17 @@ func (c *Client) ConnSince() (since *time.Duration, err error) {
 		return nil, ErrNotConnected
 	}
 
-	c.state.mu.RLock()
-	timeSince := time.Since(*c.state.connTime)
-	c.state.mu.RUnlock()
+	timeSince := time.Since(*c.conn.connTime)
 
 	return &timeSince, nil
 }
 
 // IsConnected returns true if the client is connected to the server.
 func (c *Client) IsConnected() (connected bool) {
-	c.state.mu.RLock()
-	connected = c.state.connected
-	c.state.mu.RUnlock()
-
-	return connected
+	if c.conn == nil {
+		return false
+	}
+	return c.conn.connected
 }
 
 // GetNick returns the current nickname of the active connection. Returns

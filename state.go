@@ -17,20 +17,6 @@ type state struct {
 	// m is a RW mutex lock, used to guard the state from goroutines causing
 	// corruption.
 	mu sync.RWMutex
-
-	// conn is a net.Conn reference to the IRC server.
-	conn *ircConn
-
-	// lastWrite is used ot keep track of when we last wrote to the server.
-	lastWrite time.Time
-	// writeDelay is used to keep track of rate limiting of events sent to
-	// the server.
-	writeDelay time.Duration
-
-	// connected is true if we're actively connected to a server.
-	connected bool
-	// connTime is the time at which the client has connected to a server.
-	connTime *time.Time
 	// nick is the tracker for our nickname on the server.
 	nick string
 	// channels represents all channels we're active in.
@@ -180,7 +166,6 @@ func newState() *state {
 
 	s.channels = make(map[string]*Channel)
 	s.serverOptions = make(map[string]string)
-	s.connected = false
 
 	return s
 }
@@ -337,20 +322,4 @@ func (s *state) lookupUsers(matchType, toMatch string) []*User {
 	}
 
 	return users
-}
-
-// rate allows limiting events based on how frequent the event is being sent,
-// as well as how many characters each event has.
-func (s *state) rate(chars int) time.Duration {
-	_time := time.Second + ((time.Duration(chars) * time.Second) / 100)
-	elapsed := time.Now().Sub(s.lastWrite)
-	if s.writeDelay += _time - elapsed; s.writeDelay < 0 {
-		s.writeDelay = 0
-	}
-
-	if s.writeDelay > (8 * time.Second) {
-		return _time
-	}
-
-	return 0
 }

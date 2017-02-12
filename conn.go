@@ -29,10 +29,22 @@ var endline = []byte("\r\n")
 type ircConn struct {
 	ircEncoder
 	ircDecoder
-
 	lconn net.Conn
+
+	// lastWrite is used ot keep track of when we last wrote to the server.
+	lastWrite time.Time
+	// writeDelay is used to keep track of rate limiting of events sent to
+	// the server.
+	writeDelay time.Duration
+
+	// connected is true if we're actively connected to a server.
+	connected bool
+	// connTime is the time at which the client has connected to a server.
+	connTime *time.Time
 }
 
+// newConn sets up and returns a new connection to the server. This includes
+// setting up things like proxies, ssl/tls, and other misc. things.
 func newConn(conf Config, addr string) (*ircConn, error) {
 	// Sanity check a few options.
 	if conf.Server == "" {
@@ -103,16 +115,42 @@ func newConn(conf Config, addr string) (*ircConn, error) {
 		conn = tlsConn
 	}
 
+	ctime := time.Now()
+
 	return &ircConn{
 		ircEncoder: ircEncoder{writer: conn},
 		ircDecoder: ircDecoder{reader: bufio.NewReader(conn)},
 		lconn:      conn,
+		connTime:   &ctime,
+		connected:  true,
 	}, nil
 }
 
 // Close closes the underlying ReadWriteCloser.
 func (c *ircConn) Close() error {
 	return c.lconn.Close()
+}
+
+// setTimeout applies a deadline that the connection must respond back with,
+// within the specified time.
+func (c *ircConn) setTimeout(timeout time.Duration) {
+	c.lconn.SetDeadline(time.Now().Add(timeout))
+}
+
+// rate allows limiting events based on how frequent the event is being sent,
+// as well as how many characters each event has.
+func (c *ircConn) rate(chars int) time.Duration {
+	_time := time.Second + ((time.Duration(chars) * time.Second) / 100)
+	elapsed := time.Now().Sub(c.lastWrite)
+	if c.writeDelay += _time - elapsed; c.writeDelay < 0 {
+		c.writeDelay = 0
+	}
+
+	if c.writeDelay > (8 * time.Second) {
+		return _time
+	}
+
+	return 0
 }
 
 // ircDecoder reads Event objects from an input stream.
