@@ -14,6 +14,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -37,10 +38,14 @@ type Client struct {
 
 	// tries represents the internal reconnect count to the IRC server.
 	tries int
-	// stopped determines if Client.Stop() has been called.
-	stopped bool
-	// limiter is a configurable EventLimiter by the end user.
-	limiter *EventLimiter
+	// reconnecting is true if the client is reconnecting, used so multiple
+	// threads aren't trying to reconnect at the same time.
+	reconnecting bool
+	// cmux is the mux used for connections/disconnections from the server,
+	// so multiple threads aren't trying to connect at the same time, and
+	// vice versa.
+	cmux sync.Mutex
+
 	// debug is used if a writer is supplied for Client.Config.Debugger.
 	debug *log.Logger
 
@@ -79,10 +84,9 @@ type Config struct {
 	// Retries is the number of times the client will attempt to reconnect
 	// to the server after the last disconnect.
 	Retries int
-	// RateLimit is the delay in seconds between events sent to the server,
-	// with a burst of 4 messages. Set to -1 to disable. Cannot be changed
-	// once the client has been created.
-	RateLimit int
+	// AllowFlood allows the client to bypass the rate limit of outbound
+	// messages.
+	AllowFlood bool
 	// Debugger is an optional, user supplied location to log the raw lines
 	// sent from the server, or other useful debug logs. Defaults to
 	// ioutil.Discard.
@@ -127,10 +131,6 @@ var ErrAlreadyConnecting = errors.New("a connection attempt is already occurring
 
 var ErrDisconnected = errors.New("unexpectedly disconnected")
 
-// ErrCalledAfterStop is used when one uses Client.Stop(), and subsequently
-// attempts to use the client again.
-var ErrCalledAfterStop = errors.New("attempted use after stop has been called")
-
 // ErrInvalidTarget should be returned if the target which you are
 // attempting to send an event to is invalid or doesn't match RFC spec.
 type ErrInvalidTarget struct {
@@ -141,39 +141,32 @@ func (e *ErrInvalidTarget) Error() string { return "invalid target: " + e.Target
 
 // New creates a new IRC client with the specified server, name and config.
 func New(config Config) *Client {
-	client := &Client{
+	c := &Client{
 		Config:   config,
 		Events:   make(chan *Event, 100), // buffer 100 events max.
 		CTCP:     newCTCP(),
 		initTime: time.Now(),
 	}
 
-	if client.Config.Debugger == nil {
-		client.Config.Debugger = ioutil.Discard
+	if c.Config.Debugger == nil {
+		c.Config.Debugger = ioutil.Discard
 	}
-	client.debug = log.New(client.Config.Debugger, "debug:", log.Ltime|log.Lshortfile)
-	client.debug.Print("initializing debugging")
+	c.debug = log.New(c.Config.Debugger, "debug:", log.Ltime|log.Lshortfile)
+	c.debug.Print("initializing debugging")
 
 	// Setup the caller.
-	client.Callbacks = newCaller(client.debug)
-
-	// Setup a rate limiter if they requested one.
-	if client.Config.RateLimit == 0 {
-		client.limiter = NewEventLimiter(4, 1*time.Second, client.write)
-	} else if client.Config.RateLimit > 0 {
-		client.limiter = NewEventLimiter(4, time.Duration(client.Config.RateLimit)*time.Second, client.write)
-	}
+	c.Callbacks = newCaller(c.debug)
 
 	// Give ourselves a new state.
-	client.state = newState()
+	c.state = newState()
 
 	// Register builtin handlers.
-	client.registerHandlers()
+	c.registerHandlers()
 
 	// Register default CTCP responses.
-	client.CTCP.addDefaultHandlers()
+	c.CTCP.addDefaultHandlers()
 
-	return client
+	return c
 }
 
 // DisableTracking disables all channel and user-level tracking, and clears
@@ -221,7 +214,18 @@ func (c *Client) DisableNickCollision() {
 	c.registerHandlers()
 }
 
+// cleanup is used to close out all threads used by the client, like read and
+// write loops.
 func (c *Client) cleanup(all bool) {
+	c.cmux.Lock()
+
+	c.state.mu.Lock()
+	// Close any connections they have open.
+	if c.state.conn != nil {
+		c.state.conn.Close()
+	}
+	c.state.mu.Unlock()
+
 	if c.closeRead != nil {
 		c.closeRead()
 	}
@@ -233,13 +237,9 @@ func (c *Client) cleanup(all bool) {
 		if c.closeLoop != nil {
 			c.closeLoop()
 		}
-
-		// Close and limiters they have, otherwise the client could be easily
-		// held in memory.
-		if c.limiter != nil {
-			c.limiter.Stop()
-		}
 	}
+
+	c.cmux.Unlock()
 }
 
 // quit is the underlying wrapper to quit from the network and cleanup.
@@ -248,12 +248,7 @@ func (c *Client) quit(sendMessage bool) {
 		c.Send(&Event{Command: QUIT, Trailing: "disconnecting..."})
 	}
 
-	c.state.connected = false
-	if c.state.conn != nil {
-		c.state.conn.Close()
-	}
-
-	// Close out the read and exec loops.
+	c.Events <- &Event{Command: DISCONNECTED, Trailing: c.Server()}
 	c.cleanup(false)
 }
 
@@ -265,7 +260,6 @@ func (c *Client) Quit() {
 // Quit disconnects from the server with a given message.
 func (c *Client) QuitWithMessage(message string) {
 	c.Send(&Event{Command: QUIT, Trailing: message})
-
 	c.quit(false)
 }
 
@@ -275,24 +269,14 @@ func (c *Client) QuitWithMessage(message string) {
 // event queue is empty and execution has completed for those callbacks. This
 // means that you are responsible to ensure that your callbacks due not
 // execute forever. Use Client.Quit() first if you want to disconnect the
-// client from the server/connection gracefully. Once Stop is called, the
-// client is no longer useable, and will panic if used again.
+// client from the server/connection gracefully.
 func (c *Client) Stop() {
-	if c.stopped {
-		panic(ErrCalledAfterStop)
-	}
-
-	// Close out any other running loops.
-	c.cleanup(true)
-	c.stopped = true
+	c.quit(false)
+	c.Events <- &Event{Command: STOPPED, Trailing: c.Server()}
 }
 
 // Connect attempts to connect to the given IRC server
 func (c *Client) Connect() error {
-	if c.stopped {
-		panic(ErrCalledAfterStop)
-	}
-
 	var conn net.Conn
 	var err error
 
@@ -308,6 +292,13 @@ func (c *Client) Connect() error {
 	if !IsValidNick(c.Config.Nick) || !IsValidUser(c.Config.User) {
 		return errors.New("invalid nickname or user")
 	}
+
+	// Clean up any old running stuff.
+	c.cleanup(false)
+
+	// We want to be the only one handling connects/disconnects right now.
+	c.cmux.Lock()
+	defer c.cmux.Unlock()
 
 	// Reset the state.
 	c.state = newState()
@@ -325,9 +316,13 @@ func (c *Client) Connect() error {
 			return err
 		}
 
+		c.state.mu.Lock()
 		c.state.conn = conn
+		c.state.mu.Unlock()
 	} else {
+		c.state.mu.Lock()
 		c.state.conn = *c.Config.Conn
+		c.state.mu.Unlock()
 	}
 
 	c.state.reader = newDecoder(c.state.conn)
@@ -348,21 +343,22 @@ func (c *Client) Connect() error {
 		return err
 	}
 
-	// Start read loop to process messages from the server.
-	var rctx, ectx context.Context
-	rctx, c.closeRead = context.WithCancel(context.Background())
-	ectx, c.closeRead = context.WithCancel(context.Background())
-	go c.readLoop(rctx)
-	go c.execLoop(ectx)
-
 	// Consider the connection a success at this point.
 	c.tries = 0
+	c.reconnecting = false
 
 	c.state.mu.Lock()
 	ctime := time.Now()
 	c.state.connTime = &ctime
 	c.state.connected = true
 	c.state.mu.Unlock()
+
+	// Start read loop to process messages from the server.
+	var rctx, ectx context.Context
+	rctx, c.closeRead = context.WithCancel(context.Background())
+	ectx, c.closeRead = context.WithCancel(context.Background())
+	go c.readLoop(rctx)
+	go c.execLoop(ectx)
 
 	return nil
 }
@@ -391,31 +387,19 @@ func (c *Client) connectMessages() (events []*Event) {
 // reconnect checks to make sure we want to, and then attempts to reconnect
 // to the server.
 func (c *Client) reconnect(remoteInvoked bool) (err error) {
-	if c.stopped {
-		return nil
+	if c.reconnecting {
+		return ErrDisconnected
 	}
-
-	if c.state.reconnecting {
-		return ErrAlreadyConnecting
-	}
-
-	c.state.reconnecting = true
-	// A successful connect should reset the state, however if Connect() fails,
-	// this will ensure it gets unset so reconnect() can be used again.
+	c.reconnecting = true
 	defer func() {
-		c.state.reconnecting = false
+		c.reconnecting = false
 	}()
 
-	if c.state.quitting {
-		return nil
-	}
+	c.cleanup(false)
 
 	if c.Config.ReconnectDelay < (10 * time.Second) {
 		c.Config.ReconnectDelay = 25 * time.Second
 	}
-
-	// Make sure we're not connected.
-	c.Quit()
 
 	if c.Config.Retries < 1 && !remoteInvoked {
 		return ErrDisconnected
@@ -427,14 +411,13 @@ func (c *Client) reconnect(remoteInvoked bool) (err error) {
 	time.Sleep(c.Config.ReconnectDelay)
 
 	for err = c.Connect(); err != nil && c.tries < c.Config.Retries; c.tries++ {
-		c.state.reconnecting = true
 		c.debug.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
 		time.Sleep(c.Config.ReconnectDelay)
 	}
 
 	if err != nil {
-		// Too many errors. Stop the client.
-		c.Stop()
+		// Too many errors at this point.
+		c.cleanup(false)
 	}
 
 	return err
@@ -443,10 +426,6 @@ func (c *Client) reconnect(remoteInvoked bool) (err error) {
 // reconnect checks to make sure we want to, and then attempts to reconnect
 // to the server.
 func (c *Client) Reconnect() error {
-	if c.stopped {
-		panic(ErrCalledAfterStop)
-	}
-
 	return c.reconnect(true)
 }
 
@@ -487,10 +466,10 @@ func (c *Client) readLoop(ctx context.Context) {
 func (c *Client) execLoop(ctx context.Context) {
 	for {
 		select {
-		case <-ctx.Done():
-			return
 		case event := <-c.Events:
 			c.RunCallbacks(event)
+		case <-ctx.Done():
+			return
 		}
 	}
 }
@@ -518,10 +497,8 @@ func (c *Client) Lifetime() time.Duration {
 // Send sends an event to the server. Use Client.RunCallback() if you are
 // simply looking to trigger callbacks with an event.
 func (c *Client) Send(event *Event) error {
-	// if the client wants us to rate limit incoming events, do so, otherwise
-	// simply use the underlying send functionality.
-	if c.limiter != nil {
-		return c.limiter.Send(event)
+	if !c.Config.AllowFlood {
+		<-time.After(c.state.rate(event.Len()))
 	}
 
 	return c.write(event)
@@ -529,6 +506,8 @@ func (c *Client) Send(event *Event) error {
 
 // write is the lower level function to write an event.
 func (c *Client) write(event *Event) error {
+	c.state.lastWrite = time.Now()
+
 	// log the event
 	if !event.Sensitive {
 		c.debug.Print("> ", StripRaw(event.String()))
