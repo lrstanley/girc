@@ -161,7 +161,7 @@ func New(config Config) *Client {
 	c.state = newState()
 
 	// Register builtin handlers.
-	c.registerBuiltin()
+	c.registerBuiltins()
 
 	// Register default CTCP responses.
 	c.CTCP.addDefaultHandlers()
@@ -179,7 +179,7 @@ func (c *Client) DisableTracking() {
 	c.state.mu.Lock()
 	c.state.channels = nil
 	c.state.mu.Unlock()
-	c.registerBuiltin()
+	c.registerBuiltins()
 }
 
 // DisableCapTracking disables all network/server capability tracking, and
@@ -197,7 +197,7 @@ func (c *Client) DisableCapTracking() {
 	c.debug.Print("disabling CAP tracking")
 	c.Config.disableCapTracking = true
 	c.Handlers.clearInternal()
-	c.registerBuiltin()
+	c.registerBuiltins()
 }
 
 // DisableNickCollision disables the clients auto-response to nickname
@@ -211,7 +211,7 @@ func (c *Client) DisableNickCollision() {
 	c.state.mu.Lock()
 	c.state.channels = nil
 	c.state.mu.Unlock()
-	c.registerBuiltin()
+	c.registerBuiltins()
 }
 
 // cleanup is used to close out all threads used by the client, like read and

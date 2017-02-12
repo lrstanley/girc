@@ -11,7 +11,7 @@ import (
 
 // registerBuiltin sets up built-in handlers, based on client
 // configuration.
-func (c *Client) registerBuiltin() {
+func (c *Client) registerBuiltins() {
 	c.debug.Print("registering built-in handlers")
 	c.Handlers.mu.Lock()
 
