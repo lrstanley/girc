@@ -120,7 +120,7 @@ func (c *Caller) String() string {
 	}
 	c.mu.RUnlock()
 
-	return fmt.Sprintf("<Caller() external:%d internal:%d>", c.Len(), total)
+	return fmt.Sprintf("<Caller external:%d internal:%d>", c.Len(), total)
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

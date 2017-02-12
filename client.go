@@ -187,6 +187,19 @@ func New(config Config) *Client {
 	return c
 }
 
+// String returns a brief description of the current client state.
+func (c *Client) String() string {
+	var connected bool
+	if c.conn != nil {
+		connected = c.conn.connected
+	}
+
+	return fmt.Sprintf(
+		"<Client init:%q handlers:%s connected:%t reconnecting:%t tries:%d>",
+		c.initTime.String(), c.Handlers.Len(), connected, c.reconnecting, c.tries,
+	)
+}
+
 // Connect attempts to connect to the given IRC server
 func (c *Client) Connect() error {
 	// Clean up any old running stuff.
