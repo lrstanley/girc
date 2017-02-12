@@ -6,8 +6,16 @@ package girc
 
 import (
 	"bufio"
+	"crypto/tls"
+	"errors"
+	"fmt"
 	"io"
+	"net"
+	"net/url"
 	"sync"
+	"time"
+
+	"golang.org/x/net/proxy"
 )
 
 // Messages are delimited with CR and LF line endings, we're using the last
@@ -22,12 +30,89 @@ type ircConn struct {
 	ircEncoder
 	ircDecoder
 
-	c io.ReadWriteCloser
+	lconn net.Conn
+}
+
+func newConn(conf Config, addr string) (*ircConn, error) {
+	// Sanity check a few options.
+	if conf.Server == "" {
+		return nil, errors.New("invalid server specified")
+	}
+
+	if conf.Port < 21 || conf.Port > 65535 {
+		return nil, errors.New("invalid port (21-65535)")
+	}
+
+	if !IsValidNick(conf.Nick) || !IsValidUser(conf.User) {
+		return nil, errors.New("invalid nickname or user")
+	}
+
+	var conn net.Conn
+	var err error
+
+	dialer := &net.Dialer{Timeout: 5 * time.Second}
+
+	if conf.Bind != "" {
+		var local *net.TCPAddr
+		local, err = net.ResolveTCPAddr("tcp", conf.Bind+":0")
+		if err != nil {
+			return nil, fmt.Errorf("unable to resolve bind address %s: %s", conf.Bind, err)
+		}
+
+		dialer.LocalAddr = local
+	}
+
+	if conf.Proxy != "" {
+		var proxyUri *url.URL
+		var proxyDialer proxy.Dialer
+
+		proxyUri, err = url.Parse(conf.Proxy)
+		if err != nil {
+			return nil, fmt.Errorf("unable to use proxy %q: %s", conf.Proxy, err)
+		}
+
+		proxyDialer, err = proxy.FromURL(proxyUri, dialer)
+		if err != nil {
+			return nil, fmt.Errorf("unable to use proxy %q: %s", conf.Proxy, err)
+		}
+
+		conn, err = proxyDialer.Dial("tcp", addr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to connect to proxy %q: %s", conf.Proxy, err)
+		}
+	} else {
+		conn, err = dialer.Dial("tcp", addr)
+		if err != nil {
+			return nil, fmt.Errorf("unable to connect to %q: %s", addr, err)
+		}
+	}
+
+	if conf.SSL {
+		var sslConf *tls.Config
+
+		if conf.TLSConfig == nil {
+			sslConf = &tls.Config{ServerName: conf.Server}
+		} else {
+			sslConf = conf.TLSConfig
+		}
+
+		tlsConn := tls.Client(conn, sslConf)
+		if err = tlsConn.Handshake(); err != nil {
+			return nil, fmt.Errorf("failed handshake during tls conn to %q: %s", addr, err)
+		}
+		conn = tlsConn
+	}
+
+	return &ircConn{
+		ircEncoder: ircEncoder{writer: conn},
+		ircDecoder: ircDecoder{reader: bufio.NewReader(conn)},
+		lconn:      conn,
+	}, nil
 }
 
 // Close closes the underlying ReadWriteCloser.
 func (c *ircConn) Close() error {
-	return c.c.Close()
+	return c.lconn.Close()
 }
 
 // ircDecoder reads Event objects from an input stream.
@@ -35,11 +120,6 @@ type ircDecoder struct {
 	reader *bufio.Reader
 	line   string
 	mu     sync.Mutex
-}
-
-// newDecoder returns a new Decoder that reads from r.
-func newDecoder(r io.Reader) *ircDecoder {
-	return &ircDecoder{reader: bufio.NewReader(r)}
 }
 
 // Decode attempts to read a single Event from the stream, returns non-nil
@@ -60,11 +140,6 @@ func (dec *ircDecoder) Decode() (event *Event, err error) {
 type ircEncoder struct {
 	writer io.Writer
 	mu     sync.Mutex
-}
-
-// newEncoder returns a new Encoder that writes to w.
-func newEncoder(w io.Writer) *ircEncoder {
-	return &ircEncoder{writer: w}
 }
 
 // Encode writes the IRC encoding of m to the stream. Goroutine safe.

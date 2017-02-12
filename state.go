@@ -6,7 +6,6 @@ package girc
 
 import (
 	"fmt"
-	"net"
 	"strings"
 	"sync"
 	"time"
@@ -19,12 +18,8 @@ type state struct {
 	// corruption.
 	mu sync.RWMutex
 
-	// reader is the socket buffer reader from the IRC server.
-	reader *ircDecoder
-	// reader is the socket buffer write to the IRC server.
-	writer *ircEncoder
 	// conn is a net.Conn reference to the IRC server.
-	conn net.Conn
+	conn *ircConn
 
 	// lastWrite is used ot keep track of when we last wrote to the server.
 	lastWrite time.Time

@@ -12,13 +12,9 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/proxy"
 )
 
 // Client contains all of the information necessary to run a single IRC
@@ -190,19 +186,6 @@ func New(config Config) *Client {
 
 // Connect attempts to connect to the given IRC server
 func (c *Client) Connect() error {
-	// Sanity check a few options.
-	if c.Config.Server == "" {
-		return errors.New("invalid server specified")
-	}
-
-	if c.Config.Port < 21 || c.Config.Port > 65535 {
-		return errors.New("invalid port (21-65535)")
-	}
-
-	if !IsValidNick(c.Config.Nick) || !IsValidUser(c.Config.User) {
-		return errors.New("invalid nickname or user")
-	}
-
 	// Clean up any old running stuff.
 	c.cleanup(false)
 
@@ -213,70 +196,16 @@ func (c *Client) Connect() error {
 	// Reset the state.
 	c.state = newState()
 
+	// Validate info, and actually make the connection.
 	c.debug.Printf("connecting to %s...", c.Server())
-
-	var conn net.Conn
-	var err error
-
-	dialer := &net.Dialer{Timeout: 5 * time.Second}
-
-	if c.Config.Bind != "" {
-		var local *net.TCPAddr
-		local, err = net.ResolveTCPAddr("tcp", c.Config.Bind+":0")
-		if err != nil {
-			return fmt.Errorf("unable to resolve bind address %s: %s", c.Config.Bind, err)
-		}
-
-		dialer.LocalAddr = local
-	}
-
-	if c.Config.Proxy != "" {
-		var proxyUri *url.URL
-		var proxyDialer proxy.Dialer
-
-		proxyUri, err = url.Parse(c.Config.Proxy)
-		if err != nil {
-			return fmt.Errorf("unable to use proxy %q: %s", c.Config.Proxy, err)
-		}
-
-		proxyDialer, err = proxy.FromURL(proxyUri, dialer)
-		if err != nil {
-			return fmt.Errorf("unable to use proxy %q: %s", c.Config.Proxy, err)
-		}
-
-		conn, err = proxyDialer.Dial("tcp", c.Server())
-		if err != nil {
-			return fmt.Errorf("unable to use proxy %q: %s", c.Config.Proxy, err)
-		}
-	} else {
-		conn, err = dialer.Dial("tcp", c.Server())
-		if err != nil {
-			return fmt.Errorf("unable to connect to %q: %s", c.Server(), err)
-		}
-	}
-
-	if c.Config.SSL {
-		var sslConf *tls.Config
-
-		if c.Config.TLSConfig == nil {
-			sslConf = &tls.Config{ServerName: c.Config.Server}
-		} else {
-			sslConf = c.Config.TLSConfig
-		}
-
-		tlsConn := tls.Client(conn, sslConf)
-		if err = tlsConn.Handshake(); err != nil {
-			return fmt.Errorf("failed handshake during tls conn to %q: %s", c.Server(), err)
-		}
-		conn = tlsConn
+	conn, err := newConn(c.Config, c.Server())
+	if err != nil {
+		return err
 	}
 
 	c.state.mu.Lock()
 	c.state.conn = conn
 	c.state.mu.Unlock()
-
-	c.state.reader = newDecoder(c.state.conn)
-	c.state.writer = newEncoder(c.state.conn)
 
 	// Send a virtual event allowing hooks for successful socket connection.
 	c.Events <- &Event{Command: INITIALIZED, Trailing: c.Server()}
@@ -451,8 +380,8 @@ func (c *Client) readLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			c.state.conn.SetDeadline(time.Now().Add(300 * time.Second))
-			event, err = c.state.reader.Decode()
+			c.state.conn.lconn.SetDeadline(time.Now().Add(300 * time.Second))
+			event, err = c.state.conn.Decode()
 			if err != nil {
 				// Attempt a reconnect (if applicable). If it fails, send
 				// the error to c.Config.HandleError to be dealt with, if
@@ -569,7 +498,7 @@ func (c *Client) write(event *Event) error {
 		c.debug.Print("> ", StripRaw(event.String()))
 	}
 
-	return c.state.writer.Encode(event)
+	return c.state.conn.Encode(event)
 }
 
 // Uptime is the time at which the client successfully connected to the
