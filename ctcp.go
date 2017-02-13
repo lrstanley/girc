@@ -16,6 +16,8 @@ const ctcpDelim byte = 0x01 // Prefix and suffix for CTCP messages.
 
 // CTCPEvent is the necessary information from an IRC message.
 type CTCPEvent struct {
+	// Origin is the original event that the CTCP event was decoded from.
+	Origin *Event
 	// Source is the author of the CTCP event.
 	Source *Source
 	// Command is the type of CTCP event. E.g. PING, TIME, VERSION.
@@ -61,6 +63,7 @@ func decodeCTCP(e *Event) *CTCPEvent {
 		}
 
 		return &CTCPEvent{
+			Origin:  e,
 			Source:  e.Source,
 			Command: text,
 			Reply:   e.Command == "NOTICE",
@@ -76,6 +79,7 @@ func decodeCTCP(e *Event) *CTCPEvent {
 	}
 
 	return &CTCPEvent{
+		Origin:  e,
 		Source:  e.Source,
 		Command: text[0:s],
 		Text:    text[s+1:],
