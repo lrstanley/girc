@@ -76,11 +76,9 @@ func TestFormat(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := Format(tt.args.text); got != tt.want {
-				t.Errorf("Format() = %v, want %v", got, tt.want)
-			}
-		})
+		if got := Format(tt.args.text); got != tt.want {
+			t.Errorf("%s: Format() = %v, want %v", tt.name, got, tt.want)
+		}
 	}
 }
 
@@ -102,11 +100,9 @@ func TestStripFormat(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := StripFormat(tt.args.text); got != tt.want {
-				t.Errorf("StripFormat() = %v, want %v", got, tt.want)
-			}
-		})
+		if got := StripFormat(tt.args.text); got != tt.want {
+			t.Errorf("%s: StripFormat() = %v, want %v", tt.name, got, tt.want)
+		}
 	}
 }
 
@@ -128,11 +124,9 @@ func TestStripRaw(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := StripRaw(Format(tt.args.text)); got != tt.want {
-				t.Errorf("StripRaw() = %v, want %v", got, tt.want)
-			}
-		})
+		if got := StripRaw(Format(tt.args.text)); got != tt.want {
+			t.Errorf("%s: StripRaw() = %v, want %v", tt.name, got, tt.want)
+		}
 	}
 }
 
@@ -158,11 +152,9 @@ func TestIsValidNick(t *testing.T) {
 		{name: "index 0 numeric", args: args{nick: "0test"}, want: false},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := IsValidNick(tt.args.nick); got != tt.want {
-				t.Errorf("IsValidNick() = %v, want %v", got, tt.want)
-			}
-		})
+		if got := IsValidNick(tt.args.nick); got != tt.want {
+			t.Errorf("%s: IsValidNick() = %v, want %v", tt.name, got, tt.want)
+		}
 	}
 }
 
@@ -191,11 +183,9 @@ func TestIsValidChannel(t *testing.T) {
 		{name: "invalid id prefix", args: args{channel: "!test1invalid"}, want: false},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := IsValidChannel(tt.args.channel); got != tt.want {
-				t.Errorf("IsValidChannel() = %v, want %v", got, tt.want)
-			}
-		})
+		if got := IsValidChannel(tt.args.channel); got != tt.want {
+			t.Errorf("%s: IsValidChannel() = %v, want %v", tt.name, got, tt.want)
+		}
 	}
 }
 
@@ -220,10 +210,8 @@ func TestIsValidUser(t *testing.T) {
 		{name: "special chars", args: args{name: "test-----"}, want: true},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := IsValidUser(tt.args.name); got != tt.want {
-				t.Errorf("IsValidUser() = %v, want %v", got, tt.want)
-			}
-		})
+		if got := IsValidUser(tt.args.name); got != tt.want {
+			t.Errorf("%s: IsValidUser() = %v, want %v", tt.name, got, tt.want)
+		}
 	}
 }

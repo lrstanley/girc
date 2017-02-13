@@ -27,11 +27,9 @@ func TestEncodeCTCP(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := encodeCTCP(tt.args.ctcp); got != tt.want {
-				t.Errorf("encodeCTCP() = %q, want %q", got, tt.want)
-			}
-		})
+		if got := encodeCTCP(tt.args.ctcp); got != tt.want {
+			t.Errorf("%s: encodeCTCP() = %q, want %q", tt.name, got, tt.want)
+		}
 	}
 }
 
@@ -95,16 +93,14 @@ func TestDecodeCTCP(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := decodeCTCP(tt.args.event)
-			if got != nil {
-				got.Origin = tt.want.Origin
-			}
+		got := decodeCTCP(tt.args.event)
+		if got != nil {
+			got.Origin = tt.want.Origin
+		}
 
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("decodeCTCP() = %#v, want %#v", got, tt.want)
-			}
-		})
+		if !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("%s: decodeCTCP() = %#v, want %#v", tt.name, got, tt.want)
+		}
 	}
 }
 
@@ -112,66 +108,54 @@ func TestCall(t *testing.T) {
 	counter := 0
 	ctcp := newCTCP()
 
-	t.Run("regular execution", func(t *testing.T) {
-		ctcp.Set("TEST", func(client *Client, event CTCPEvent) {
-			counter++
-		})
-
-		if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); counter != 1 {
-			t.Fatal("call() didn't increase counter")
-		}
-		ctcp.Clear("TEST")
+	ctcp.Set("TEST", func(client *Client, event CTCPEvent) {
+		counter++
 	})
 
-	t.Run("goroutine execution", func(t *testing.T) {
-		ctcp.SetBg("TEST", func(client *Client, event CTCPEvent) {
-			counter++
-		})
+	if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); counter != 1 {
+		t.Fatal("regular execution: call() didn't increase counter")
+	}
+	ctcp.Clear("TEST")
 
-		ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"})
-		if time.Sleep(250 * time.Millisecond); counter != 2 {
-			t.Fatal("call() in goroutine didn't increase counter")
-		}
-		ctcp.Clear("TEST")
+	ctcp.SetBg("TEST", func(client *Client, event CTCPEvent) {
+		counter++
 	})
 
-	t.Run("wildcard execution", func(t *testing.T) {
-		ctcp.Set("*", func(client *Client, event CTCPEvent) {
-			counter++
-		})
+	ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"})
+	if time.Sleep(250 * time.Millisecond); counter != 2 {
+		t.Fatal("goroutine execution: call() in goroutine didn't increase counter")
+	}
+	ctcp.Clear("TEST")
 
-		if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); counter != 3 {
-			t.Fatal("call() didn't increase counter")
-		}
-		ctcp.Clear("*")
+	ctcp.Set("*", func(client *Client, event CTCPEvent) {
+		counter++
 	})
 
-	t.Run("empty execution", func(t *testing.T) {
-		ctcp.Clear("TEST")
+	if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); counter != 3 {
+		t.Fatal("wildcard execution: call() didn't increase counter")
+	}
+	ctcp.Clear("*")
 
-		if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); counter != 3 {
-			t.Fatal("call() with no handler incremented the counter")
-		}
-	})
+	ctcp.Clear("TEST")
+
+	if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); counter != 3 {
+		t.Fatal("empty execution: call() with no handler incremented the counter")
+	}
 }
 
 func TestSet(t *testing.T) {
 	ctcp := newCTCP()
 
-	t.Run("invalid command", func(t *testing.T) {
-		ctcp.Set("TEST-1", func(client *Client, event CTCPEvent) {})
-		if _, ok := ctcp.handlers["TEST"]; ok {
-			t.Fatal("Set('TEST') allowed invalid command")
-		}
-	})
+	ctcp.Set("TEST-1", func(client *Client, event CTCPEvent) {})
+	if _, ok := ctcp.handlers["TEST"]; ok {
+		t.Fatal("Set('TEST') allowed invalid command")
+	}
 
-	t.Run("store", func(t *testing.T) {
-		ctcp.Set("TEST", func(client *Client, event CTCPEvent) {})
-		// Make sure it's there.
-		if _, ok := ctcp.handlers["TEST"]; !ok {
-			t.Fatal("Set('TEST') didn't set")
-		}
-	})
+	ctcp.Set("TEST", func(client *Client, event CTCPEvent) {})
+	// Make sure it's there.
+	if _, ok := ctcp.handlers["TEST"]; !ok {
+		t.Fatal("store: Set('TEST') didn't set")
+	}
 }
 
 func TestClear(t *testing.T) {
