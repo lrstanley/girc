@@ -134,6 +134,11 @@ func (e *Event) Copy() *Event {
 		*newEvent.Source = *e.Source
 	}
 
+	// Copy Params in order to dereference as well.
+	if e.Params != nil {
+		copy(newEvent.Params, e.Params)
+	}
+
 	// Copy tags as necessary.
 	if e.Tags != nil {
 		newEvent.Tags = Tags{}
