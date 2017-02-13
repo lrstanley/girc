@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -31,7 +33,7 @@ func (c *Client) RunHandlers(event *Event) {
 	// Check if it's a CTCP.
 	if ctcp := decodeCTCP(event.Copy()); ctcp != nil {
 		// Execute it.
-		c.CTCP.call(ctcp, c)
+		c.CTCP.call(c, ctcp)
 	}
 }
 
@@ -43,11 +45,11 @@ type Handler interface {
 
 // HandlerFunc is a type that represents the function necessary to
 // implement Handler.
-type HandlerFunc func(c *Client, e Event)
+type HandlerFunc func(client *Client, event Event)
 
 // Execute calls the HandlerFunc with the sender and irc message.
-func (f HandlerFunc) Execute(c *Client, e Event) {
-	f(c, e)
+func (f HandlerFunc) Execute(client *Client, event Event) {
+	f(client, event)
 }
 
 // Caller manages internal and external (user facing) handlers.
@@ -183,6 +185,11 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 			c.debug.Printf("executing handler %s for event %s", stack[index].cuid, command)
 			start := time.Now()
 
+			// If they want to catch any panics, add to defer stack.
+			if client.Config.RecoverFunc != nil {
+				defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
+			}
+
 			stack[index].Execute(client, *event)
 
 			c.debug.Printf("execution of %s took %s", stack[index].cuid, time.Since(start))
@@ -313,15 +320,84 @@ func (c *Caller) AddHandler(cmd string, handler Handler) (cuid string) {
 
 // Add registers the handler function for the given event. cuid is the
 // handler uid which can be used to remove the handler with Caller.Remove().
-func (c *Caller) Add(cmd string, handler func(c *Client, e Event)) (cuid string) {
+func (c *Caller) Add(cmd string, handler func(client *Client, event Event)) (cuid string) {
 	return c.sregister(false, cmd, HandlerFunc(handler))
 }
 
 // AddBg registers the handler function for the given event and executes it
 // in a go-routine. cuid is the handler uid which can be used to remove the
 // handler with Caller.Remove().
-func (c *Caller) AddBg(cmd string, handler func(c *Client, e Event)) (cuid string) {
-	return c.sregister(false, cmd, HandlerFunc(func(c *Client, e Event) {
-		go handler(c, e)
+func (c *Caller) AddBg(cmd string, handler func(client *Client, event Event)) (cuid string) {
+	return c.sregister(false, cmd, HandlerFunc(func(client *Client, event Event) {
+		// Setting up background-based handlers this way allows us to get
+		// clean call stacks for use with panic recovery.
+		go func() {
+			// If they want to catch any panics, add to defer stack.
+			if client.Config.RecoverFunc != nil {
+				defer recoverHandlerPanic(client, &event, "unknown-goroutine", 3)
+			}
+
+			handler(client, event)
+		}()
 	}))
+}
+
+// recoverHandlerPanic is used to catch all handler panics, and re-route
+// them if necessary.
+func recoverHandlerPanic(client *Client, event *Event, id string, skip int) {
+	perr := recover()
+	if perr == nil {
+		return
+	}
+
+	var file string
+	var line int
+	var ok bool
+
+	_, file, line, ok = runtime.Caller(skip)
+
+	err := &HandlerError{
+		Event:  *event,
+		ID:     id,
+		File:   file,
+		Line:   line,
+		Panic:  perr,
+		Stack:  debug.Stack(),
+		callOk: ok,
+	}
+
+	client.debug.Println(err.Error())
+	client.debug.Println(err.String())
+	client.Config.RecoverFunc(client, err)
+	return
+}
+
+// HandlerError is the error returned when a panic is intentionally recovered
+// from. It contains useful information like the handler identifier (if
+// applicable), filename, line in file where panic occurred, the call
+// trace, and original event.
+type HandlerError struct {
+	Event  Event
+	ID     string
+	File   string
+	Line   int
+	Panic  interface{}
+	Stack  []byte
+	callOk bool
+}
+
+// Error returns a prettified version of HandlerError, containing ID, file,
+// line, and basic error string.
+func (e *HandlerError) Error() string {
+	if e.callOk {
+		return fmt.Sprintf("panic during handler [%s] execution in %s (line %d): %s", e.ID, e.File, e.Line, e.Panic)
+	} else {
+		return fmt.Sprintf("panic during handler [%s] execution in unknown: %s", e.ID, e.Panic)
+	}
+}
+
+// String returns the error that panic returned, as well as the entire call
+// trace of where it originated.
+func (e *HandlerError) String() string {
+	return fmt.Sprintf("panic: %s\n\n%s", e.Panic, string(e.Stack))
 }

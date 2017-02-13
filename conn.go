@@ -141,8 +141,7 @@ func (c *ircConn) setTimeout(timeout time.Duration) {
 // as well as how many characters each event has.
 func (c *ircConn) rate(chars int) time.Duration {
 	_time := time.Second + ((time.Duration(chars) * time.Second) / 100)
-	elapsed := time.Now().Sub(c.lastWrite)
-	if c.writeDelay += _time - elapsed; c.writeDelay < 0 {
+	if c.writeDelay += _time - time.Now().Sub(c.lastWrite); c.writeDelay < 0 {
 		c.writeDelay = 0
 	}
 

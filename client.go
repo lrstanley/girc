@@ -106,8 +106,14 @@ type Config struct {
 	AllowFlood bool
 	// Debugger is an optional, user supplied location to log the raw lines
 	// sent from the server, or other useful debug logs. Defaults to
-	// ioutil.Discard.
+	// ioutil.Discard. For quick debugging, this could be set to os.Stdout.
 	Debugger io.Writer
+	// RecoverFunc is called when a handler throws a panic. If RecoverFunc is
+	// not set, the client will panic. identifier is generally going to be the
+	// callback ID. The file and line should point to the exact item that
+	// threw a panic, and stack is the full stack trace of how RecoverFunc
+	// caught it.
+	RecoverFunc func(c *Client, e *HandlerError)
 	// SupportedCaps are the IRCv3 capabilities you would like the client to
 	// support. Only use this if DisableTracking and DisableCapTracking are
 	// not enabled, otherwise you will need to handle CAP negotiation yourself.

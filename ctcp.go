@@ -128,9 +128,14 @@ func newCTCP() *CTCP {
 
 // call executes the necessary CTCP handler for the incoming event/CTCP
 // command.
-func (c *CTCP) call(event *CTCPEvent, client *Client) {
+func (c *CTCP) call(client *Client, event *CTCPEvent) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
+
+	// If they want to catch any panics, add to defer stack.
+	if client.Config.RecoverFunc != nil && event.Origin != nil {
+		defer recoverHandlerPanic(client, event.Origin, "ctcp-"+strings.ToLower(event.Command), 3)
+	}
 
 	// Support wildcard CTCP event handling. Gets executed first before
 	// regular event handlers.
