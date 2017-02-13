@@ -1,6 +1,8 @@
 language: go
 go:
-- 1.7.1
+- 1.5.4
+- 1.6.4
+- 1.7.5
 - tip
 script:
 - go test -v
@@ -17,4 +19,4 @@ notifications:
       %{build_url}"
     on_success: change
     on_failure: change
-    skip_join: true
+    skip_join: false
