@@ -19,7 +19,8 @@ are still being flushed out. Not production ready! **_You've been warned!_**
 ## Features
 
 - Focuses on simplicity, yet tries to still be flexible.
-- Only requires standard library packages (uses 1 sub-repo package)
+- Only requires [standard library packages](https://godoc.org/github.com/lrstanley/girc?imports)
+  (uses 2 sub-repo packages, one being context for backwards compatibility)
 - Event based triggering/responses (and CTCP too!).
 - Documentation is mostly on par.
 - Full support for the IRCv3 spec.
