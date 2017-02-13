@@ -34,7 +34,8 @@ type Client struct {
 	// Handlers is a handler which manages internal and external handlers.
 	Handlers *Caller
 	// CTCP is a handler which manages internal and external CTCP handlers.
-	CTCP     *CTCP
+	CTCP *CTCP
+	// Commands contains various helper methods to interact with the server.
 	Commands *Commands
 
 	// conn is a net.Conn reference to the IRC server.
