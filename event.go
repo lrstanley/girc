@@ -266,7 +266,7 @@ func (e *Event) Pretty() (out string, ok bool) {
 	if e.Command == RPL_MOTD || e.Command == RPL_MOTDSTART ||
 		e.Command == RPL_WELCOME || e.Command == RPL_YOURHOST ||
 		e.Command == RPL_CREATED || e.Command == RPL_LUSERCLIENT {
-		return fmt.Sprintf("[*] " + e.Trailing), true
+		return "[*] " + e.Trailing, true
 	}
 
 	if e.Command == JOIN && len(e.Params) > 0 {
