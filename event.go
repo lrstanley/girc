@@ -95,10 +95,7 @@ func ParseEvent(raw string) (e *Event) {
 	j++
 
 	// Find prefix for trailer.
-	i = bytes.Index([]byte(raw[j:]), []byte{eventSpace, messagePrefix})
-	if i != -1 {
-		i++
-	}
+	i = strings.IndexByte(raw[j:], messagePrefix)
 
 	if i < 0 || raw[j+i-1] != eventSpace {
 		// No trailing argument.

@@ -146,7 +146,7 @@ func (c *CTCP) call(client *Client, event *CTCPEvent) {
 	if _, ok := c.handlers[event.Command]; !ok {
 		// Send a ERRMSG reply, if we know who sent it.
 		if event.Source != nil && IsValidNick(event.Source.Name) {
-			client.SendCTCPReply(event.Source.Name, CTCP_ERRMSG, "that is an unknown CTCP query")
+			client.Commands.SendCTCPReply(event.Source.Name, CTCP_ERRMSG, "that is an unknown CTCP query")
 		}
 		return
 	}
@@ -237,7 +237,7 @@ func handleCTCPPing(client *Client, ctcp CTCPEvent) {
 	if ctcp.Reply {
 		return
 	}
-	client.SendCTCPReply(ctcp.Source.Name, CTCP_PING, ctcp.Text)
+	client.Commands.SendCTCPReply(ctcp.Source.Name, CTCP_PING, ctcp.Text)
 }
 
 // handleCTCPPong replies with a pong.
@@ -245,7 +245,7 @@ func handleCTCPPong(client *Client, ctcp CTCPEvent) {
 	if ctcp.Reply {
 		return
 	}
-	client.SendCTCPReply(ctcp.Source.Name, CTCP_PONG, "")
+	client.Commands.SendCTCPReply(ctcp.Source.Name, CTCP_PONG, "")
 }
 
 // handleCTCPVersion replies with the name of the client, Go version, as well
@@ -253,11 +253,11 @@ func handleCTCPPong(client *Client, ctcp CTCPEvent) {
 // arm, etc).
 func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
 	if client.Config.Version != "" {
-		client.SendCTCPReply(ctcp.Source.Name, CTCP_VERSION, client.Config.Version)
+		client.Commands.SendCTCPReply(ctcp.Source.Name, CTCP_VERSION, client.Config.Version)
 		return
 	}
 
-	client.SendCTCPReplyf(
+	client.Commands.SendCTCPReplyf(
 		ctcp.Source.Name, CTCP_VERSION,
 		"girc (github.com/lrstanley/girc) using %s (%s, %s)",
 		runtime.Version(), runtime.GOOS, runtime.GOARCH,
@@ -266,11 +266,11 @@ func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
 
 // handleCTCPSource replies with the public git location of this library.
 func handleCTCPSource(client *Client, ctcp CTCPEvent) {
-	client.SendCTCPReply(ctcp.Source.Name, CTCP_SOURCE, "https://github.com/lrstanley/girc")
+	client.Commands.SendCTCPReply(ctcp.Source.Name, CTCP_SOURCE, "https://github.com/lrstanley/girc")
 }
 
 // handleCTCPTime replies with a RFC 1123 (Z) formatted version of Go's
 // local time.
 func handleCTCPTime(client *Client, ctcp CTCPEvent) {
-	client.SendCTCPReply(ctcp.Source.Name, CTCP_TIME, ":"+time.Now().Format(time.RFC1123Z))
+	client.Commands.SendCTCPReply(ctcp.Source.Name, CTCP_TIME, ":"+time.Now().Format(time.RFC1123Z))
 }

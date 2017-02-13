@@ -92,12 +92,12 @@ func handleConnect(c *Client, e Event) {
 // nickCollisionHandler helps prevent the client from having conflicting
 // nicknames with another bot, user, etc.
 func nickCollisionHandler(c *Client, e Event) {
-	c.Nick(c.GetNick() + "_")
+	c.Commands.Nick(c.GetNick() + "_")
 }
 
 // handlePING helps respond to ping requests from the server.
 func handlePING(c *Client, e Event) {
-	c.Pong(e.Trailing)
+	c.Commands.Pong(e.Trailing)
 }
 
 // handleJOIN ensures that the state has updated users and channels.
@@ -247,14 +247,13 @@ func handleKICK(c *Client, e Event) {
 // handleNICK ensures that users are renamed in state, or the client name is
 // up to date.
 func handleNICK(c *Client, e Event) {
-	if len(e.Params) != 1 {
-		// Something erronous was sent to us.
-		return
-	}
-
 	c.state.mu.Lock()
 	// renameUser updates the LastActive time automatically.
-	c.state.renameUser(e.Source.Name, e.Params[0])
+	if len(e.Params) == 1 {
+		c.state.renameUser(e.Source.Name, e.Params[0])
+	} else if len(e.Trailing) > 0 {
+		c.state.renameUser(e.Source.Name, e.Trailing)
+	}
 	c.state.mu.Unlock()
 }
 

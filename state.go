@@ -267,6 +267,11 @@ func (s *state) renameUser(from, to string) {
 		return
 	}
 
+	// Update our nickname.
+	if from == s.nick {
+		s.nick = to
+	}
+
 	for k := range s.channels {
 		// Check to see if they're in this channel.
 		if _, ok := s.channels[k].users[from]; !ok {
