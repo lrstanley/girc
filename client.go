@@ -112,7 +112,10 @@ type Config struct {
 	// not set, the client will panic. identifier is generally going to be the
 	// callback ID. The file and line should point to the exact item that
 	// threw a panic, and stack is the full stack trace of how RecoverFunc
-	// caught it.
+	// caught it. Set this to DefaultRecoverHandler if you don't want the
+	// client to panic, however you don't want to handle the panic yourself.
+	// DefaultRecoverHandler will log the panic to Debugger or os.Stdout if
+	// Debugger is unset.
 	RecoverFunc func(c *Client, e *HandlerError)
 	// SupportedCaps are the IRCv3 capabilities you would like the client to
 	// support. Only use this if DisableTracking and DisableCapTracking are
@@ -173,10 +176,11 @@ func New(config Config) *Client {
 	}
 
 	if c.Config.Debugger == nil {
-		c.Config.Debugger = ioutil.Discard
+		c.debug = log.New(ioutil.Discard, "", 0)
+	} else {
+		c.debug = log.New(c.Config.Debugger, "debug:", log.Ltime|log.Lshortfile)
+		c.debug.Print("initializing debugging")
 	}
-	c.debug = log.New(c.Config.Debugger, "debug:", log.Ltime|log.Lshortfile)
-	c.debug.Print("initializing debugging")
 
 	// Setup the caller.
 	c.Handlers = newCaller(c.debug)

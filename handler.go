@@ -366,8 +366,6 @@ func recoverHandlerPanic(client *Client, event *Event, id string, skip int) {
 		callOk: ok,
 	}
 
-	client.debug.Println(err.Error())
-	client.debug.Println(err.String())
 	client.Config.RecoverFunc(client, err)
 	return
 }
@@ -400,4 +398,19 @@ func (e *HandlerError) Error() string {
 // trace of where it originated.
 func (e *HandlerError) String() string {
 	return fmt.Sprintf("panic: %s\n\n%s", e.Panic, string(e.Stack))
+}
+
+// DefaultRecoverHandler can be used with Config.RecoverFunc as a default
+// catch-all for panics. This will log the error, and the call trace to
+// the debug log (see Config.Debugger), or os.Stdout if Config.Debugger is
+// unset.
+func DefaultRecoverHandler(client *Client, err *HandlerError) {
+	if client.Config.Debugger == nil {
+		fmt.Println(err.Error())
+		fmt.Println(err.String())
+		return
+	}
+
+	client.debug.Println(err.Error())
+	client.debug.Println(err.String())
 }
