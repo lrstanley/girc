@@ -126,7 +126,7 @@ type Config struct {
 	// overwritten or a VERSION handler was already supplied.
 	Version string
 	// ReconnectDelay is the a duration of time to delay before attempting a
-	// reconnection. Defaults to 10s (minimum of 10s). This is ignored if
+	// reconnection. Defaults to 10s (minimum of 5s). This is ignored if
 	// Reconnect() is called directly.
 	ReconnectDelay time.Duration
 	// HandleError if supplied, is called when one is disconnected from the
@@ -295,8 +295,8 @@ func (c *Client) reconnect(remoteInvoked bool) (err error) {
 
 	c.cleanup(false)
 
-	if c.Config.ReconnectDelay < (10 * time.Second) {
-		c.Config.ReconnectDelay = 25 * time.Second
+	if c.Config.ReconnectDelay < (5 * time.Second) {
+		c.Config.ReconnectDelay = 5 * time.Second
 	}
 
 	if c.Config.Retries < 1 && !remoteInvoked {
