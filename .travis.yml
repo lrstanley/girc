@@ -6,8 +6,10 @@ go:
 - tip
 before_install:
 - go get -u -v github.com/mattn/goveralls
+- go get -u -v github.com/golang/lint/golint
 script:
 - $HOME/gopath/bin/goveralls -service=travis-ci -v
+- $HOME/gopath/bin/golint -min_confidence 0.3 | grep -v ALL_CAPS && exit 1
 - go tool vet -v -all .
 branches:
   only:

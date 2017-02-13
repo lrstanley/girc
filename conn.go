@@ -75,15 +75,15 @@ func newConn(conf Config, addr string) (*ircConn, error) {
 	}
 
 	if conf.Proxy != "" {
-		var proxyUri *url.URL
+		var proxyURI *url.URL
 		var proxyDialer proxy.Dialer
 
-		proxyUri, err = url.Parse(conf.Proxy)
+		proxyURI, err = url.Parse(conf.Proxy)
 		if err != nil {
 			return nil, fmt.Errorf("unable to use proxy %q: %s", conf.Proxy, err)
 		}
 
-		proxyDialer, err = proxy.FromURL(proxyUri, dialer)
+		proxyDialer, err = proxy.FromURL(proxyURI, dialer)
 		if err != nil {
 			return nil, fmt.Errorf("unable to use proxy %q: %s", conf.Proxy, err)
 		}
