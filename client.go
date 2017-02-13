@@ -5,7 +5,6 @@
 package girc
 
 import (
-	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -15,6 +14,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/net/context"
 )
 
 // Client contains all of the information necessary to run a single IRC
