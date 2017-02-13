@@ -2,6 +2,7 @@
 <p align="center">girc -- A flexible IRC library for Go</p>
 <p align="center">
   <a href="https://travis-ci.org/lrstanley/girc"><img src="https://travis-ci.org/lrstanley/girc.svg?branch=master" alt="Build Status"></a>
+  <a href="https://coveralls.io/github/lrstanley/girc?branch=master"><img src="https://coveralls.io/repos/github/lrstanley/girc/badge.svg?branch=master" alt="Coverage Status"></a>
   <a href="https://godoc.org/github.com/lrstanley/girc"><img src="https://godoc.org/github.com/lrstanley/girc?status.png" alt="GoDoc"></a>
   <a href="https://goreportcard.com/report/github.com/lrstanley/girc"><img src="https://goreportcard.com/badge/github.com/lrstanley/girc" alt="Go Report Card"></a>
   <a href="http://byteirc.org/channel/L"><img src="https://img.shields.io/badge/ByteIRC-%23L-blue.svg" alt="IRC Chat"></a>
