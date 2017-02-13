@@ -384,7 +384,7 @@ func (e *Event) StripAction() string {
 
 const (
 	messagePrefix byte = 0x3A // ":" -- prefix or last argument
-	prefixUser    byte = 0x21 // "!" -- username
+	prefixIdent   byte = 0x21 // "!" -- username
 	prefixHost    byte = 0x40 // "@" -- hostname
 )
 
@@ -404,7 +404,7 @@ type Source struct {
 func ParseSource(raw string) (src *Source) {
 	src = new(Source)
 
-	user := strings.IndexByte(raw, prefixUser)
+	user := strings.IndexByte(raw, prefixIdent)
 	host := strings.IndexByte(raw, prefixHost)
 
 	switch {
@@ -450,7 +450,7 @@ func (s *Source) Bytes() []byte {
 func (s *Source) String() (out string) {
 	out = s.Name
 	if len(s.Ident) > 0 {
-		out = out + string(prefixUser) + s.Ident
+		out = out + string(prefixIdent) + s.Ident
 	}
 	if len(s.Host) > 0 {
 		out = out + string(prefixHost) + s.Host
@@ -474,7 +474,7 @@ func (s *Source) IsServer() bool {
 func (s *Source) writeTo(buffer *bytes.Buffer) {
 	buffer.WriteString(s.Name)
 	if len(s.Ident) > 0 {
-		buffer.WriteByte(prefixUser)
+		buffer.WriteByte(prefixIdent)
 		buffer.WriteString(s.Ident)
 	}
 	if len(s.Host) > 0 {
