@@ -110,11 +110,9 @@ type Config struct {
 	// ioutil.Discard. For quick debugging, this could be set to os.Stdout.
 	Debugger io.Writer
 	// RecoverFunc is called when a handler throws a panic. If RecoverFunc is
-	// not set, the client will panic. identifier is generally going to be the
-	// callback ID. The file and line should point to the exact item that
-	// threw a panic, and stack is the full stack trace of how RecoverFunc
-	// caught it. Set this to DefaultRecoverHandler if you don't want the
-	// client to panic, however you don't want to handle the panic yourself.
+	// set, the panic will be considered recovered, otherwise the client will
+	// panic. Set this to DefaultRecoverHandler if you don't want the client
+	// to panic, however you don't want to handle the panic yourself.
 	// DefaultRecoverHandler will log the panic to Debugger or os.Stdout if
 	// Debugger is unset.
 	RecoverFunc func(c *Client, e *HandlerError)
