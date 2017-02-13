@@ -21,7 +21,8 @@ func (cmd *Commands) Nick(name string) error {
 		return &ErrInvalidTarget{Target: name}
 	}
 
-	return cmd.c.Send(&Event{Command: NICK, Params: []string{name}})
+	cmd.c.Send(&Event{Command: NICK, Params: []string{name}})
+	return nil
 }
 
 // Join attempts to enter a list of IRC channels, at bulk if possible to
@@ -32,7 +33,6 @@ func (cmd *Commands) Join(channels ...string) error {
 	max := maxLength - len(JOIN) - 1
 
 	var buffer string
-	var err error
 
 	for i := 0; i < len(channels); i++ {
 		if !IsValidChannel(channels[i]) {
@@ -40,10 +40,7 @@ func (cmd *Commands) Join(channels ...string) error {
 		}
 
 		if len(buffer+","+channels[i]) > max {
-			err = cmd.c.Send(&Event{Command: JOIN, Params: []string{buffer}})
-			if err != nil {
-				return err
-			}
+			cmd.c.Send(&Event{Command: JOIN, Params: []string{buffer}})
 			buffer = ""
 			continue
 		}
@@ -55,7 +52,8 @@ func (cmd *Commands) Join(channels ...string) error {
 		}
 
 		if i == len(channels)-1 {
-			return cmd.c.Send(&Event{Command: JOIN, Params: []string{buffer}})
+			cmd.c.Send(&Event{Command: JOIN, Params: []string{buffer}})
+			return nil
 		}
 	}
 
@@ -68,7 +66,8 @@ func (cmd *Commands) JoinKey(channel, password string) error {
 		return &ErrInvalidTarget{Target: channel}
 	}
 
-	return cmd.c.Send(&Event{Command: JOIN, Params: []string{channel, password}})
+	cmd.c.Send(&Event{Command: JOIN, Params: []string{channel, password}})
+	return nil
 }
 
 // Part leaves an IRC channel.
@@ -77,7 +76,8 @@ func (cmd *Commands) Part(channel, message string) error {
 		return &ErrInvalidTarget{Target: channel}
 	}
 
-	return cmd.c.Send(&Event{Command: JOIN, Params: []string{channel}})
+	cmd.c.Send(&Event{Command: JOIN, Params: []string{channel}})
+	return nil
 }
 
 // PartMessage leaves an IRC channel with a specified leave message.
@@ -86,7 +86,8 @@ func (cmd *Commands) PartMessage(channel, message string) error {
 		return &ErrInvalidTarget{Target: channel}
 	}
 
-	return cmd.c.Send(&Event{Command: JOIN, Params: []string{channel}, Trailing: message})
+	cmd.c.Send(&Event{Command: JOIN, Params: []string{channel}, Trailing: message})
+	return nil
 }
 
 // SendCTCP sends a CTCP request to target. Note that this method uses
@@ -129,7 +130,8 @@ func (cmd *Commands) Message(target, message string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
-	return cmd.c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: message})
+	cmd.c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: message})
+	return nil
 }
 
 // Messagef sends a formated PRIVMSG to target (either channel, service, or
@@ -145,11 +147,12 @@ func (cmd *Commands) Action(target, message string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
-	return cmd.c.Send(&Event{
+	cmd.c.Send(&Event{
 		Command:  PRIVMSG,
 		Params:   []string{target},
 		Trailing: fmt.Sprintf("\001ACTION %s\001", message),
 	})
+	return nil
 }
 
 // Actionf sends a formated PRIVMSG ACTION (/me) to target (either channel,
@@ -164,7 +167,8 @@ func (cmd *Commands) Notice(target, message string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
-	return cmd.c.Send(&Event{Command: NOTICE, Params: []string{target}, Trailing: message})
+	cmd.c.Send(&Event{Command: NOTICE, Params: []string{target}, Trailing: message})
+	return nil
 }
 
 // Noticef sends a formated NOTICE to target (either channel, service, or
@@ -181,7 +185,8 @@ func (cmd *Commands) SendRaw(raw string) error {
 		return errors.New("invalid event: " + raw)
 	}
 
-	return cmd.c.Send(e)
+	cmd.c.Send(e)
+	return nil
 }
 
 // SendRawf sends a formated string back to the server, without carriage
@@ -192,8 +197,8 @@ func (cmd *Commands) SendRawf(format string, a ...interface{}) error {
 
 // Topic sets the topic of channel to message. Does not verify the length
 // of the topic.
-func (cmd *Commands) Topic(channel, message string) error {
-	return cmd.c.Send(&Event{Command: TOPIC, Params: []string{channel}, Trailing: message})
+func (cmd *Commands) Topic(channel, message string) {
+	cmd.c.Send(&Event{Command: TOPIC, Params: []string{channel}, Trailing: message})
 }
 
 // Who sends a WHO query to the server, which will attempt WHOX by default.
@@ -205,7 +210,8 @@ func (cmd *Commands) Who(target string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
-	return cmd.c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhnr,2"}})
+	cmd.c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhnr,2"}})
+	return nil
 }
 
 // Whois sends a WHOIS query to the server, targeted at a specific user.
@@ -215,25 +221,26 @@ func (cmd *Commands) Whois(nick string) error {
 		return &ErrInvalidTarget{Target: nick}
 	}
 
-	return cmd.c.Send(&Event{Command: WHOIS, Params: []string{nick}})
+	cmd.c.Send(&Event{Command: WHOIS, Params: []string{nick}})
+	return nil
 }
 
 // Ping sends a PING query to the server, with a specific identifier that
 // the server should respond with.
-func (cmd *Commands) Ping(id string) error {
-	return cmd.c.Send(&Event{Command: PING, Params: []string{id}})
+func (cmd *Commands) Ping(id string) {
+	cmd.c.Send(&Event{Command: PING, Params: []string{id}})
 }
 
 // Pong sends a PONG query to the server, with an identifier which was
 // received from a previous PING query received by the client.
-func (cmd *Commands) Pong(id string) error {
-	return cmd.c.Send(&Event{Command: PONG, Params: []string{id}})
+func (cmd *Commands) Pong(id string) {
+	cmd.c.Send(&Event{Command: PONG, Params: []string{id}})
 }
 
 // Oper sends a OPER authentication query to the server, with a username
 // and password.
-func (cmd *Commands) Oper(user, pass string) error {
-	return cmd.c.Send(&Event{Command: OPER, Params: []string{user, pass}, Sensitive: true})
+func (cmd *Commands) Oper(user, pass string) {
+	cmd.c.Send(&Event{Command: OPER, Params: []string{user, pass}, Sensitive: true})
 }
 
 // Kick sends a KICK query to the server, attempting to kick nick from
@@ -249,10 +256,12 @@ func (cmd *Commands) Kick(channel, nick, reason string) error {
 	}
 
 	if reason != "" {
-		return cmd.c.Send(&Event{Command: KICK, Params: []string{channel, nick}, Trailing: reason})
+		cmd.c.Send(&Event{Command: KICK, Params: []string{channel, nick}, Trailing: reason})
+		return nil
 	}
 
-	return cmd.c.Send(&Event{Command: KICK, Params: []string{channel, nick}})
+	cmd.c.Send(&Event{Command: KICK, Params: []string{channel, nick}})
+	return nil
 }
 
 // Invite sends a INVITE query to the server, to invite nick to channel.
@@ -265,24 +274,26 @@ func (cmd *Commands) Invite(channel, nick string) error {
 		return &ErrInvalidTarget{Target: nick}
 	}
 
-	return cmd.c.Send(&Event{Command: INVITE, Params: []string{nick, channel}})
+	cmd.c.Send(&Event{Command: INVITE, Params: []string{nick, channel}})
+	return nil
 }
 
 // Away sends a AWAY query to the server, suggesting that the client is no
 // longer active. If reason is blank, Client.Back() is called. Also see
 // Client.Back().
-func (cmd *Commands) Away(reason string) error {
+func (cmd *Commands) Away(reason string) {
 	if reason == "" {
-		return cmd.Back()
+		cmd.Back()
+		return
 	}
 
-	return cmd.c.Send(&Event{Command: AWAY, Params: []string{reason}})
+	cmd.c.Send(&Event{Command: AWAY, Params: []string{reason}})
 }
 
 // Back sends a AWAY query to the server, however the query is blank,
 // suggesting that the client is active once again. Also see Client.Away().
-func (cmd *Commands) Back() error {
-	return cmd.c.Send(&Event{Command: AWAY})
+func (cmd *Commands) Back() {
+	cmd.c.Send(&Event{Command: AWAY})
 }
 
 // List sends a LIST query to the server, which will list channels and topics.
@@ -291,7 +302,8 @@ func (cmd *Commands) Back() error {
 // entire server (warning, that may mean LOTS of channels!)
 func (cmd *Commands) List(channels ...string) error {
 	if len(channels) == 0 {
-		return cmd.c.Send(&Event{Command: LIST})
+		cmd.c.Send(&Event{Command: LIST})
+		return nil
 	}
 
 	// We can LIST multiple channels at once, however we need to ensure that
@@ -299,7 +311,6 @@ func (cmd *Commands) List(channels ...string) error {
 	max := maxLength - len(JOIN) - 1
 
 	var buffer string
-	var err error
 
 	for i := 0; i < len(channels); i++ {
 		if !IsValidChannel(channels[i]) {
@@ -307,10 +318,7 @@ func (cmd *Commands) List(channels ...string) error {
 		}
 
 		if len(buffer+","+channels[i]) > max {
-			err = cmd.c.Send(&Event{Command: LIST, Params: []string{buffer}})
-			if err != nil {
-				return err
-			}
+			cmd.c.Send(&Event{Command: LIST, Params: []string{buffer}})
 			buffer = ""
 			continue
 		}
@@ -322,7 +330,8 @@ func (cmd *Commands) List(channels ...string) error {
 		}
 
 		if i == len(channels)-1 {
-			return cmd.c.Send(&Event{Command: LIST, Params: []string{buffer}})
+			cmd.c.Send(&Event{Command: LIST, Params: []string{buffer}})
+			return nil
 		}
 	}
 
@@ -336,5 +345,6 @@ func (cmd *Commands) Whowas(nick string, amount int) error {
 		return &ErrInvalidTarget{Target: nick}
 	}
 
-	return cmd.c.Send(&Event{Command: WHOWAS, Params: []string{nick, string(amount)}})
+	cmd.c.Send(&Event{Command: WHOWAS, Params: []string{nick, string(amount)}})
+	return nil
 }

@@ -257,16 +257,12 @@ func (c *Client) Connect() error {
 	events = append(events, &Event{Command: USER, Params: []string{c.Config.User, "+iw", "*"}, Trailing: c.Config.Name})
 
 	for i := 0; i < len(events); i++ {
-		if err := c.write(events[i]); err != nil {
-			return err
-		}
+		c.write(events[i])
 	}
 
 	// List the IRCv3 capabilities, specifically with the max protocol we
 	// support.
-	if err := c.listCAP(); err != nil {
-		return err
-	}
+	c.listCAP()
 
 	// Consider the connection a success at this point.
 	c.tries = 0
@@ -388,6 +384,15 @@ func (c *Client) Stop() {
 	c.Events <- &Event{Command: STOPPED, Trailing: c.Server()}
 }
 
+func (c *Client) disconnectHandler() {
+	c.cmux.Lock()
+	err := c.reconnect(false)
+	if err != nil && c.Config.HandleError != nil {
+		c.Config.HandleError(err)
+	}
+	c.cmux.Unlock()
+}
+
 // readLoop sets a timeout of 300 seconds, and then attempts to read from the
 // IRC server. If there is an error, it calls Reconnect.
 func (c *Client) readLoop(ctx context.Context) {
@@ -405,10 +410,7 @@ func (c *Client) readLoop(ctx context.Context) {
 				// Attempt a reconnect (if applicable). If it fails, send
 				// the error to c.Config.HandleError to be dealt with, if
 				// the handler exists.
-				err = c.reconnect(false)
-				if err != nil && c.Config.HandleError != nil {
-					c.Config.HandleError(err)
-				}
+				c.disconnectHandler()
 
 				return
 			}
@@ -500,16 +502,16 @@ func (c *Client) Lifetime() time.Duration {
 
 // Send sends an event to the server. Use Client.RunHandlers() if you are
 // simply looking to trigger handlers with an event.
-func (c *Client) Send(event *Event) error {
+func (c *Client) Send(event *Event) {
 	if !c.Config.AllowFlood {
 		<-time.After(c.conn.rate(event.Len()))
 	}
 
-	return c.write(event)
+	c.write(event)
 }
 
 // write is the lower level function to write an event.
-func (c *Client) write(event *Event) error {
+func (c *Client) write(event *Event) {
 	c.conn.lastWrite = time.Now()
 
 	// log the event
@@ -517,7 +519,12 @@ func (c *Client) write(event *Event) error {
 		c.debug.Print("> ", StripRaw(event.String()))
 	}
 
-	return c.conn.Encode(event)
+	err := c.conn.Encode(event)
+	if err != nil {
+		c.disconnectHandler()
+	}
+
+	return
 }
 
 // Uptime is the time at which the client successfully connected to the

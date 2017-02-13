@@ -24,14 +24,10 @@ var possibleCap = map[string][]string{
 	"userhost-in-names": nil,
 }
 
-func (c *Client) listCAP() error {
+func (c *Client) listCAP() {
 	if !c.Config.disableTracking && !c.Config.disableCapTracking {
-		if err := c.write(&Event{Command: CAP, Params: []string{CAP_LS, "302"}}); err != nil {
-			return err
-		}
+		c.write(&Event{Command: CAP, Params: []string{CAP_LS, "302"}})
 	}
-
-	return nil
 }
 
 func possibleCapList(c *Client) map[string][]string {
