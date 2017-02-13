@@ -235,8 +235,25 @@ func (c *Client) Connect() error {
 	// Send a virtual event allowing hooks for successful socket connection.
 	c.Events <- &Event{Command: INITIALIZED, Trailing: c.Server()}
 
-	for _, event := range c.connectMessages() {
-		if err := c.write(event); err != nil {
+	var events []*Event
+
+	// Passwords first.
+	if c.Config.Password != "" {
+		events = append(events, &Event{Command: PASS, Params: []string{c.Config.Password}})
+	}
+
+	// Then nickname.
+	events = append(events, &Event{Command: NICK, Params: []string{c.Config.Nick}})
+
+	// Then username and realname.
+	if c.Config.Name == "" {
+		c.Config.Name = c.Config.User
+	}
+
+	events = append(events, &Event{Command: USER, Params: []string{c.Config.User, "+iw", "*"}, Trailing: c.Config.Name})
+
+	for i := 0; i < len(events); i++ {
+		if err := c.write(events[i]); err != nil {
 			return err
 		}
 	}
@@ -259,27 +276,6 @@ func (c *Client) Connect() error {
 	go c.execLoop(ectx)
 
 	return nil
-}
-
-// connectMessages is a list of IRC messages to send when attempting to
-// connect to the IRC server.
-func (c *Client) connectMessages() (events []*Event) {
-	// Passwords first.
-	if c.Config.Password != "" {
-		events = append(events, &Event{Command: PASS, Params: []string{c.Config.Password}})
-	}
-
-	// Then nickname.
-	events = append(events, &Event{Command: NICK, Params: []string{c.Config.Nick}})
-
-	// Then username and realname.
-	if c.Config.Name == "" {
-		c.Config.Name = c.Config.User
-	}
-
-	events = append(events, &Event{Command: USER, Params: []string{c.Config.User, "+iw", "*"}, Trailing: c.Config.Name})
-
-	return events
 }
 
 // reconnect is the internal wrapper for reconnecting to the IRC server (if
