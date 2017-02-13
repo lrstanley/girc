@@ -383,7 +383,7 @@ type UserPerms struct {
 	// ability to kick, without giving them greater abilities to ban all users.
 	HalfOp bool
 	// Voice indicates the user has voice permissions, commonly given to known
-	// users, wih very light trust, or to indicate a user is active.
+	// users, with very light trust, or to indicate a user is active.
 	Voice bool
 }
 
@@ -397,7 +397,7 @@ func (m UserPerms) IsAdmin() bool {
 	return false
 }
 
-// IsAdmin indicates that the user at least has modes set upon them, higher
+// IsTrusted indicates that the user at least has modes set upon them, higher
 // than a regular joining user.
 func (m UserPerms) IsTrusted() bool {
 	if m.IsAdmin() || m.HalfOp || m.Voice {

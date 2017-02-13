@@ -389,9 +389,9 @@ type HandlerError struct {
 func (e *HandlerError) Error() string {
 	if e.callOk {
 		return fmt.Sprintf("panic during handler [%s] execution in %s (line %d): %s", e.ID, e.File, e.Line, e.Panic)
-	} else {
-		return fmt.Sprintf("panic during handler [%s] execution in unknown: %s", e.ID, e.Panic)
 	}
+
+	return fmt.Sprintf("panic during handler [%s] execution in unknown: %s", e.ID, e.Panic)
 }
 
 // String returns the error that panic returned, as well as the entire call

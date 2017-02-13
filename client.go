@@ -157,6 +157,8 @@ var ErrNotConnected = errors.New("client is not connected to server")
 // ErrAlreadyConnecting implies that a connection attempt is already happening.
 var ErrAlreadyConnecting = errors.New("a connection attempt is already occurring")
 
+// ErrDisconnected is called when Config.Retries is less than 1, and we
+// non-intentionally disconnected from the server.
 var ErrDisconnected = errors.New("unexpectedly disconnected")
 
 // ErrInvalidTarget should be returned if the target which you are
@@ -282,8 +284,8 @@ func (c *Client) connectMessages() (events []*Event) {
 	return events
 }
 
-// reconnect checks to make sure we want to, and then attempts to reconnect
-// to the server.
+// reconnect is the internal wrapper for reconnecting to the IRC server (if
+// requested.)
 func (c *Client) reconnect(remoteInvoked bool) (err error) {
 	if c.reconnecting {
 		return ErrDisconnected
@@ -323,7 +325,7 @@ func (c *Client) reconnect(remoteInvoked bool) (err error) {
 	return err
 }
 
-// reconnect checks to make sure we want to, and then attempts to reconnect
+// Reconnect checks to make sure we want to, and then attempts to reconnect
 // to the server. This will ignore the reconnect delay.
 func (c *Client) Reconnect() error {
 	return c.reconnect(true)
@@ -370,7 +372,7 @@ func (c *Client) Quit() {
 	c.quit(true)
 }
 
-// Quit disconnects from the server with a given message.
+// QuitWithMessage disconnects from the server with a given message.
 func (c *Client) QuitWithMessage(message string) {
 	c.Send(&Event{Command: QUIT, Trailing: message})
 	c.quit(false)
@@ -802,7 +804,7 @@ func (c *Client) Who(target string) error {
 	return c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhnr,2"}})
 }
 
-// Whois sends a WHOIS query to the server, targetted at a specific user.
+// Whois sends a WHOIS query to the server, targeted at a specific user.
 // as WHOIS is a bit slower, you may want to use WHO for brief user info.
 func (c *Client) Whois(nick string) error {
 	if !IsValidNick(nick) {
@@ -879,7 +881,7 @@ func (c *Client) Back() error {
 	return c.Send(&Event{Command: AWAY})
 }
 
-// LIST sends a LIST query to the server, which will list channels and topics.
+// List sends a LIST query to the server, which will list channels and topics.
 // Supports multiple channels at once, in hopes it will reduce extensive
 // LIST queries to the server. Supply no channels to run a list against the
 // entire server (warning, that may mean LOTS of channels!)

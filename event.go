@@ -124,6 +124,9 @@ func ParseEvent(raw string) (e *Event) {
 	return e
 }
 
+// Copy makes a deep copy of a given event, for use with allowing untrusted
+// functions/handlers edit the event without causing potential issues with
+// other handlers.
 func (e *Event) Copy() *Event {
 	newEvent := &Event{}
 
