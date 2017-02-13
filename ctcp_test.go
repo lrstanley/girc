@@ -97,6 +97,10 @@ func TestDecodeCTCP(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := decodeCTCP(tt.args.event)
+			if got != nil {
+				got.Origin = tt.want.Origin
+			}
+
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("decodeCTCP() = %#v, want %#v", got, tt.want)
 			}
@@ -113,7 +117,7 @@ func TestCall(t *testing.T) {
 			counter++
 		})
 
-		if ctcp.call(&CTCPEvent{Command: "TEST"}, New(Config{})); counter != 1 {
+		if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); counter != 1 {
 			t.Fatal("call() didn't increase counter")
 		}
 		ctcp.Clear("TEST")
@@ -124,7 +128,7 @@ func TestCall(t *testing.T) {
 			counter++
 		})
 
-		ctcp.call(&CTCPEvent{Command: "TEST"}, New(Config{}))
+		ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"})
 		if time.Sleep(250 * time.Millisecond); counter != 2 {
 			t.Fatal("call() in goroutine didn't increase counter")
 		}
@@ -136,7 +140,7 @@ func TestCall(t *testing.T) {
 			counter++
 		})
 
-		if ctcp.call(&CTCPEvent{Command: "TEST"}, New(Config{})); counter != 3 {
+		if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); counter != 3 {
 			t.Fatal("call() didn't increase counter")
 		}
 		ctcp.Clear("*")
@@ -145,7 +149,7 @@ func TestCall(t *testing.T) {
 	t.Run("empty execution", func(t *testing.T) {
 		ctcp.Clear("TEST")
 
-		if ctcp.call(&CTCPEvent{Command: "TEST"}, New(Config{})); counter != 3 {
+		if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); counter != 3 {
 			t.Fatal("call() with no handler incremented the counter")
 		}
 	})
