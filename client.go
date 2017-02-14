@@ -23,8 +23,10 @@ import (
 type Client struct {
 	// Config represents the configuration
 	Config Config
-	// Events is a buffer of events waiting to be processed.
-	Events chan *Event
+	// rx is a buffer of events waiting to be processed.
+	rx chan *Event
+	// tx is a buffer of events waiting to be sent.
+	tx chan *Event
 
 	// state represents the throw-away state for the irc session.
 	state *state
@@ -56,6 +58,7 @@ type Client struct {
 	// closeRead is the function which sends a close to the readLoop function
 	// context.
 	closeRead context.CancelFunc
+	closeSend context.CancelFunc
 	// closeExec is the function which sends a close to the execLoop function
 	// context.
 	closeExec context.CancelFunc
@@ -173,7 +176,8 @@ func (e *ErrInvalidTarget) Error() string { return "invalid target: " + e.Target
 func New(config Config) *Client {
 	c := &Client{
 		Config:   config,
-		Events:   make(chan *Event, 100), // buffer 100 events max.
+		rx:       make(chan *Event, 25), // buffer 25 events max.
+		tx:       make(chan *Event, 25),
 		CTCP:     newCTCP(),
 		initTime: time.Now(),
 	}
@@ -215,116 +219,6 @@ func (c *Client) String() string {
 	)
 }
 
-// Connect attempts to connect to the given IRC server
-func (c *Client) Connect() error {
-	// Clean up any old running stuff.
-	c.cleanup(false)
-
-	// We want to be the only one handling connects/disconnects right now.
-	c.cmux.Lock()
-	defer c.cmux.Unlock()
-
-	// Reset the state.
-	c.state = newState()
-
-	// Validate info, and actually make the connection.
-	c.debug.Printf("connecting to %s...", c.Server())
-	conn, err := newConn(c.Config, c.Server())
-	if err != nil {
-		return err
-	}
-
-	c.conn = conn
-
-	// Send a virtual event allowing hooks for successful socket connection.
-	c.Events <- &Event{Command: INITIALIZED, Trailing: c.Server()}
-
-	var events []*Event
-
-	// Passwords first.
-	if c.Config.Password != "" {
-		events = append(events, &Event{Command: PASS, Params: []string{c.Config.Password}})
-	}
-
-	// Then nickname.
-	events = append(events, &Event{Command: NICK, Params: []string{c.Config.Nick}})
-
-	// Then username and realname.
-	if c.Config.Name == "" {
-		c.Config.Name = c.Config.User
-	}
-
-	events = append(events, &Event{Command: USER, Params: []string{c.Config.User, "+iw", "*"}, Trailing: c.Config.Name})
-
-	for i := 0; i < len(events); i++ {
-		c.write(events[i])
-	}
-
-	// List the IRCv3 capabilities, specifically with the max protocol we
-	// support.
-	c.listCAP()
-
-	// Consider the connection a success at this point.
-	c.tries = 0
-	c.reconnecting = false
-
-	// Start read loop to process messages from the server.
-	var rctx, ectx context.Context
-	rctx, c.closeRead = context.WithCancel(context.Background())
-	ectx, c.closeRead = context.WithCancel(context.Background())
-	go c.readLoop(rctx)
-	go c.execLoop(ectx)
-
-	return nil
-}
-
-// reconnect is the internal wrapper for reconnecting to the IRC server (if
-// requested.)
-func (c *Client) reconnect(remoteInvoked bool) (err error) {
-	if c.reconnecting {
-		return ErrDisconnected
-	}
-	c.reconnecting = true
-	defer func() {
-		c.reconnecting = false
-	}()
-
-	c.cleanup(false)
-
-	if c.Config.ReconnectDelay < (5 * time.Second) {
-		c.Config.ReconnectDelay = 5 * time.Second
-	}
-
-	if c.Config.Retries < 1 && !remoteInvoked {
-		return ErrDisconnected
-	}
-
-	if !remoteInvoked {
-		// Delay so we're not slaughtering the server with a bunch of
-		// connections.
-		c.debug.Printf("reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
-		time.Sleep(c.Config.ReconnectDelay)
-	}
-
-	for err = c.Connect(); err != nil && c.tries < c.Config.Retries; c.tries++ {
-		c.debug.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
-		time.Sleep(c.Config.ReconnectDelay)
-	}
-
-	if err != nil {
-		// Too many errors at this point.
-		c.cleanup(false)
-	}
-
-	return err
-}
-
-// Reconnect checks to make sure we want to, and then attempts to reconnect
-// to the server. This will ignore the reconnect delay.
-func (c *Client) Reconnect() error {
-	return c.reconnect(true)
-}
-
 // cleanup is used to close out all threads used by the client, like read and
 // write loops.
 func (c *Client) cleanup(all bool) {
@@ -335,8 +229,13 @@ func (c *Client) cleanup(all bool) {
 		c.conn.Close()
 	}
 
+	c.flushTx()
+
 	if c.closeRead != nil {
 		c.closeRead()
+	}
+	if c.closeSend != nil {
+		c.closeSend()
 	}
 	if c.closeExec != nil {
 		c.closeExec()
@@ -357,7 +256,7 @@ func (c *Client) quit(sendMessage bool) {
 		c.Send(&Event{Command: QUIT, Trailing: "disconnecting..."})
 	}
 
-	c.Events <- &Event{Command: DISCONNECTED, Trailing: c.Server()}
+	c.RunHandlers(&Event{Command: DISCONNECTED, Trailing: c.Server()})
 	c.cleanup(false)
 }
 
@@ -381,58 +280,7 @@ func (c *Client) QuitWithMessage(message string) {
 // client from the server/connection gracefully.
 func (c *Client) Stop() {
 	c.quit(false)
-	c.Events <- &Event{Command: STOPPED, Trailing: c.Server()}
-}
-
-func (c *Client) disconnectHandler() {
-	c.cmux.Lock()
-	err := c.reconnect(false)
-	if err != nil && c.Config.HandleError != nil {
-		c.Config.HandleError(err)
-	}
-	c.cmux.Unlock()
-}
-
-// readLoop sets a timeout of 300 seconds, and then attempts to read from the
-// IRC server. If there is an error, it calls Reconnect.
-func (c *Client) readLoop(ctx context.Context) {
-	var event *Event
-	var err error
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-			c.conn.setTimeout(300 * time.Second)
-			event, err = c.conn.Decode()
-			if err != nil {
-				// Attempt a reconnect (if applicable). If it fails, send
-				// the error to c.Config.HandleError to be dealt with, if
-				// the handler exists.
-				c.disconnectHandler()
-
-				return
-			}
-
-			if event == nil {
-				continue
-			}
-
-			c.Events <- event
-		}
-	}
-}
-
-func (c *Client) execLoop(ctx context.Context) {
-	for {
-		select {
-		case event := <-c.Events:
-			c.RunHandlers(event)
-		case <-ctx.Done():
-			return
-		}
-	}
+	c.RunHandlers(&Event{Command: STOPPED, Trailing: c.Server()})
 }
 
 // Loop reads from the events channel and sends the events to be handled for
@@ -442,6 +290,17 @@ func (c *Client) Loop() {
 	ctx, c.closeLoop = context.WithCancel(context.Background())
 
 	<-ctx.Done()
+}
+
+func (c *Client) execLoop(ctx context.Context) {
+	for {
+		select {
+		case event := <-c.rx:
+			c.RunHandlers(event)
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 // DisableTracking disables all channel and user-level tracking, and clears
@@ -498,33 +357,6 @@ func (c *Client) Server() string {
 // created.
 func (c *Client) Lifetime() time.Duration {
 	return time.Since(c.initTime)
-}
-
-// Send sends an event to the server. Use Client.RunHandlers() if you are
-// simply looking to trigger handlers with an event.
-func (c *Client) Send(event *Event) {
-	if !c.Config.AllowFlood {
-		<-time.After(c.conn.rate(event.Len()))
-	}
-
-	c.write(event)
-}
-
-// write is the lower level function to write an event.
-func (c *Client) write(event *Event) {
-	c.conn.lastWrite = time.Now()
-
-	// log the event
-	if !event.Sensitive {
-		c.debug.Print("> ", StripRaw(event.String()))
-	}
-
-	err := c.conn.Encode(event)
-	if err != nil {
-		c.disconnectHandler()
-	}
-
-	return
 }
 
 // Uptime is the time at which the client successfully connected to the

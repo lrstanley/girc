@@ -86,7 +86,7 @@ func handleConnect(c *Client, e Event) {
 
 	time.Sleep(2 * time.Second)
 
-	c.Events <- &Event{Command: CONNECTED, Trailing: c.Server()}
+	c.RunHandlers(&Event{Command: CONNECTED, Trailing: c.Server()})
 }
 
 // nickCollisionHandler helps prevent the client from having conflicting
