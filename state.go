@@ -142,6 +142,68 @@ type Channel struct {
 	Modes CModes
 }
 
+// Copy returns a deep copy of a given channel.
+func (c *Channel) Copy() *Channel {
+	nc := &Channel{}
+	*nc = *c
+
+	// Copy the users.
+	nc.users = make(map[string]*User)
+	for k, v := range c.users {
+		nc.users[k] = v
+	}
+
+	// And modes.
+	nc.Modes = c.Modes.Copy()
+
+	return nc
+}
+
+// Users returns a list of users in a given channel.
+func (c *Channel) Users() []*User {
+	out := make([]*User, len(c.users))
+
+	var index int
+	for _, u := range c.users {
+		out[index] = u
+
+		index++
+	}
+
+	return out
+}
+
+// NickList returns a list of nicknames in a given channel.
+func (c *Channel) NickList() []string {
+	out := make([]string, len(c.users))
+
+	var index int
+	for k, _ := range c.users {
+		out[index] = k
+
+		index++
+	}
+
+	return out
+}
+
+// Len returns the count of users in a given channel.
+func (c *Channel) Len() int {
+	return len(c.users)
+}
+
+func (c *Channel) Lookup(nick string) (user *User, ok bool) {
+	for k, v := range c.users {
+		if strings.ToLower(k) == strings.ToLower(nick) {
+			// No need to have a copy, as if one has access to a channel,
+			// should already have a full copy.
+			return v, true
+		}
+	}
+
+	return nil, false
+}
+
 // Message returns an event which can be used to send a response to the channel.
 func (c *Channel) Message(message string) *Event {
 	return &Event{Command: PRIVMSG, Params: []string{c.Name}, Trailing: message}

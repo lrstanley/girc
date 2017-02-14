@@ -50,6 +50,21 @@ type CModes struct {
 	modes    []CMode // the list of modes for this given state.
 }
 
+// Copy returns a deep copy of CModes.
+func (c *CModes) Copy() (nc CModes) {
+	nc = CModes{}
+	nc = *c
+
+	nc.modes = make([]CMode, len(c.modes))
+
+	// Copy modes.
+	for i := 0; i < len(c.modes); i++ {
+		nc.modes[i] = c.modes[i]
+	}
+
+	return nc
+}
+
 // String returns a complete set of modes for this given state (change?). For
 // example, "+a-b+cde some-arg".
 func (c *CModes) String() string {

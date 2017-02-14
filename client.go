@@ -435,6 +435,20 @@ func (c *Client) Channels() []string {
 	return channels
 }
 
+// Lookup looks up a given channel in state. If the channel doesn't exist,
+// channel is nil.
+func (c *Client) Lookup(name string) (channel *Channel) {
+	c.state.mu.Lock()
+	defer c.state.mu.Unlock()
+
+	channel = c.state.lookupChannel(name)
+	if channel == nil {
+		return nil
+	}
+
+	return channel.Copy()
+}
+
 // IsInChannel returns true if the client is in channel. Panics if tracking
 // is disabled.
 func (c *Client) IsInChannel(channel string) bool {
