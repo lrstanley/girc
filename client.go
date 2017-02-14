@@ -55,15 +55,10 @@ type Client struct {
 	// debug is used if a writer is supplied for Client.Config.Debugger.
 	debug *log.Logger
 
-	// closeRead is the function which sends a close to the readLoop function
-	// context.
+	// Below are functions used to close out goroutines opened by the client.
 	closeRead context.CancelFunc
 	closeSend context.CancelFunc
-	// closeExec is the function which sends a close to the execLoop function
-	// context.
 	closeExec context.CancelFunc
-	// closeLoop is the function which sends a close to the Loop function
-	// context.
 	closeLoop context.CancelFunc
 }
 
@@ -176,7 +171,7 @@ func (e *ErrInvalidTarget) Error() string { return "invalid target: " + e.Target
 func New(config Config) *Client {
 	c := &Client{
 		Config:   config,
-		rx:       make(chan *Event, 25), // buffer 25 events max.
+		rx:       make(chan *Event, 25),
 		tx:       make(chan *Event, 25),
 		CTCP:     newCTCP(),
 		initTime: time.Now(),
