@@ -28,7 +28,7 @@ func Example_bare() {
 		Port:        6667,
 		Nick:        "test",
 		User:        "user",
-		Debugger:    os.Stdout,
+		Debug:       os.Stdout,
 		HandleError: errHandler,
 	})
 

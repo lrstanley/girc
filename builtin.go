@@ -20,6 +20,7 @@ func (c *Client) registerBuiltins() {
 		go handleConnect(c, e)
 	}))
 	c.Handlers.register(true, PING, HandlerFunc(handlePING))
+	c.Handlers.register(true, PONG, HandlerFunc(handlePONG))
 
 	if !c.Config.disableTracking {
 		// Joins/parts/anything that may add/remove/rename users.
@@ -98,6 +99,10 @@ func nickCollisionHandler(c *Client, e Event) {
 // handlePING helps respond to ping requests from the server.
 func handlePING(c *Client, e Event) {
 	c.Commands.Pong(e.Trailing)
+}
+
+func handlePONG(c *Client, e Event) {
+	c.conn.lastPing = time.Now()
 }
 
 // handleJOIN ensures that the state has updated users and channels.

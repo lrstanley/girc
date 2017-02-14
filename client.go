@@ -59,6 +59,7 @@ type Client struct {
 	closeRead context.CancelFunc
 	closeSend context.CancelFunc
 	closeExec context.CancelFunc
+	closePing context.CancelFunc
 	closeLoop context.CancelFunc
 }
 
@@ -105,16 +106,19 @@ type Config struct {
 	// AllowFlood allows the client to bypass the rate limit of outbound
 	// messages.
 	AllowFlood bool
-	// Debugger is an optional, user supplied location to log the raw lines
+	// Debug is an optional, user supplied location to log the raw lines
 	// sent from the server, or other useful debug logs. Defaults to
 	// ioutil.Discard. For quick debugging, this could be set to os.Stdout.
-	Debugger io.Writer
+	Debug io.Writer
+	// Out is used to print out a prettified version of certain, important
+	// events, ignoring ones that are not important.
+	Out io.Writer
 	// RecoverFunc is called when a handler throws a panic. If RecoverFunc is
 	// set, the panic will be considered recovered, otherwise the client will
 	// panic. Set this to DefaultRecoverHandler if you don't want the client
 	// to panic, however you don't want to handle the panic yourself.
-	// DefaultRecoverHandler will log the panic to Debugger or os.Stdout if
-	// Debugger is unset.
+	// DefaultRecoverHandler will log the panic to Debug or os.Stdout if
+	// Debug is unset.
 	RecoverFunc func(c *Client, e *HandlerError)
 	// SupportedCaps are the IRCv3 capabilities you would like the client to
 	// support. Only use this if DisableTracking and DisableCapTracking are
@@ -129,6 +133,10 @@ type Config struct {
 	// reconnection. Defaults to 10s (minimum of 5s). This is ignored if
 	// Reconnect() is called directly.
 	ReconnectDelay time.Duration
+	// PingDelay is the frequency between when the client sends keel-alive
+	// ping's to the server, and awaits a response (timing out if the server
+	// doesn't respond in time). This must be between 20-600 seconds.
+	PingDelay time.Duration
 	// HandleError if supplied, is called when one is disconnected from the
 	// server, with a given error.
 	HandleError func(error)
@@ -151,9 +159,6 @@ type Config struct {
 // ErrNotConnected is returned if a method is used when the client isn't
 // connected.
 var ErrNotConnected = errors.New("client is not connected to server")
-
-// ErrAlreadyConnecting implies that a connection attempt is already happening.
-var ErrAlreadyConnecting = errors.New("a connection attempt is already occurring")
 
 // ErrDisconnected is called when Config.Retries is less than 1, and we
 // non-intentionally disconnected from the server.
@@ -179,10 +184,16 @@ func New(config Config) *Client {
 
 	c.Commands = &Commands{c: c}
 
-	if c.Config.Debugger == nil {
+	if c.Config.PingDelay < (20 * time.Second) {
+		c.Config.PingDelay = 20 * time.Second
+	} else if c.Config.PingDelay > (600 * time.Second) {
+		c.Config.PingDelay = 600 * time.Second
+	}
+
+	if c.Config.Debug == nil {
 		c.debug = log.New(ioutil.Discard, "", 0)
 	} else {
-		c.debug = log.New(c.Config.Debugger, "debug:", log.Ltime|log.Lshortfile)
+		c.debug = log.New(c.Config.Debug, "debug:", log.Ltime|log.Lshortfile)
 		c.debug.Print("initializing debugging")
 	}
 

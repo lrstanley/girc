@@ -42,6 +42,10 @@ type ircConn struct {
 	connected bool
 	// connTime is the time at which the client has connected to a server.
 	connTime *time.Time
+
+	// lastPing is the last successful time that we pinged the server and
+	// received a successful pong back.
+	lastPing time.Time
 }
 
 // newConn sets up and returns a new connection to the server. This includes
@@ -226,13 +230,15 @@ func (c *Client) Connect() error {
 	c.cmux.Unlock()
 
 	// Start read loop to process messages from the server.
-	var rctx, ectx, sctx context.Context
+	var rctx, ectx, sctx, pctx context.Context
 	rctx, c.closeRead = context.WithCancel(context.Background())
 	ectx, c.closeExec = context.WithCancel(context.Background())
 	sctx, c.closeSend = context.WithCancel(context.Background())
+	pctx, c.closePing = context.WithCancel(context.Background())
 	go c.readLoop(rctx)
 	go c.execLoop(ectx)
 	go c.sendLoop(sctx)
+	go c.pingLoop(pctx)
 
 	// Send a virtual event allowing hooks for successful socket connection.
 	c.RunHandlers(&Event{Command: INITIALIZED, Trailing: c.Server()})
@@ -267,7 +273,7 @@ func (c *Client) Connect() error {
 // requested.)
 func (c *Client) reconnect(remoteInvoked bool) (err error) {
 	if c.reconnecting {
-		return ErrDisconnected
+		return nil
 	}
 	c.reconnecting = true
 	defer func() {
@@ -310,10 +316,21 @@ func (c *Client) Reconnect() error {
 	return c.reconnect(true)
 }
 
-func (c *Client) disconnectHandler() {
-	err := c.reconnect(false)
-	if err != nil && c.Config.HandleError != nil {
-		c.Config.HandleError(err)
+func (c *Client) disconnectHandler(err error) {
+	if err != nil {
+		c.debug.Println("disconnecting due to error: " + err.Error())
+	}
+
+	rerr := c.reconnect(false)
+	if rerr != nil {
+		c.debug.Println("error: " + rerr.Error())
+		if c.Config.HandleError != nil {
+			if c.Config.Retries < 1 {
+				c.Config.HandleError(err)
+			}
+
+			c.Config.HandleError(rerr)
+		}
 	}
 }
 
@@ -334,7 +351,7 @@ func (c *Client) readLoop(ctx context.Context) {
 				// Attempt a reconnect (if applicable). If it fails, send
 				// the error to c.Config.HandleError to be dealt with, if
 				// the handler exists.
-				c.disconnectHandler()
+				c.disconnectHandler(err)
 
 				return
 			}
@@ -374,11 +391,17 @@ func (c *Client) sendLoop(ctx context.Context) {
 			if !event.Sensitive {
 				c.debug.Print("> ", StripRaw(event.String()))
 			}
+			if c.Config.Out != nil {
+				if pretty, ok := event.Pretty(); ok {
+					fmt.Fprintln(c.Config.Out, StripRaw(pretty))
+				}
+			}
+
 			c.conn.lastWrite = time.Now()
 
 			err := c.conn.Encode(event)
 			if err != nil {
-				c.disconnectHandler()
+				c.disconnectHandler(err)
 			}
 		}
 	}
@@ -391,6 +414,36 @@ func (c *Client) flushTx() {
 		case <-c.tx:
 		default:
 			return
+		}
+	}
+}
+
+// ErrTimedOut is returned when we attempt to ping the server, and time out
+// before receiving a PONG back.
+var ErrTimedOut = errors.New("timed out during ping to server")
+
+func (c *Client) pingLoop(ctx context.Context) {
+	// Delay for 30 seconds during connect to wait for the client to register
+	// and what not.
+	time.Sleep(20 * time.Second)
+	c.conn.lastPing = time.Now()
+
+	tick := time.NewTicker(c.Config.PingDelay)
+	defer tick.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-tick.C:
+			if time.Since(c.conn.lastPing) > c.Config.PingDelay+(60*time.Second) {
+				// It's 60 seconds over what out ping delay is, connection
+				// has probably dropped.
+				c.disconnectHandler(ErrTimedOut)
+				return
+			}
+
+			c.Commands.Ping(fmt.Sprintf("%d", time.Now().UnixNano()))
 		}
 	}
 }

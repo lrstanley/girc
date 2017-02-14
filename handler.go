@@ -23,6 +23,11 @@ func (c *Client) RunHandlers(event *Event) {
 
 	// Log the event.
 	c.debug.Print("< " + StripRaw(event.String()))
+	if c.Config.Out != nil {
+		if pretty, ok := event.Pretty(); ok {
+			fmt.Fprintln(c.Config.Out, StripRaw(pretty))
+		}
+	}
 
 	// Regular wildcard handlers.
 	c.Handlers.exec(ALLEVENTS, c, event.Copy())
@@ -72,11 +77,11 @@ type Caller struct {
 }
 
 // newCaller creates and initializes a new handler.
-func newCaller(debugger *log.Logger) *Caller {
+func newCaller(debugOut *log.Logger) *Caller {
 	c := &Caller{
 		external: map[string]map[string]Handler{},
 		internal: map[string]map[string]Handler{},
-		debug:    debugger,
+		debug:    debugOut,
 	}
 
 	return c
@@ -401,11 +406,10 @@ func (e *HandlerError) String() string {
 }
 
 // DefaultRecoverHandler can be used with Config.RecoverFunc as a default
-// catch-all for panics. This will log the error, and the call trace to
-// the debug log (see Config.Debugger), or os.Stdout if Config.Debugger is
-// unset.
+// catch-all for panics. This will log the error, and the call trace to the
+// debug log (see Config.Debug), or os.Stdout if Config.Debug is unset.
 func DefaultRecoverHandler(client *Client, err *HandlerError) {
-	if client.Config.Debugger == nil {
+	if client.Config.Debug == nil {
 		fmt.Println(err.Error())
 		fmt.Println(err.String())
 		return
