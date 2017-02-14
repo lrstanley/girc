@@ -249,6 +249,26 @@ func (e *Event) String() string {
 // an event prettier, but also to filter out events that most don't visually
 // see in normal IRC clients. e.g. most clients don't show WHO queries.
 func (e *Event) Pretty() (out string, ok bool) {
+	if e.Sensitive {
+		return "", false
+	}
+
+	if e.Source == nil {
+		if e.Command != PRIVMSG && e.Command != NOTICE {
+			return "", false
+		}
+
+		if len(e.Params) > 0 && len(e.Trailing) > 0 {
+			return fmt.Sprintf("[>] writing %s [%s]: %s", strings.ToLower(e.Command), strings.Join(e.Params, ", "), e.Trailing), true
+		} else if len(e.Params) > 0 {
+			return fmt.Sprintf("[>] writing %s [%s]", strings.ToLower(e.Command), strings.Join(e.Params, ", ")), true
+		} else if len(e.Trailing) > 0 {
+			return fmt.Sprintf("[>] writing %s: %s", strings.ToLower(e.Command), e.Trailing), true
+		}
+
+		return "", false
+	}
+
 	if e.Command == INITIALIZED {
 		return fmt.Sprintf("[*] connection to %s initialized", e.Trailing), true
 	}
