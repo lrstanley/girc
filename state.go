@@ -178,7 +178,7 @@ func (c *Channel) NickList() []string {
 	out := make([]string, len(c.users))
 
 	var index int
-	for k, _ := range c.users {
+	for k := range c.users {
 		out[index] = k
 
 		index++
@@ -192,16 +192,18 @@ func (c *Channel) Len() int {
 	return len(c.users)
 }
 
-func (c *Channel) Lookup(nick string) (user *User, ok bool) {
+// Lookup looks up a user in a channel based on a given nickname. If the
+// user wasn't found, user is nil.
+func (c *Channel) Lookup(nick string) (user *User) {
 	for k, v := range c.users {
 		if strings.ToLower(k) == strings.ToLower(nick) {
 			// No need to have a copy, as if one has access to a channel,
 			// should already have a full copy.
-			return v, true
+			return v
 		}
 	}
 
-	return nil, false
+	return nil
 }
 
 // Message returns an event which can be used to send a response to the channel.
