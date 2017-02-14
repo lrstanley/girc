@@ -311,12 +311,10 @@ func (c *Client) Reconnect() error {
 }
 
 func (c *Client) disconnectHandler() {
-	c.cmux.Lock()
 	err := c.reconnect(false)
 	if err != nil && c.Config.HandleError != nil {
 		c.Config.HandleError(err)
 	}
-	c.cmux.Unlock()
 }
 
 // readLoop sets a timeout of 300 seconds, and then attempts to read from the
