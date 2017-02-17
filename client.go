@@ -437,11 +437,11 @@ func (c *Client) Channels() []string {
 
 // Lookup looks up a given channel in state. If the channel doesn't exist,
 // channel is nil.
-func (c *Client) Lookup(name string) (channel *Channel) {
+func (c *Client) Lookup(name string) *Channel {
 	c.state.mu.Lock()
 	defer c.state.mu.Unlock()
 
-	channel = c.state.lookupChannel(name)
+	channel := c.state.lookupChannel(name)
 	if channel == nil {
 		return nil
 	}

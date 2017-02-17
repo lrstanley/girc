@@ -194,7 +194,7 @@ func (c *Channel) Len() int {
 
 // Lookup looks up a user in a channel based on a given nickname. If the
 // user wasn't found, user is nil.
-func (c *Channel) Lookup(nick string) (user *User) {
+func (c *Channel) Lookup(nick string) *User {
 	for k, v := range c.users {
 		if strings.ToLower(k) == strings.ToLower(nick) {
 			// No need to have a copy, as if one has access to a channel,
