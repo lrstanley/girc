@@ -177,6 +177,8 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 				stack = append(stack, execStack{c.internal[command][cuid], cuid})
 			}
 		}
+	} else {
+		c.debug.Printf("not executing internal callbacks for event %s, due to event not having a source", command)
 	}
 
 	// Aaand then external handlers.
@@ -244,7 +246,7 @@ func (c *Caller) Clear(cmd string) {
 	}
 	c.mu.Unlock()
 
-	c.debug.Printf("cleared external handlers for %q", cmd)
+	c.debug.Printf("cleared external handlers for %s", cmd)
 }
 
 // Remove removes the handler with cuid from the handler stack. success
@@ -277,8 +279,7 @@ func (c *Caller) remove(cuid string) (success bool) {
 	}
 
 	delete(c.external[cmd], uid)
-
-	c.debug.Printf("removed handler %q", cuid)
+	c.debug.Printf("removed handler %s", cuid)
 
 	// Assume success.
 	return true
@@ -345,12 +346,64 @@ func (c *Caller) AddBg(cmd string, handler func(client *Client, event Event)) (c
 		go func() {
 			// If they want to catch any panics, add to defer stack.
 			if client.Config.RecoverFunc != nil {
-				defer recoverHandlerPanic(client, &event, "unknown-goroutine", 3)
+				defer recoverHandlerPanic(client, &event, "goroutine", 3)
 			}
 
 			handler(client, event)
 		}()
 	}))
+}
+
+// AddTmp adds a "temporary" handler, which is good for one-time or few-time
+// uses. This supports a deadline and/or manual removal, as this differs
+// much from how normal handlers work. An example of a good use for this
+// would be to capture the entire output of a multi-response query to the
+// server. (e.g. LIST, WHOIS, etc)
+//
+// The supplied handler is able to return a boolean, which if true, will
+// remove the handler from the handler stack.
+//
+// Additionally, AddTmp has a useful option, deadline. When set to greater
+// than 0, deadline will be the amount of time that passes before the handler
+// is removed from the stack, regardless if the handler returns true or not.
+// This is useful in that it ensures that the handler is cleaned up if the
+// server does not respond appropriately, or takes too long to respond.
+//
+// Note that handlers supplied with AddTmp are executed in a goroutine to
+// ensure that they are not blocking other handlers. Additionally, use cuid
+// with Caller.Remove() to prematurely remove the handler from the stack,
+// bypassing the timeout or waiting for the handler to return that it wants
+// to be removed from the stack.
+func (c *Caller) AddTmp(cmd string, deadline time.Duration, handler func(client *Client, event Event) bool) (cuid string) {
+	var uid string
+	cuid, uid = c.cuid(cmd, 20)
+
+	c.mu.Lock()
+	c.external[cmd][uid] = HandlerFunc(func(client *Client, event Event) {
+		// Setting up background-based handlers this way allows us to get
+		// clean call stacks for use with panic recovery.
+		go func() {
+			// If they want to catch any panics, add to defer stack.
+			if client.Config.RecoverFunc != nil {
+				defer recoverHandlerPanic(client, &event, "tmp-goroutine", 3)
+			}
+
+			remove := handler(client, event)
+			if remove {
+				c.Remove(cuid)
+			}
+		}()
+	})
+	c.mu.Unlock()
+
+	if deadline > 0 {
+		go func() {
+			<-time.After(deadline)
+			c.Remove(cuid)
+		}()
+	}
+
+	return cuid
 }
 
 // recoverHandlerPanic is used to catch all handler panics, and re-route
@@ -399,7 +452,7 @@ type HandlerError struct {
 // line, and basic error string.
 func (e *HandlerError) Error() string {
 	if e.callOk {
-		return fmt.Sprintf("panic during handler [%s] execution in %s (line %d): %s", e.ID, e.File, e.Line, e.Panic)
+		return fmt.Sprintf("panic during handler [%s] execution in %s:%d: %s", e.ID, e.File, e.Line, e.Panic)
 	}
 
 	return fmt.Sprintf("panic during handler [%s] execution in unknown: %s", e.ID, e.Panic)
