@@ -156,11 +156,6 @@ type Config struct {
 	// disableTracking disables all channel and user-level tracking. Useful
 	// for highly embedded scripts with single purposes.
 	disableTracking bool
-	// disableCapTracking disables all network/server capability tracking.
-	// This includes determining what feature the IRC server supports, what
-	// the "NETWORK=" variables are, and other useful stuff. disableTracking
-	// cannot be enabled if you want to also tracking capabilities.
-	disableCapTracking bool
 	// HandleNickCollide when set, allows the client to handle nick collisions
 	// in a custom way. If unset, the client will attempt to append a
 	// underscore to the end of the nickname, in order to bypass using
@@ -333,24 +328,6 @@ func (c *Client) DisableTracking() {
 	c.state.mu.Lock()
 	c.state.channels = nil
 	c.state.mu.Unlock()
-	c.registerBuiltins()
-}
-
-// DisableCapTracking disables all network/server capability tracking, and
-// clears all internal handlers. This includes determining what feature the
-// IRC server supports, what the "NETWORK=" variables are, and other useful
-// stuff. DisableTracking() cannot be called if you want to also track
-// capabilities.
-func (c *Client) DisableCapTracking() {
-	// No need to mess with internal handlers. That should already be
-	// handled by the clear in Client.DisableTracking().
-	if c.Config.disableCapTracking {
-		return
-	}
-
-	c.debug.Print("disabling CAP tracking")
-	c.Config.disableCapTracking = true
-	c.Handlers.clearInternal()
 	c.registerBuiltins()
 }
 

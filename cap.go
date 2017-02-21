@@ -25,7 +25,7 @@ var possibleCap = map[string][]string{
 }
 
 func (c *Client) listCAP() {
-	if !c.Config.disableTracking && !c.Config.disableCapTracking {
+	if !c.Config.disableTracking {
 		c.write(&Event{Command: CAP, Params: []string{CAP_LS, "302"}})
 	}
 }

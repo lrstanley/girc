@@ -54,13 +54,11 @@ func (c *Client) registerBuiltins() {
 		c.Handlers.register(true, KICK, HandlerFunc(updateLastActive))
 
 		// CAP IRCv3-specific tracking and functionality.
-		if !c.Config.disableCapTracking {
-			c.Handlers.register(true, CAP, HandlerFunc(handleCAP))
-			c.Handlers.register(true, CAP_CHGHOST, HandlerFunc(handleCHGHOST))
-			c.Handlers.register(true, CAP_AWAY, HandlerFunc(handleAWAY))
-			c.Handlers.register(true, CAP_ACCOUNT, HandlerFunc(handleACCOUNT))
-			c.Handlers.register(true, ALLEVENTS, HandlerFunc(handleTags))
-		}
+		c.Handlers.register(true, CAP, HandlerFunc(handleCAP))
+		c.Handlers.register(true, CAP_CHGHOST, HandlerFunc(handleCHGHOST))
+		c.Handlers.register(true, CAP_AWAY, HandlerFunc(handleAWAY))
+		c.Handlers.register(true, CAP_ACCOUNT, HandlerFunc(handleACCOUNT))
+		c.Handlers.register(true, ALLEVENTS, HandlerFunc(handleTags))
 	}
 
 	// Nickname collisions.
