@@ -374,11 +374,16 @@ func (c *Caller) AddBg(cmd string, handler func(client *Client, event Event)) (c
 // with Caller.Remove() to prematurely remove the handler from the stack,
 // bypassing the timeout or waiting for the handler to return that it wants
 // to be removed from the stack.
-func (c *Caller) AddTmp(cmd string, deadline time.Duration, handler func(client *Client, event Event) bool) (cuid string) {
+func (c *Caller) AddTmp(cmd string, deadline time.Duration, handler func(client *Client, event Event) bool) (cuid string, done chan struct{}) {
 	var uid string
 	cuid, uid = c.cuid(cmd, 20)
 
+	done = make(chan struct{})
+
 	c.mu.Lock()
+	if _, ok := c.external[cmd]; !ok {
+		c.external[cmd] = map[string]Handler{}
+	}
 	c.external[cmd][uid] = HandlerFunc(func(client *Client, event Event) {
 		// Setting up background-based handlers this way allows us to get
 		// clean call stacks for use with panic recovery.
@@ -390,7 +395,9 @@ func (c *Caller) AddTmp(cmd string, deadline time.Duration, handler func(client 
 
 			remove := handler(client, event)
 			if remove {
-				c.Remove(cuid)
+				if ok := c.Remove(cuid); ok {
+					close(done)
+				}
 			}
 		}()
 	})
@@ -399,11 +406,13 @@ func (c *Caller) AddTmp(cmd string, deadline time.Duration, handler func(client 
 	if deadline > 0 {
 		go func() {
 			<-time.After(deadline)
-			c.Remove(cuid)
+			if ok := c.Remove(cuid); ok {
+				close(done)
+			}
 		}()
 	}
 
-	return cuid
+	return cuid, done
 }
 
 // recoverHandlerPanic is used to catch all handler panics, and re-route
