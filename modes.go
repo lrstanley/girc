@@ -253,8 +253,8 @@ func newCModes(channelModes, userPrefixes string) CModes {
 	}
 }
 
-// isValidChannelMode validates a channel mode (CHANMODES).
-func isValidChannelMode(raw string) bool {
+// IsValidChannelMode validates a channel mode (CHANMODES).
+func IsValidChannelMode(raw string) bool {
 	if len(raw) < 1 {
 		return false
 	}
@@ -363,7 +363,7 @@ func handleMODE(c *Client, e Event) {
 // chanModes returns the ISUPPORT list of server-supported channel modes,
 // alternatively falling back to ModeDefaults.
 func (s *state) chanModes() string {
-	if modes, ok := s.serverOptions["CHANMODES"]; ok && isValidChannelMode(modes) {
+	if modes, ok := s.serverOptions["CHANMODES"]; ok && IsValidChannelMode(modes) {
 		return modes
 	}
 
