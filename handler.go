@@ -146,9 +146,12 @@ func (c *Caller) cuid(cmd string, n int) (cuid, uid string) {
 // cuidToID allows easy mapping between a generated cuid and the caller
 // external/internal handler maps.
 func (c *Caller) cuidToID(input string) (cmd, uid string) {
-	// Ignore the errors because the strings will default to empty anyway.
-	_, _ = fmt.Sscanf(input, "%s:%s", &cmd, &uid)
-	return cmd, uid
+	i := strings.IndexByte(input, 0x3A)
+	if i < 0 {
+		return "", ""
+	}
+
+	return input[:i], input[i+1:]
 }
 
 type execStack struct {
