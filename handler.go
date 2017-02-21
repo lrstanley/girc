@@ -272,7 +272,7 @@ func (c *Caller) remove(cuid string) (success bool) {
 	}
 
 	// Check to see if it's actually a registered handler.
-	if _, ok := c.external[cmd][cuid]; !ok {
+	if _, ok := c.external[cmd][uid]; !ok {
 		return false
 	}
 
