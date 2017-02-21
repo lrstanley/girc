@@ -114,7 +114,7 @@ func handleJOIN(c *Client, e Event) {
 		return
 	}
 
-	// Create the user in state. 2This will also verify the channel.
+	// Create the user in state. This will also verify the channel.
 	c.state.mu.Lock()
 	user := c.state.createUserIfNotExists(e.Params[0], e.Source.Name)
 	c.state.mu.Unlock()
@@ -140,6 +140,13 @@ func handleJOIN(c *Client, e Event) {
 
 		// Also send a MODE to obtain the list of channel modes.
 		c.Send(&Event{Command: MODE, Params: []string{e.Params[0]}})
+
+		// Update our ident and host too, in state -- since there is no
+		// cleaner method to do this.
+		c.state.mu.Lock()
+		c.state.ident = e.Source.Ident
+		c.state.host = e.Source.Host
+		c.state.mu.Unlock()
 		return
 	}
 

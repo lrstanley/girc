@@ -11,6 +11,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -396,12 +397,11 @@ func (c *Client) IsConnected() (connected bool) {
 	return c.conn.connected
 }
 
-// GetNick returns the current nickname of the active connection. Returns
-// empty string if tracking is disabled.
-func (c *Client) GetNick() (nick string) {
-	if c.Config.disableTracking {
-		panic("GetNick() used when tracking is disabled")
-	}
+// GetNick returns the current nickname of the active connection. Panics if
+// tracking is disabled.
+func (c *Client) GetNick() string {
+	c.panicIfNotTracking()
+	var nick string
 
 	c.state.mu.RLock()
 	if c.state.nick == "" {
@@ -414,13 +414,46 @@ func (c *Client) GetNick() (nick string) {
 	return nick
 }
 
+// GetIdent returns the current ident of the active connection. Panics if
+// tracking is disabled. May be empty, as this is obtained from when we join
+// a channel, as there is no other more efficient method to return this info.
+func (c *Client) GetIdent() string {
+	c.panicIfNotTracking()
+	var ident string
+
+	c.state.mu.RLock()
+	if c.state.ident == "" {
+		ident = c.Config.Name
+	} else {
+		ident = c.state.ident
+	}
+	c.state.mu.RUnlock()
+
+	return ident
+}
+
+// GetHost returns the current host of the active connection. Panics if
+// tracking is disabled. May be empty, as this is obtained from when we join
+// a channel, as there is no other more efficient method to return this info.
+func (c *Client) GetHost() string {
+	c.panicIfNotTracking()
+	var host string
+
+	c.state.mu.RLock()
+	if c.state.host == "" {
+		host = c.Config.Name
+	} else {
+		host = c.state.host
+	}
+	c.state.mu.RUnlock()
+
+	return host
+}
+
 // Channels returns the active list of channels that the client is in.
 // Panics if tracking is disabled.
 func (c *Client) Channels() []string {
-	if c.Config.disableTracking {
-		panic("Channels() used when tracking is disabled")
-	}
-
+	c.panicIfNotTracking()
 	channels := make([]string, len(c.state.channels))
 
 	c.state.mu.RLock()
@@ -435,8 +468,9 @@ func (c *Client) Channels() []string {
 }
 
 // Lookup looks up a given channel in state. If the channel doesn't exist,
-// channel is nil.
+// channel is nil. Panics if tracking is disabled.
 func (c *Client) Lookup(name string) *Channel {
+	c.panicIfNotTracking()
 	c.state.mu.Lock()
 	defer c.state.mu.Unlock()
 
@@ -451,9 +485,7 @@ func (c *Client) Lookup(name string) *Channel {
 // IsInChannel returns true if the client is in channel. Panics if tracking
 // is disabled.
 func (c *Client) IsInChannel(channel string) bool {
-	if c.Config.disableTracking {
-		panic("Channels() used when tracking is disabled")
-	}
+	c.panicIfNotTracking()
 
 	c.state.mu.RLock()
 	_, inChannel := c.state.channels[strings.ToLower(channel)]
@@ -469,9 +501,7 @@ func (c *Client) IsInChannel(channel string) bool {
 //   nickLen, success := GetServerOption("MAXNICKLEN")
 //
 func (c *Client) GetServerOption(key string) (result string, ok bool) {
-	if c.Config.disableTracking {
-		panic("GetServerOption() used when tracking is disabled")
-	}
+	c.panicIfNotTracking()
 
 	c.state.mu.Lock()
 	result, ok = c.state.serverOptions[key]
@@ -484,9 +514,7 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 // as. May be empty if the server does not support RPL_MYINFO. Will panic if
 // used when tracking has been disabled.
 func (c *Client) ServerName() (name string) {
-	if c.Config.disableTracking {
-		panic("ServerName() used when tracking is disabled")
-	}
+	c.panicIfNotTracking()
 
 	name, _ = c.GetServerOption("SERVER")
 
@@ -497,9 +525,7 @@ func (c *Client) ServerName() (name string) {
 // May be empty if the server does not support RPL_ISUPPORT (or RPL_PROTOCTL).
 // Will panic if used when tracking has been disabled.
 func (c *Client) NetworkName() (name string) {
-	if c.Config.disableTracking {
-		panic("NetworkName() used when tracking is disabled")
-	}
+	c.panicIfNotTracking()
 
 	name, _ = c.GetServerOption("NETWORK")
 
@@ -511,9 +537,7 @@ func (c *Client) NetworkName() (name string) {
 // does not support RPL_MYINFO. Will panic if used when tracking has been
 // disabled.
 func (c *Client) ServerVersion() (version string) {
-	if c.Config.disableTracking {
-		panic("ServerVersion() used when tracking is disabled")
-	}
+	c.panicIfNotTracking()
 
 	version, _ = c.GetServerOption("VERSION")
 
@@ -523,9 +547,7 @@ func (c *Client) ServerVersion() (version string) {
 // ServerMOTD returns the servers message of the day, if the server has sent
 // it upon connect. Will panic if used when tracking has been disabled.
 func (c *Client) ServerMOTD() (motd string) {
-	if c.Config.disableTracking {
-		panic("ServerMOTD() used when tracking is disabled")
-	}
+	c.panicIfNotTracking()
 
 	c.state.mu.Lock()
 	motd = c.state.motd
@@ -544,4 +566,19 @@ func (c *Client) Lag() time.Duration {
 	}
 
 	return delta
+}
+
+// panicIfNotTracking will throw a panic when it's called, and tracking is
+// disabled. Adds useful info like what function specifically, and where it
+// was called from.
+func (c *Client) panicIfNotTracking() {
+	if !c.Config.disableTracking {
+		return
+	}
+
+	pc, _, _, _ := runtime.Caller(1)
+	fn := runtime.FuncForPC(pc)
+	_, file, line, _ := runtime.Caller(2)
+
+	panic(fmt.Sprintf("%s used when tracking is disabled (caller %s:%d)", fn.Name(), file, line))
 }

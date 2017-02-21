@@ -17,8 +17,8 @@ type state struct {
 	// m is a RW mutex lock, used to guard the state from goroutines causing
 	// corruption.
 	mu sync.RWMutex
-	// nick is the tracker for our nickname on the server.
-	nick string
+	// nick, ident, and host are the internal trackers for our user.
+	nick, ident, host string
 	// channels represents all channels we're active in.
 	channels map[string]*Channel
 	// enabledCap are the capabilities which are enabled for this connection.
