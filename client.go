@@ -65,22 +65,28 @@ type Client struct {
 
 // Config contains configuration options for an IRC client
 type Config struct {
-	// Server is a host/ip of the server you want to connect to.
+	// Server is a host/ip of the server you want to connect to. This only
+	// has an affect during the dial process
 	Server string
-	// Port is the port that will be used during server connection.
+	// Port is the port that will be used during server connection. This only
+	// has an affect during the dial process.
 	Port int
-	// Password is the server password used to authenticate.
+	// Password is the server password used to authenticate. This only has an
+	// affect during the dial process.
 	Password string
-	// Nick is an rfc-valid nickname used during connect.
+	// Nick is an rfc-valid nickname used during connection. This only has an
+	// affect during the dial process.
 	Nick string
-	// User is the username/ident to use on connect. Ignored if identd server
-	// is used.
+	// User is the username/ident to use on connect. Ignored if an identd
+	// server is used. This only has an affect during the dial process.
 	User string
-	// Name is the "realname" that's used during connect.
+	// Name is the "realname" that's used during connection. This only has an
+	// affect during the dial process.
 	Name string
 	// Proxy is a proxy based address, used during the dial process when
-	// connecting to the server. Currently, x/net/proxy only supports socks5,
-	// however you can add your own proxy functionality using:
+	// connecting to the server. This only has an affect during the dial
+	// process. Currently, x/net/proxy only supports socks5, however you can
+	// add your own proxy functionality using:
 	//    proxy.RegisterDialerType
 	//
 	// Examples of how Proxy may be used:
@@ -89,16 +95,19 @@ type Config struct {
 	//    customProxy://example.com:8000
 	//
 	Proxy string
-	// Bind is used to bind to a specific host or port during the dial
-	// process when connecting to the server. This can be a hostname, however
-	// it must resolve to an IPv4/IPv6 address bindable on your system.
-	// Otherwise, you can simply use a IPv4/IPv6 address directly.
+	// Bind is used to bind to a specific host or ip during the dial process
+	// when connecting to the server. This can be a hostname, however it must
+	// resolve to an IPv4/IPv6 address bindable on your system. Otherwise,
+	// you can simply use a IPv4/IPv6 address directly. This only has an
+	// affect during the dial process.
 	Bind string
-	// If we should connect via SSL. See TLSConfig to set your own TLS
-	// configuration.
+	// SSL allows dialing via TLS. See TLSConfig to set your own TLS
+	// configuration (e.g. to not force hostname checking). This only has an
+	// affect during the dial process.
 	SSL bool
 	// TLSConfig is an optional user-supplied tls configuration, used during
 	// socket creation to the server. SSL must be enabled for this to be used.
+	// This only has an affect during the dial process.
 	TLSConfig *tls.Config
 	// Retries is the number of times the client will attempt to reconnect
 	// to the server after the last disconnect.
@@ -133,9 +142,11 @@ type Config struct {
 	// reconnection. Defaults to 10s (minimum of 5s). This is ignored if
 	// Reconnect() is called directly.
 	ReconnectDelay time.Duration
-	// PingDelay is the frequency between when the client sends keel-alive
+	// PingDelay is the frequency between when the client sends keep-alive
 	// ping's to the server, and awaits a response (timing out if the server
-	// doesn't respond in time). This must be between 20-600 seconds.
+	// doesn't respond in time). This must be between 20-600 seconds. See
+	// Client.Lag() if you want to determine the delay between the server
+	// and the client.
 	PingDelay time.Duration
 	// HandleError if supplied, is called when one is disconnected from the
 	// server, with a given error.
@@ -146,14 +157,16 @@ type Config struct {
 	disableTracking bool
 	// disableCapTracking disables all network/server capability tracking.
 	// This includes determining what feature the IRC server supports, what
-	// the "NETWORK=" variables are, and other useful stuff. DisableTracking
+	// the "NETWORK=" variables are, and other useful stuff. disableTracking
 	// cannot be enabled if you want to also tracking capabilities.
 	disableCapTracking bool
-	// disableNickCollision disables the clients auto-response to nickname
-	// collisions. For example, if "test" is already in use, or is blocked by
-	// the network/a service, the client will try and use "test_", then it
-	// will attempt "test__", "test___", and so on.
-	disableNickCollision bool
+	// HandleNickCollide when set, allows the client to handle nick collisions
+	// in a custom way. If unset, the client will attempt to append a
+	// underscore to the end of the nickname, in order to bypass using
+	// an invalid nickname. For example, if "test" is already in use, or is
+	// blocked by the network/a service, the client will try and use "test_",
+	// then it will attempt "test__", "test___", and so on.
+	HandleNickCollide func(oldNick string) (newNick string)
 }
 
 // ErrNotConnected is returned if a method is used when the client isn't
@@ -337,20 +350,6 @@ func (c *Client) DisableCapTracking() {
 	c.debug.Print("disabling CAP tracking")
 	c.Config.disableCapTracking = true
 	c.Handlers.clearInternal()
-	c.registerBuiltins()
-}
-
-// DisableNickCollision disables the clients auto-response to nickname
-// collisions. For example, if "test" is already in use, or is blocked by the
-// network/a service, the client will try and use "test_", then it will
-// attempt "test__", "test___", and so on.
-func (c *Client) DisableNickCollision() {
-	c.debug.Print("disabling nick collision prevention")
-	c.Config.disableNickCollision = true
-	c.Handlers.clearInternal()
-	c.state.mu.Lock()
-	c.state.channels = nil
-	c.state.mu.Unlock()
 	c.registerBuiltins()
 }
 

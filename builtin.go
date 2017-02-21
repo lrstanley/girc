@@ -64,11 +64,9 @@ func (c *Client) registerBuiltins() {
 	}
 
 	// Nickname collisions.
-	if !c.Config.disableNickCollision {
-		c.Handlers.register(true, ERR_NICKNAMEINUSE, HandlerFunc(nickCollisionHandler))
-		c.Handlers.register(true, ERR_NICKCOLLISION, HandlerFunc(nickCollisionHandler))
-		c.Handlers.register(true, ERR_UNAVAILRESOURCE, HandlerFunc(nickCollisionHandler))
-	}
+	c.Handlers.register(true, ERR_NICKNAMEINUSE, HandlerFunc(nickCollisionHandler))
+	c.Handlers.register(true, ERR_NICKCOLLISION, HandlerFunc(nickCollisionHandler))
+	c.Handlers.register(true, ERR_UNAVAILRESOURCE, HandlerFunc(nickCollisionHandler))
 
 	c.Handlers.mu.Unlock()
 }
@@ -93,7 +91,12 @@ func handleConnect(c *Client, e Event) {
 // nickCollisionHandler helps prevent the client from having conflicting
 // nicknames with another bot, user, etc.
 func nickCollisionHandler(c *Client, e Event) {
-	c.Commands.Nick(c.GetNick() + "_")
+	if c.Config.HandleNickCollide == nil {
+		c.Commands.Nick(c.GetNick() + "_")
+		return
+	}
+
+	c.Commands.Nick(c.Config.HandleNickCollide(c.GetNick()))
 }
 
 // handlePING helps respond to ping requests from the server.
