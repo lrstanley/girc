@@ -149,10 +149,10 @@ func (c *CModes) hasArg(set bool, mode byte) (hasArgs, isSetting bool) {
 	return false, true
 }
 
-// apply merges two state changes, or one state change into a state of modes.
+// Apply merges two state changes, or one state change into a state of modes.
 // For example, the latter would mean applying an incoming MODE with the modes
 // stored for a channel.
-func (c *CModes) apply(modes []CMode) {
+func (c *CModes) Apply(modes []CMode) {
 	var new []CMode
 
 	for j := 0; j < len(c.modes); j++ {
@@ -194,9 +194,9 @@ func (c *CModes) apply(modes []CMode) {
 	c.modes = new
 }
 
-// parse parses a set of flags and args, returning the necessary list of
+// Parse parses a set of flags and args, returning the necessary list of
 // mappings for the mode flags.
-func (c *CModes) parse(flags string, args []string) (out []CMode) {
+func (c *CModes) Parse(flags string, args []string) (out []CMode) {
 	// add is the mode state we're currently in. Adding, or removing modes.
 	add := true
 	var argCount int
@@ -229,11 +229,11 @@ func (c *CModes) parse(flags string, args []string) (out []CMode) {
 	return out
 }
 
-// newCModes returns a new CModes reference. channelModes and userPrefixes
+// NewCModes returns a new CModes reference. channelModes and userPrefixes
 // would be something you see from the server's "CHANMODES" and "PREFIX"
 // ISUPPORT capability messages (alternatively, fall back to the standard)
 // DefaultPrefixes and ModeDefaults.
-func newCModes(channelModes, userPrefixes string) CModes {
+func NewCModes(channelModes, userPrefixes string) CModes {
 	split := strings.SplitN(channelModes, ",", 4)
 	if len(split) != 4 {
 		for i := len(split); i < 4; i++ {
@@ -342,8 +342,8 @@ func handleMODE(c *Client, e Event) {
 		args = append(args, e.Params[2:]...)
 	}
 
-	modes := channel.Modes.parse(flags, args)
-	channel.Modes.apply(modes)
+	modes := channel.Modes.Parse(flags, args)
+	channel.Modes.Apply(modes)
 
 	// Loop through and update users modes as necessary.
 	for i := 0; i < len(modes); i++ {

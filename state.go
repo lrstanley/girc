@@ -251,7 +251,7 @@ func (s *state) createChanIfNotExists(name string) (channel *Channel) {
 			Name:   name,
 			users:  make(map[string]*User),
 			Joined: time.Now(),
-			Modes:  newCModes(supported, prefixes),
+			Modes:  NewCModes(supported, prefixes),
 		}
 		s.channels[name] = channel
 	} else {
