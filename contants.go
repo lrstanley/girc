@@ -264,16 +264,18 @@ const (
 // IRCv3 commands and extensions :: http://ircv3.net/irc/
 const (
 	AUTHENTICATE = "AUTHENTICATE"
-	CAP          = "CAP"
-	CAP_ACK      = "ACK"
-	CAP_CLEAR    = "CLEAR"
-	CAP_END      = "END"
-	CAP_LIST     = "LIST"
-	CAP_LS       = "LS"
-	CAP_NAK      = "NAK"
-	CAP_REQ      = "REQ"
-	CAP_NEW      = "NEW"
-	CAP_DEL      = "DEL"
+	STARTTLS     = "STARTTLS"
+
+	CAP       = "CAP"
+	CAP_ACK   = "ACK"
+	CAP_CLEAR = "CLEAR"
+	CAP_END   = "END"
+	CAP_LIST  = "LIST"
+	CAP_LS    = "LS"
+	CAP_NAK   = "NAK"
+	CAP_REQ   = "REQ"
+	CAP_NEW   = "NEW"
+	CAP_DEL   = "DEL"
 
 	CAP_CHGHOST = "CHGHOST"
 	CAP_AWAY    = "AWAY"
@@ -291,6 +293,8 @@ const (
 	ERR_SASLABORTED = "906"
 	ERR_SASLALREADY = "907"
 	RPL_SASLMECHS   = "908"
+	RPL_STARTTLS    = "670"
+	ERR_STARTTLS    = "691"
 )
 
 // Numeric IRC event mapping :: RFC2812; section 5.3
