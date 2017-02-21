@@ -43,9 +43,12 @@ type ircConn struct {
 	// connTime is the time at which the client has connected to a server.
 	connTime *time.Time
 
-	// lastPing is the last successful time that we pinged the server and
-	// received a successful pong back.
+	// lastPing is the last time that we pinged the server.
 	lastPing time.Time
+	// lastPong is the last successful time that we pinged the server and
+	// received a successful pong back.
+	lastPong  time.Time
+	pingDelay time.Duration
 }
 
 // newConn sets up and returns a new connection to the server. This includes
@@ -423,10 +426,12 @@ func (c *Client) flushTx() {
 var ErrTimedOut = errors.New("timed out during ping to server")
 
 func (c *Client) pingLoop(ctx context.Context) {
+	c.conn.lastPing = time.Now()
+	c.conn.lastPong = time.Now()
+
 	// Delay for 30 seconds during connect to wait for the client to register
 	// and what not.
 	time.Sleep(20 * time.Second)
-	c.conn.lastPing = time.Now()
 
 	tick := time.NewTicker(c.Config.PingDelay)
 	defer tick.Stop()
@@ -436,13 +441,14 @@ func (c *Client) pingLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-tick.C:
-			if time.Since(c.conn.lastPing) > c.Config.PingDelay+(60*time.Second) {
+			if time.Since(c.conn.lastPong) > c.Config.PingDelay+(60*time.Second) {
 				// It's 60 seconds over what out ping delay is, connection
 				// has probably dropped.
 				c.disconnectHandler(ErrTimedOut)
 				return
 			}
 
+			c.conn.lastPing = time.Now()
 			c.Commands.Ping(fmt.Sprintf("%d", time.Now().UnixNano()))
 		}
 	}
