@@ -5,6 +5,7 @@
 package girc
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -214,4 +215,145 @@ func TestIsValidUser(t *testing.T) {
 			t.Errorf("%s: IsValidUser() = %v, want %v", tt.name, got, tt.want)
 		}
 	}
+}
+
+func TestToRFC1459(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+	}{
+		{"", ""},
+		{"a", "a"},
+		{"abcd", "abcd"},
+		{"AbcD", "abcd"},
+		{"!@#$%^&*()_+-=", "!@#$%~&*()_+-="},
+		{"Abcd[]", "abcd{}"},
+	}
+
+	for _, tt := range cases {
+		if got := ToRFC1459(tt.in); got != tt.want {
+			t.Errorf("ToRFC1459() = %q, want %q", got, tt.want)
+		}
+	}
+
+	return
+}
+
+func BenchmarkGlob(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		if !Glob("*quick*fox*dog", "The quick brown fox jumped over the lazy dog") {
+			b.Fatalf("should match")
+		}
+	}
+
+	return
+}
+
+func testGlobMatch(t *testing.T, subj, pattern string) {
+	if !Glob(subj, pattern) {
+		t.Fatalf("'%s' should match '%s'", pattern, subj)
+	}
+
+	return
+}
+
+func testGlobNoMatch(t *testing.T, subj, pattern string) {
+	if Glob(subj, pattern) {
+		t.Fatalf("'%s' should not match '%s'", pattern, subj)
+	}
+
+	return
+}
+
+func TestEmptyPattern(t *testing.T) {
+	testGlobMatch(t, "", "")
+	testGlobNoMatch(t, "test", "")
+
+	return
+}
+
+func TestEmptySubject(t *testing.T) {
+	cases := []string{
+		"",
+		"*",
+		"**",
+		"***",
+		"****************",
+		strings.Repeat("*", 1000000),
+	}
+
+	for _, pattern := range cases {
+		testGlobMatch(t, "", pattern)
+	}
+
+	cases = []string{
+		// No globs/non-glob characters.
+		"test",
+		"*test*",
+
+		// Trailing characters.
+		"*x",
+		"*****************x",
+		strings.Repeat("*", 1000000) + "x",
+
+		// Leading characters.
+		"x*",
+		"x*****************",
+		"x" + strings.Repeat("*", 1000000),
+
+		// Mixed leading/trailing characters.
+		"x*x",
+		"x****************x",
+		"x" + strings.Repeat("*", 1000000) + "x",
+	}
+
+	for _, pattern := range cases {
+		testGlobNoMatch(t, pattern, "")
+	}
+
+	return
+}
+
+func TestPatternWithoutGlobs(t *testing.T) {
+	testGlobMatch(t, "test", "test")
+
+	return
+}
+
+func TestGlob(t *testing.T) {
+	cases := []string{
+		"*test",           // Leading.
+		"this*",           // Trailing.
+		"this*test",       // Middle.
+		"*is *",           // String in between two.
+		"*is*a*",          // Lots.
+		"**test**",        // Double glob characters.
+		"**is**a***test*", // Varying number.
+		"* *",             // White space between.
+		"*",               // Lone.
+		"**********",      // Nothing but globs.
+		"*Ѿ*",             // Unicode.
+		"*is a ϗѾ *",      // Mixed ASCII/unicode.
+	}
+
+	for _, pattern := range cases {
+		testGlobMatch(t, "this is a ϗѾ test", pattern)
+	}
+
+	cases = []string{
+		"test*", // Implicit substring match.
+		"*is",   // Partial match.
+		"*no*",  // Globs without a match between them.
+		" ",     // Plain white space.
+		"* ",    // Trailing white space.
+		" *",    // Leading white space.
+		"*ʤ*",   // Non-matching unicode.
+	}
+
+	// Non-matches
+	for _, pattern := range cases {
+		testGlobNoMatch(t, "this is a test", pattern)
+	}
+
+	return
 }

@@ -232,3 +232,64 @@ func IsValidUser(name string) bool {
 
 	return true
 }
+
+// ToRFC1459 converts a string to the stripped down conversion within RFC
+// 1459. This will do things like replace an "A" with an "a", "[]" with "{}",
+// and so forth. Useful to compare two nicknames.
+func ToRFC1459(input string) (out string) {
+	for i := 0; i < len(input); i++ {
+		if input[i] >= 65 && input[i] <= 94 {
+			out += string(rune(input[i]) + 32)
+		} else {
+			out += string(input[i])
+		}
+	}
+
+	return out
+}
+
+const globChar = "*"
+
+// Glob will test a string pattern, potentially containing globs, against a
+// string. The glob character is *.
+func Glob(input, match string) bool {
+	// Empty pattern.
+	if match == "" {
+		return input == match
+	}
+
+	// If a glob, match all.
+	if match == globChar {
+		return true
+	}
+
+	parts := strings.Split(match, globChar)
+
+	if len(parts) == 1 {
+		// No globs, test for equality.
+		return input == match
+	}
+
+	leadingGlob, trailingGlob := strings.HasPrefix(match, globChar), strings.HasSuffix(match, globChar)
+	last := len(parts) - 1
+
+	// Check prefix first.
+	if !leadingGlob && !strings.HasPrefix(input, parts[0]) {
+		return false
+	}
+
+	// Check middle section.
+	for i := 1; i < last; i++ {
+		if !strings.Contains(input, parts[i]) {
+			return false
+		}
+
+		// Trim already-evaluated text from input during loop over match
+		// text.
+		idx := strings.Index(input, parts[i]) + len(parts[i])
+		input = input[idx:]
+	}
+
+	// Check suffix last.
+	return trailingGlob || strings.HasSuffix(input, parts[last])
+}
