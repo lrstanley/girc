@@ -168,6 +168,23 @@ type Config struct {
 	HandleNickCollide func(oldNick string) (newNick string)
 }
 
+// isValid checks some basic settings to ensure the config is valid.
+func (conf Config) isValid() error {
+	if conf.Server == "" {
+		return errors.New("invalid server specified")
+	}
+
+	if conf.Port < 21 || conf.Port > 65535 {
+		return errors.New("invalid port (21-65535)")
+	}
+
+	if !IsValidNick(conf.Nick) || !IsValidUser(conf.User) {
+		return errors.New("invalid nickname or user")
+	}
+
+	return nil
+}
+
 // ErrNotConnected is returned if a method is used when the client isn't
 // connected.
 var ErrNotConnected = errors.New("client is not connected to server")

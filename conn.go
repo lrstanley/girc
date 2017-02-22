@@ -51,17 +51,8 @@ type ircConn struct {
 // newConn sets up and returns a new connection to the server. This includes
 // setting up things like proxies, ssl/tls, and other misc. things.
 func newConn(conf Config, addr string) (*ircConn, error) {
-	// Sanity check a few options.
-	if conf.Server == "" {
-		return nil, errors.New("invalid server specified")
-	}
-
-	if conf.Port < 21 || conf.Port > 65535 {
-		return nil, errors.New("invalid port (21-65535)")
-	}
-
-	if !IsValidNick(conf.Nick) || !IsValidUser(conf.User) {
-		return nil, errors.New("invalid nickname or user")
+	if err := conf.isValid(); err != nil {
+		return nil, fmt.Errorf("invalid configuration: %s", err)
 	}
 
 	var conn net.Conn
