@@ -9,6 +9,15 @@ import (
 	"testing"
 )
 
+func mockEvent() *Event {
+	return &Event{
+		Source:   &Source{Name: "nick", Ident: "user", Host: "host.com"},
+		Command:  "PRIVMSG",
+		Params:   []string{"#channel"},
+		Trailing: "1 2 3",
+	}
+}
+
 func TestParseSource(t *testing.T) {
 	type args struct {
 		raw string
