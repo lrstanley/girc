@@ -208,7 +208,7 @@ func TestIsValidUser(t *testing.T) {
 		{name: "just tilde", args: args{name: "~"}, want: false},
 		{name: "special chars", args: args{name: "test-----"}, want: true},
 		{name: "special chars", args: args{name: "test-[]-"}, want: true},
-		{name: "special chars", args: args{name: "test-----"}, want: true},
+		{name: "special chars, invalid after first index", args: args{name: "t!--"}, want: false},
 	}
 	for _, tt := range tests {
 		if got := IsValidUser(tt.args.name); got != tt.want {
