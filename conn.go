@@ -190,10 +190,11 @@ func (c *Client) startTLSHandshake() {
 	})
 
 	// If for some reason the server has an error. This should never occur.
-	_, fail := c.Handlers.AddTmp(ERR_STARTTLS, 0, func(client *Client, e Event) bool {
+	fCuid, fail := c.Handlers.AddTmp(ERR_STARTTLS, 0, func(client *Client, e Event) bool {
 		c.debug.Print("unable to complete tls upgrade: server returned error")
 		return true
 	})
+	defer c.Handlers.Remove(fCuid)
 
 	// Send the request to see if we can handshake. Once a server that
 	// supports STARTTLS sees this, it should completely halt any other
