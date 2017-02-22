@@ -196,7 +196,7 @@ func (c *Channel) Len() int {
 // user wasn't found, user is nil.
 func (c *Channel) Lookup(nick string) *User {
 	for k, v := range c.users {
-		if strings.ToLower(k) == strings.ToLower(nick) {
+		if ToRFC1459(k) == ToRFC1459(nick) {
 			// No need to have a copy, as if one has access to a channel,
 			// should already have a full copy.
 			return v
@@ -367,22 +367,17 @@ func (s *state) lookupUsers(matchType, toMatch string) []*User {
 		for u := range s.channels[c].users {
 			switch matchType {
 			case "nick":
-				if s.channels[c].users[u].Nick == toMatch {
-					users = append(users, s.channels[c].users[u])
-					continue
-				}
-			case "name":
-				if s.channels[c].users[u].Extras.Name == toMatch {
+				if ToRFC1459(s.channels[c].users[u].Nick) == ToRFC1459(toMatch) {
 					users = append(users, s.channels[c].users[u])
 					continue
 				}
 			case "ident":
-				if s.channels[c].users[u].Ident == toMatch {
+				if ToRFC1459(s.channels[c].users[u].Ident) == ToRFC1459(toMatch) {
 					users = append(users, s.channels[c].users[u])
 					continue
 				}
 			case "account":
-				if s.channels[c].users[u].Extras.Account == toMatch {
+				if ToRFC1459(s.channels[c].users[u].Extras.Account) == ToRFC1459(toMatch) {
 					users = append(users, s.channels[c].users[u])
 					continue
 				}
