@@ -155,62 +155,6 @@ func tlsHandshake(conn net.Conn, conf *tls.Config, server string, validate bool)
 	return net.Conn(tlsConn), nil
 }
 
-func (c *Client) startTLSHandshake() {
-	if c.Config.Out != nil {
-		fmt.Fprintln(c.Config.Out, "[*] attempting to upgrade connection to SSL/TLS")
-	}
-
-	c.debug.Print("initiating STARTTLS handshake")
-	// Success -- the server supports STARTTLS, and it's awaiting our ACK
-	// and/or handshake before proceeding. Upgrade the connection, then
-	// let our first read with the new connection make the handshake for us.
-	_, done := c.Handlers.AddTmp(RPL_STARTTLS, 3*time.Second, func(client *Client, e Event) bool {
-		defer func() {
-			// Initiate a new readLoop, as the previous one gets closed upon
-			// receiving a RPL_STARTTLS.
-			var rctx context.Context
-			rctx, c.closeRead = context.WithCancel(context.Background())
-			go c.readLoop(rctx)
-		}()
-
-		tlsConn, err := tlsHandshake(c.conn.sock, c.Config.TLSConfig, c.Config.Server, false)
-		if err != nil {
-			c.debug.Printf("unable to complete tls upgrade: %s", err)
-			return true
-		}
-
-		c.conn.sock = tlsConn
-		c.conn.newReadWriter()
-
-		if c.Config.Out != nil {
-			fmt.Fprintln(c.Config.Out, "[*] successfully completed TLS/SSL handshake")
-		}
-		c.debug.Print("completed tls upgrade")
-		return true
-	})
-
-	// If for some reason the server has an error. This should never occur.
-	fCuid, fail := c.Handlers.AddTmp(ERR_STARTTLS, 0, func(client *Client, e Event) bool {
-		c.debug.Print("unable to complete tls upgrade: server returned error")
-		return true
-	})
-	defer c.Handlers.Remove(fCuid)
-
-	// Send the request to see if we can handshake. Once a server that
-	// supports STARTTLS sees this, it should completely halt any other
-	// commands/responses, other than success/fail, and should wait for the
-	// connection to be upgraded/the handshake to go through.
-	c.conn.encode(&Event{Command: STARTTLS})
-
-	// Wait for either a success, or fail. Whichever is first.
-	select {
-	case <-done:
-		return
-	case <-fail:
-		return
-	}
-}
-
 // Close closes the underlying socket.
 func (c *ircConn) Close() error {
 	return c.sock.Close()
@@ -248,14 +192,6 @@ func (c *Client) Connect() error {
 	go c.readLoop(rctx)
 	go c.pingLoop(pctx)
 	go c.sendLoop(sctx)
-
-	// Initiate a STARTTLS based handshake, to optionally upgrade the
-	// connection, without user interaction. Even though this has flaws (and
-	// one should really explicitly use SSL: true, and TLSConfig), it would
-	// be better than plain text.
-	if !c.Config.SSL && !c.Config.DisableSTARTTLS {
-		c.startTLSHandshake()
-	}
 
 	// Send a virtual event allowing hooks for successful socket connection.
 	c.RunHandlers(&Event{Command: INITIALIZED, Trailing: c.Server()})
@@ -373,17 +309,6 @@ func (c *Client) readLoop(ctx context.Context) {
 			}
 
 			c.rx <- event
-
-			// Why do we do this? -- If we let readLoop continue to try and
-			// read from the current socket, it may not pause long enough
-			// to start reading from the upgraded socket. In short, once we
-			// confirmed from the server that we can upgrade via STARTTLS,
-			// stop reading, upgrade, then let the STARTTLS process initiate
-			// a new readLoop.
-			if event.Command == RPL_STARTTLS && !c.Config.DisableSTARTTLS {
-				c.debug.Print("exiting readLoop due to STARTTLS")
-				return
-			}
 		}
 	}
 }

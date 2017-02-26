@@ -110,9 +110,6 @@ type Config struct {
 	// socket creation to the server. SSL must be enabled for this to be used.
 	// This only has an affect during the dial process.
 	TLSConfig *tls.Config
-	// DisableSTARTTLS disables the auto-negotiation and upgrade to TLS/SSL
-	// if the server states that it is supported.
-	DisableSTARTTLS bool
 	// Retries is the number of times the client will attempt to reconnect
 	// to the server after the last disconnect.
 	Retries int
