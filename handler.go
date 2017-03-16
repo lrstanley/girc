@@ -169,16 +169,11 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 	var stack []execStack
 
 	c.mu.RLock()
-	// Get internal handlers first, if Event.Source is defined. If it isn't,
-	// it's a user-defined event, or one which exec() shouldn't be handling.
-	if event.Source != nil {
-		if _, ok := c.internal[command]; ok {
-			for cuid := range c.internal[command] {
-				stack = append(stack, execStack{c.internal[command][cuid], cuid})
-			}
+	// Get internal handlers first.
+	if _, ok := c.internal[command]; ok {
+		for cuid := range c.internal[command] {
+			stack = append(stack, execStack{c.internal[command][cuid], cuid})
 		}
-	} else {
-		c.debug.Printf("not executing internal callbacks for event %s, due to event not having a source", command)
 	}
 
 	// Aaand then external handlers.

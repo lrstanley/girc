@@ -108,6 +108,10 @@ func handlePONG(c *Client, e Event) {
 
 // handleJOIN ensures that the state has updated users and channels.
 func handleJOIN(c *Client, e Event) {
+	if e.Source == nil {
+		return
+	}
+
 	if len(e.Params) < 1 {
 		return
 	}
@@ -154,6 +158,10 @@ func handleJOIN(c *Client, e Event) {
 
 // handlePART ensures that the state is clean of old user and channel entries.
 func handlePART(c *Client, e Event) {
+	if e.Source == nil {
+		return
+	}
+
 	if len(e.Params) == 0 {
 		return
 	}
@@ -260,6 +268,10 @@ func handleKICK(c *Client, e Event) {
 // handleNICK ensures that users are renamed in state, or the client name is
 // up to date.
 func handleNICK(c *Client, e Event) {
+	if e.Source == nil {
+		return
+	}
+
 	c.state.mu.Lock()
 	// renameUser updates the LastActive time automatically.
 	if len(e.Params) == 1 {
@@ -272,6 +284,10 @@ func handleNICK(c *Client, e Event) {
 
 // handleQUIT handles users that are quitting from the network.
 func handleQUIT(c *Client, e Event) {
+	if e.Source == nil {
+		return
+	}
+
 	c.state.mu.Lock()
 	c.state.deleteUser(e.Source.Name)
 	c.state.mu.Unlock()
@@ -411,6 +427,10 @@ func handleNAMES(c *Client, e Event) {
 // a KICK where we know they are active, as they just kicked another user,
 // even though they may not be talking.
 func updateLastActive(c *Client, e Event) {
+	if e.Source == nil {
+		return
+	}
+
 	c.state.mu.Lock()
 	// Update the users last active time, if they exist.
 	users := c.state.lookupUsers("nick", e.Source.Name)
