@@ -28,7 +28,7 @@ func Example_bare() {
 		Port:        6667,
 		Nick:        "test",
 		User:        "user",
-		Debug:       os.Stdout,
+		Out:         os.Stdout,
 		HandleError: errHandler,
 	})
 
@@ -45,6 +45,7 @@ func Example_simple() {
 		Nick:   "test",
 		User:   "user",
 		Name:   "Example bot",
+		Debug:  os.Stdout,
 	})
 
 	client.Handlers.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
@@ -54,18 +55,6 @@ func Example_simple() {
 	client.Handlers.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
 		if strings.Contains(e.Trailing, "hello") {
 			c.Commands.Message(e.Params[0], "hello world!")
-		}
-	})
-
-	// Log useful IRC events.
-	client.Handlers.Add(girc.ALLEVENTS, func(c *girc.Client, e girc.Event) {
-		// girc.Event.Pretty() returns true for events which are useful and
-		// that can be prettified. Use Event.String() to get the raw string
-		// for all events.
-		if pretty, ok := e.Pretty(); ok {
-			// The use of girc.StripRaw() is to get rid of any potential
-			// non-printable characters.
-			fmt.Println(girc.StripRaw(pretty))
 		}
 	})
 
