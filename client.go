@@ -15,8 +15,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 )
 
 // Client contains all of the information necessary to run a single IRC
@@ -43,11 +41,7 @@ type Client struct {
 
 	// conn is a net.Conn reference to the IRC server.
 	conn *ircConn
-	// tries represents the internal reconnect count to the IRC server.
-	tries int
-	// reconnecting is true if the client is reconnecting, used so multiple
-	// threads aren't trying to reconnect at the same time.
-	reconnecting bool
+
 	// cmux is the mux used for connections/disconnections from the server,
 	// so multiple threads aren't trying to connect at the same time, and
 	// vice versa.
@@ -55,13 +49,6 @@ type Client struct {
 
 	// debug is used if a writer is supplied for Client.Config.Debugger.
 	debug *log.Logger
-
-	// Below are functions used to close out goroutines opened by the client.
-	closeRead context.CancelFunc
-	closeSend context.CancelFunc
-	closeExec context.CancelFunc
-	closePing context.CancelFunc
-	closeLoop context.CancelFunc
 }
 
 // Config contains configuration options for an IRC client
@@ -110,9 +97,6 @@ type Config struct {
 	// socket creation to the server. SSL must be enabled for this to be used.
 	// This only has an affect during the dial process.
 	TLSConfig *tls.Config
-	// Retries is the number of times the client will attempt to reconnect
-	// to the server after the last disconnect.
-	Retries int
 	// AllowFlood allows the client to bypass the rate limit of outbound
 	// messages.
 	AllowFlood bool
@@ -139,19 +123,12 @@ type Config struct {
 	// response to a CTCP VERSION, if default CTCP replies have not been
 	// overwritten or a VERSION handler was already supplied.
 	Version string
-	// ReconnectDelay is the a duration of time to delay before attempting a
-	// reconnection. Defaults to 10s (minimum of 5s). This is ignored if
-	// Reconnect() is called directly.
-	ReconnectDelay time.Duration
 	// PingDelay is the frequency between when the client sends keep-alive
 	// ping's to the server, and awaits a response (timing out if the server
 	// doesn't respond in time). This must be between 20-600 seconds. See
 	// Client.Lag() if you want to determine the delay between the server
 	// and the client.
 	PingDelay time.Duration
-	// HandleError if supplied, is called when one is disconnected from the
-	// server, with a given error.
-	HandleError func(error)
 
 	// disableTracking disables all channel and user-level tracking. Useful
 	// for highly embedded scripts with single purposes.
@@ -246,90 +223,32 @@ func (c *Client) String() string {
 	}
 
 	return fmt.Sprintf(
-		"<Client init:%q handlers:%d connected:%t reconnecting:%t tries:%d>",
-		c.initTime.String(), c.Handlers.Len(), connected, c.reconnecting, c.tries,
+		"<Client init:%q handlers:%d connected:%t>", c.initTime.String(), c.Handlers.Len(), connected,
 	)
 }
 
-// cleanup is used to close out all threads used by the client, like read and
-// write loops.
-func (c *Client) cleanup(all bool) {
-	c.cmux.Lock()
-
-	// Close any connections they have open.
-	if c.conn != nil {
-		c.conn.Close()
-	}
-
-	c.flushTx()
-
-	if c.closeRead != nil {
-		c.closeRead()
-	}
-	if c.closeSend != nil {
-		c.closeSend()
-	}
-	if c.closeExec != nil {
-		c.closeExec()
-	}
-
-	if all {
-		if c.closeLoop != nil {
-			c.closeLoop()
-		}
-	}
-
-	c.cmux.Unlock()
-}
-
-// quit is the underlying wrapper to quit from the network and cleanup.
-func (c *Client) quit(sendMessage bool) {
-	if sendMessage {
-		c.Send(&Event{Command: QUIT, Trailing: "disconnecting..."})
-	}
-
-	c.RunHandlers(&Event{Command: DISCONNECTED, Trailing: c.Server()})
-	c.cleanup(false)
-}
-
-// Quit disconnects from the server.
-func (c *Client) Quit() {
-	c.quit(true)
-}
-
-// QuitWithMessage disconnects from the server with a given message.
-func (c *Client) QuitWithMessage(message string) {
-	c.Send(&Event{Command: QUIT, Trailing: message})
-	c.quit(false)
-}
-
-// Stop exits the clients main loop and any other goroutines created by
+// Close exits the clients main loop and any other goroutines created by
 // the client itself. This does not include handlers, as they will run for
-// any incoming events prior to when Stop() or Quit() was called, until the
+// any incoming events prior to when Close() or Quit() was called, until the
 // event queue is empty and execution has completed for those handlers. This
 // means that you are responsible to ensure that your handlers due not
 // execute forever. Use Client.Quit() first if you want to disconnect the
 // client from the server/connection gracefully.
-func (c *Client) Stop() {
-	c.quit(false)
+func (c *Client) Close(sendQuit bool) {
+	if sendQuit {
+		c.Send(&Event{Command: QUIT, Trailing: "closing"})
+	}
+
+	_ = c.conn.Close()
 	c.RunHandlers(&Event{Command: STOPPED, Trailing: c.Server()})
 }
 
-// Loop reads from the events channel and sends the events to be handled for
-// every message it receives.
-func (c *Client) Loop() {
-	var ctx context.Context
-	ctx, c.closeLoop = context.WithCancel(context.Background())
-
-	<-ctx.Done()
-}
-
-func (c *Client) execLoop(ctx context.Context) {
+func (c *Client) execLoop(done chan struct{}) {
 	for {
 		select {
 		case event := <-c.rx:
 			c.RunHandlers(event)
-		case <-ctx.Done():
+		case <-done:
 			return
 		}
 	}

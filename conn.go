@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"time"
 
-	"golang.org/x/net/context"
 	"golang.org/x/net/proxy"
 )
 
@@ -162,9 +161,6 @@ func (c *ircConn) Close() error {
 
 // Connect attempts to connect to the given IRC server
 func (c *Client) Connect() error {
-	// Clean up any old running stuff.
-	c.cleanup(false)
-
 	// We want to be the only one handling connects/disconnects right now.
 	c.cmux.Lock()
 
@@ -183,15 +179,15 @@ func (c *Client) Connect() error {
 	c.cmux.Unlock()
 
 	// Start read loop to process messages from the server.
-	var rctx, ectx, sctx, pctx context.Context
-	rctx, c.closeRead = context.WithCancel(context.Background())
-	ectx, c.closeExec = context.WithCancel(context.Background())
-	sctx, c.closeSend = context.WithCancel(context.Background())
-	pctx, c.closePing = context.WithCancel(context.Background())
-	go c.execLoop(ectx)
-	go c.readLoop(rctx)
-	go c.pingLoop(pctx)
-	go c.sendLoop(sctx)
+	errs := make(chan error, 4)
+	done := make(chan struct{}, 4)
+	defer close(errs)
+	defer close(done)
+
+	go c.execLoop(done)
+	go c.readLoop(errs, done)
+	go c.pingLoop(errs, done)
+	go c.sendLoop(errs, done)
 
 	// Send a virtual event allowing hooks for successful socket connection.
 	c.RunHandlers(&Event{Command: INITIALIZED, Trailing: c.Server()})
@@ -215,87 +211,18 @@ func (c *Client) Connect() error {
 	// support.
 	c.listCAP()
 
-	// Consider the connection a success at this point.
-	c.tries = 0
-	c.reconnecting = false
-
-	return nil
-}
-
-// reconnect is the internal wrapper for reconnecting to the IRC server (if
-// requested.)
-func (c *Client) reconnect(remoteInvoked bool) (err error) {
-	if c.reconnecting {
-		return nil
-	}
-	c.reconnecting = true
-	defer func() {
-		c.reconnecting = false
-	}()
-
-	c.cleanup(false)
-
-	if c.Config.ReconnectDelay < (5 * time.Second) {
-		c.Config.ReconnectDelay = 5 * time.Second
-	}
-
-	if c.Config.Retries < 1 && !remoteInvoked {
-		return ErrDisconnected
-	}
-
-	if !remoteInvoked {
-		// Delay so we're not slaughtering the server with a bunch of
-		// connections.
-		c.debug.Printf("reconnecting to %s in %s", c.Server(), c.Config.ReconnectDelay)
-		time.Sleep(c.Config.ReconnectDelay)
-	}
-
-	for err = c.Connect(); err != nil && c.tries < c.Config.Retries; c.tries++ {
-		c.debug.Printf("reconnecting to %s in %s (%d tries)", c.Server(), c.Config.ReconnectDelay, c.tries)
-		time.Sleep(c.Config.ReconnectDelay)
-	}
-
-	if err != nil {
-		// Too many errors at this point.
-		c.cleanup(false)
-	}
-
-	return err
-}
-
-// Reconnect checks to make sure we want to, and then attempts to reconnect
-// to the server. This will ignore the reconnect delay.
-func (c *Client) Reconnect() error {
-	return c.reconnect(true)
-}
-
-func (c *Client) disconnectHandler(err error) {
-	if err != nil {
-		c.debug.Println("disconnecting due to error: " + err.Error())
-	}
-
-	rerr := c.reconnect(false)
-	if rerr != nil {
-		c.debug.Println("error: " + rerr.Error())
-		if c.Config.HandleError != nil {
-			if c.Config.Retries < 1 {
-				c.Config.HandleError(err)
-			}
-
-			c.Config.HandleError(rerr)
-		}
-	}
+	return <-errs
 }
 
 // readLoop sets a timeout of 300 seconds, and then attempts to read from the
 // IRC server. If there is an error, it calls Reconnect.
-func (c *Client) readLoop(ctx context.Context) {
+func (c *Client) readLoop(errs chan error, done chan struct{}) {
 	var event *Event
 	var err error
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-done:
 			return
 		default:
 			// c.conn.sock.SetDeadline(time.Now().Add(300 * time.Second))
@@ -304,8 +231,7 @@ func (c *Client) readLoop(ctx context.Context) {
 				// Attempt a reconnect (if applicable). If it fails, send
 				// the error to c.Config.HandleError to be dealt with, if
 				// the handler exists.
-				c.disconnectHandler(err)
-				return
+				errs <- err
 			}
 
 			c.rx <- event
@@ -344,12 +270,12 @@ func (c *ircConn) rate(chars int) time.Duration {
 	return 0
 }
 
-func (c *Client) sendLoop(ctx context.Context) {
+func (c *Client) sendLoop(errs chan error, done chan struct{}) {
 	var err error
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-done:
 			return
 		case event := <-c.tx:
 			// Log the event.
@@ -376,7 +302,8 @@ func (c *Client) sendLoop(ctx context.Context) {
 			}
 
 			if err != nil {
-				c.disconnectHandler(err)
+				errs <- err
+				return
 			}
 		}
 	}
@@ -397,7 +324,7 @@ func (c *Client) flushTx() {
 // before receiving a PONG back.
 var ErrTimedOut = errors.New("timed out during ping to server")
 
-func (c *Client) pingLoop(ctx context.Context) {
+func (c *Client) pingLoop(errs chan error, done chan struct{}) {
 	c.conn.lastPing = time.Now()
 	c.conn.lastPong = time.Now()
 
@@ -410,13 +337,13 @@ func (c *Client) pingLoop(ctx context.Context) {
 
 	for {
 		select {
-		case <-ctx.Done():
+		case <-done:
 			return
 		case <-tick.C:
 			if time.Since(c.conn.lastPong) > c.Config.PingDelay+(60*time.Second) {
 				// It's 60 seconds over what out ping delay is, connection
 				// has probably dropped.
-				c.disconnectHandler(ErrTimedOut)
+				errs <- ErrTimedOut
 				return
 			}
 

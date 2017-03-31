@@ -5,7 +5,6 @@
 package girc_test
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -15,25 +14,15 @@ import (
 
 // The bare-minimum needed to get started with girc. Just connects and idles.
 func Example_bare() {
-	errHandler := func(err error) {
-		if err == nil {
-			return
-		}
-
-		log.Fatalf("error occurred: %s", err)
-	}
-
 	client := girc.New(girc.Config{
-		Server:      "irc.byteirc.org",
-		Port:        6667,
-		Nick:        "test",
-		User:        "user",
-		Out:         os.Stdout,
-		HandleError: errHandler,
+		Server: "irc.byteirc.org",
+		Port:   6667,
+		Nick:   "test",
+		User:   "user",
+		Debug:  os.Stdout,
 	})
 
-	errHandler(client.Connect())
-	client.Loop()
+	log.Fatal(client.Connect())
 }
 
 // Very simple example that connects, joins a channel, and responds to
@@ -58,11 +47,7 @@ func Example_simple() {
 		}
 	})
 
-	if err := client.Connect(); err != nil {
-		log.Fatalf("an error occurred while attempting to connect to %s: %s", client.Server(), err)
-	}
-
-	client.Loop()
+	log.Fatal(client.Connect())
 }
 
 // Another basic example, however with this, we add simple !<command>
@@ -74,6 +59,7 @@ func Example_commands() {
 		Nick:   "test",
 		User:   "user",
 		Name:   "Example bot",
+		Out:    os.Stdout,
 	})
 
 	client.Handlers.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
@@ -87,27 +73,12 @@ func Example_commands() {
 		}
 
 		if strings.HasPrefix(e.Trailing, "!stop") {
-			c.Quit()
-			c.Stop()
+			c.Close(true)
 			return
 		}
-
-		if strings.HasPrefix(e.Trailing, "!restart") {
-			go c.Reconnect()
-			return
-		}
-	})
-
-	// Log ALL events.
-	client.Handlers.Add(girc.ALLEVENTS, func(c *girc.Client, e girc.Event) {
-		// The use of girc.StripRaw() is to get rid of any potential
-		// non-printable characters.
-		fmt.Println(girc.StripRaw(e.String()))
 	})
 
 	if err := client.Connect(); err != nil {
 		log.Fatalf("an error occurred while attempting to connect to %s: %s", client.Server(), err)
 	}
-
-	client.Loop()
 }
