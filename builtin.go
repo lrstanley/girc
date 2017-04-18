@@ -78,7 +78,9 @@ func handleConnect(c *Client, e Event) {
 	// the one we supplied during connection, but some networks will rename
 	// users on connect.
 	if len(e.Params) > 0 {
+		c.state.mu.Lock()
 		c.state.nick = e.Params[0]
+		c.state.mu.Unlock()
 	}
 
 	time.Sleep(2 * time.Second)

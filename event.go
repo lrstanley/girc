@@ -125,17 +125,25 @@ func ParseEvent(raw string) (e *Event) {
 // functions/handlers edit the event without causing potential issues with
 // other handlers.
 func (e *Event) Copy() *Event {
-	newEvent := &Event{}
+	if e == nil {
+		return nil
+	}
 
-	*newEvent = *e
+	newEvent := &Event{
+		Command:       e.Command,
+		Trailing:      e.Trailing,
+		EmptyTrailing: e.EmptyTrailing,
+		Sensitive:     e.Sensitive,
+	}
 
 	// Copy Source field, as it's a pointer and needs to be dereferenced.
 	if e.Source != nil {
-		*newEvent.Source = *e.Source
+		newEvent.Source = e.Source.Copy()
 	}
 
 	// Copy Params in order to dereference as well.
 	if e.Params != nil {
+		newEvent.Params = make([]string, len(e.Params))
 		copy(newEvent.Params, e.Params)
 	}
 
@@ -420,6 +428,21 @@ type Source struct {
 	// Host is the hostname or IP address of the user/service. Is not accurate
 	// due to how IRC servers can spoof hostnames.
 	Host string
+}
+
+// Copy returns a deep copy of Source.
+func (s *Source) Copy() *Source {
+	if s == nil {
+		return nil
+	}
+
+	newSource := &Source{
+		Name:  s.Name,
+		Ident: s.Ident,
+		Host:  s.Host,
+	}
+
+	return newSource
 }
 
 // ParseSource takes a string and attempts to create a Source struct.
