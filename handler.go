@@ -190,7 +190,7 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 	c.wg.Add(len(stack))
 	for i := 0; i < len(stack); i++ {
 		go func(index int) {
-			c.debug.Printf("executing handler %s for event %s", stack[index].cuid, command)
+			c.debug.Printf("executing handler %s for event %s (%d of %d)", stack[index].cuid, command, index+1, len(stack))
 			start := time.Now()
 
 			// If they want to catch any panics, add to defer stack.
@@ -200,7 +200,7 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 
 			stack[index].Execute(client, *event)
 
-			c.debug.Printf("execution of %s took %s", stack[index].cuid, time.Since(start))
+			c.debug.Printf("execution of %s took %s (%d of %d)", stack[index].cuid, time.Since(start), index+1, len(stack))
 			c.wg.Done()
 		}(i)
 	}
@@ -313,7 +313,9 @@ func (c *Caller) register(internal bool, cmd string, handler Handler) (cuid stri
 		c.external[cmd][uid] = handler
 	}
 
-	c.debug.Printf("registering handler for %q with cuid %q (internal: %t)", cmd, cuid, internal)
+	_, file, line, _ := runtime.Caller(3)
+
+	c.debug.Printf("registering handler for %q with cuid %q (internal: %t) from: %s:%d", cmd, cuid, internal, file, line)
 
 	return cuid
 }
