@@ -261,9 +261,11 @@ func (c *Client) DisableTracking() {
 	c.debug.Print("disabling tracking")
 	c.Config.disableTracking = true
 	c.Handlers.clearInternal()
+
 	c.state.mu.Lock()
 	c.state.channels = nil
 	c.state.mu.Unlock()
+
 	c.registerBuiltins()
 }
 

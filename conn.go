@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"sync"
 	"time"
 
 	"golang.org/x/net/proxy"
@@ -28,17 +29,16 @@ type ircConn struct {
 	io   *bufio.ReadWriter
 	sock net.Conn
 
+	mu sync.RWMutex
 	// lastWrite is used ot keep track of when we last wrote to the server.
 	lastWrite time.Time
 	// writeDelay is used to keep track of rate limiting of events sent to
 	// the server.
 	writeDelay time.Duration
-
 	// connected is true if we're actively connected to a server.
 	connected bool
 	// connTime is the time at which the client has connected to a server.
 	connTime *time.Time
-
 	// lastPing is the last time that we pinged the server.
 	lastPing time.Time
 	// lastPong is the last successful time that we pinged the server and
@@ -259,10 +259,15 @@ func (c *Client) write(event *Event) {
 // as well as how many characters each event has.
 func (c *ircConn) rate(chars int) time.Duration {
 	_time := time.Second + ((time.Duration(chars) * time.Second) / 100)
+
+	c.mu.Lock()
 	if c.writeDelay += _time - time.Now().Sub(c.lastWrite); c.writeDelay < 0 {
 		c.writeDelay = 0
 	}
+	c.mu.Unlock()
 
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 	if c.writeDelay > (8 * time.Second) {
 		return _time
 	}
@@ -288,7 +293,9 @@ func (c *Client) sendLoop(errs chan error, done chan struct{}) {
 				}
 			}
 
+			c.conn.mu.Lock()
 			c.conn.lastWrite = time.Now()
+			c.conn.mu.Unlock()
 
 			// Write the raw line.
 			_, err = c.conn.io.Write(event.Bytes())
@@ -325,8 +332,10 @@ func (c *Client) flushTx() {
 var ErrTimedOut = errors.New("timed out during ping to server")
 
 func (c *Client) pingLoop(errs chan error, done chan struct{}) {
+	c.conn.mu.Lock()
 	c.conn.lastPing = time.Now()
 	c.conn.lastPong = time.Now()
+	c.conn.mu.Unlock()
 
 	// Delay for 30 seconds during connect to wait for the client to register
 	// and what not.
@@ -340,6 +349,8 @@ func (c *Client) pingLoop(errs chan error, done chan struct{}) {
 		case <-done:
 			return
 		case <-tick.C:
+			c.conn.mu.RLock()
+			defer c.conn.mu.RUnlock()
 			if time.Since(c.conn.lastPong) > c.Config.PingDelay+(60*time.Second) {
 				// It's 60 seconds over what out ping delay is, connection
 				// has probably dropped.
@@ -347,7 +358,9 @@ func (c *Client) pingLoop(errs chan error, done chan struct{}) {
 				return
 			}
 
+			c.conn.mu.Lock()
 			c.conn.lastPing = time.Now()
+			c.conn.mu.Unlock()
 			c.Commands.Ping(fmt.Sprintf("%d", time.Now().UnixNano()))
 		}
 	}
