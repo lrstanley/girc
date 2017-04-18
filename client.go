@@ -235,21 +235,29 @@ func (c *Client) String() string {
 // execute forever. Use Client.Quit() first if you want to disconnect the
 // client from the server/connection gracefully.
 func (c *Client) Close(sendQuit bool) {
+	c.RunHandlers(&Event{Command: STOPPED, Trailing: c.Server()})
 	if sendQuit {
 		c.Send(&Event{Command: QUIT, Trailing: "closing"})
+
+		// Give ourselves a bit of padding so we can let everyone know we're
+		// quitting.
+		time.Sleep(2 * time.Second)
 	}
 
 	_ = c.conn.Close()
-	c.RunHandlers(&Event{Command: STOPPED, Trailing: c.Server()})
 }
 
-func (c *Client) execLoop(done chan struct{}) {
+func (c *Client) execLoop(done chan struct{}, wg *sync.WaitGroup) {
+	c.debug.Print("starting execLoop")
+	defer c.debug.Print("closing execLoop")
+
 	for {
 		select {
+		case <-done:
+			wg.Done()
+			return
 		case event := <-c.rx:
 			c.RunHandlers(event)
-		case <-done:
-			return
 		}
 	}
 }
