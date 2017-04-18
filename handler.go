@@ -61,8 +61,6 @@ func (f HandlerFunc) Execute(client *Client, event Event) {
 type Caller struct {
 	// mu is the mutex that should be used when accessing handlers.
 	mu sync.RWMutex
-	// wg is the waitgroup which is used to execute all handlers concurrently.
-	wg sync.WaitGroup
 
 	// external/internal keys are of structure:
 	//   map[COMMAND][CUID]Handler
@@ -187,7 +185,8 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 	// Run all handlers concurrently across the same event. This should
 	// still help prevent mis-ordered events, while speeding up the
 	// execution speed.
-	c.wg.Add(len(stack))
+	var wg sync.WaitGroup
+	wg.Add(len(stack))
 	for i := 0; i < len(stack); i++ {
 		go func(index int) {
 			c.debug.Printf("executing handler %s for event %s (%d of %d)", stack[index].cuid, command, index+1, len(stack))
@@ -201,13 +200,13 @@ func (c *Caller) exec(command string, client *Client, event *Event) {
 			stack[index].Execute(client, *event)
 
 			c.debug.Printf("execution of %s took %s (%d of %d)", stack[index].cuid, time.Since(start), index+1, len(stack))
-			c.wg.Done()
+			wg.Done()
 		}(i)
 	}
 
 	// Wait for all of the handlers to complete. Not doing this may cause
 	// new events from becoming ahead of older handlers.
-	c.wg.Wait()
+	wg.Wait()
 }
 
 // ClearAll clears all external handlers currently setup within the client.
