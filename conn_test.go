@@ -7,6 +7,7 @@ package girc
 import (
 	"bufio"
 	"bytes"
+	"net"
 	"testing"
 	"time"
 )
@@ -118,5 +119,73 @@ func TestFlushTx(t *testing.T) {
 	c.flushTx()
 	if len(c.tx) > 0 {
 		t.Fatalf("flush failed too flush all events: %d remaining", len(c.tx))
+	}
+}
+
+func genMockConn() (client *Client, clientConn net.Conn, serverConn net.Conn) {
+	client = New(Config{
+		Server: "dummy.int",
+		Port:   6667,
+		Nick:   "test",
+		User:   "test",
+		Name:   "Testing123",
+		// Debug:  os.Stdout,
+	})
+
+	conn1, conn2 := net.Pipe()
+
+	return client, conn1, conn2
+}
+
+func TestConnect(t *testing.T) {
+	c, conn, server := genMockConn()
+	b := bufio.NewReader(conn)
+
+	defer conn.Close()
+	defer server.Close()
+
+	go c.MockConnect(server)
+	defer c.Close(false)
+
+	var counter int
+	var events []*Event
+
+	for {
+		counter++
+
+		if counter > 3 {
+			break
+		}
+
+		conn.SetReadDeadline(time.Now().Add(time.Second))
+		out, err := b.ReadString(byte('\n'))
+		if err != nil {
+			panic(err)
+		}
+
+		events = append(events, ParseEvent(out))
+	}
+
+	if len(events) < 3 {
+		t.Fatal("TestConnect returned less than 3 initial events during connect")
+	}
+
+	// The events should at least consist of:
+	// NICK test
+	// USER test +iw * :Testing123
+	// CAP LS 302
+
+	if events[0].Command != "NICK" || events[0].Params[0] != c.Config.Nick {
+		t.Fatalf("TestConnect: invalud nick command: %#v", events[0])
+	}
+
+	if events[1].Command != "USER" || events[1].Params[0] != c.Config.User || events[1].Trailing != c.Config.Name {
+		t.Fatalf("TestConnect: invalid user command: %#v", events[1])
+	}
+
+	if c.Config.disableTracking {
+		if events[1].Command != "CAP" || events[1].Params[0] != "LS" {
+			t.Fatalf("TestConnect: invalud cap command: %#v", events[1])
+		}
 	}
 }
