@@ -158,7 +158,10 @@ func (e *Event) Copy() *Event {
 	return newEvent
 }
 
-// Len calculates the length of the string representation of event.
+// Len calculates the length of the string representation of event. Note that
+// this will return the true length (even if longer than what IRC supports),
+// which may be useful if you are trying to check and see if a message is
+// too long, to trim it down yourself.
 func (e *Event) Len() (length int) {
 	if e.Tags != nil {
 		// Include tags and trailing space.
@@ -225,12 +228,7 @@ func (e *Event) Bytes() []byte {
 
 	// We need the limit the buffer length.
 	if buffer.Len() > (maxLength) {
-		if e.Tags != nil {
-			// regular message, max tag length, and the splitting space.
-			buffer.Truncate(maxLength + maxTagLength + 1)
-		} else {
-			buffer.Truncate(maxLength)
-		}
+		buffer.Truncate(maxLength)
 	}
 
 	out := buffer.Bytes()
