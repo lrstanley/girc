@@ -329,7 +329,7 @@ func (t Tags) Bytes() []byte {
 		}
 
 		// add the separator ";" between tags.
-		if current <= max {
+		if current < max-1 {
 			buffer.WriteByte(tagSeparator)
 		}
 
