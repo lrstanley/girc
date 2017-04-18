@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/lrstanley/girc"
 )
@@ -47,7 +48,13 @@ func Example_simple() {
 		}
 	})
 
-	log.Fatal(client.Connect())
+	// An example of how you would add reconnect logic.
+	for {
+		log.Printf("error: %s", client.Connect())
+
+		log.Println("reconnecting in 30 seconds...")
+		time.Sleep(30 * time.Second)
+	}
 }
 
 // Another basic example, however with this, we add simple !<command>
