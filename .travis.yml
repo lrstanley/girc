@@ -1,6 +1,6 @@
 language: go
 go:
-- 1.6
+- 1.7
 - 1.8
 - tip
 before_install:
@@ -9,7 +9,7 @@ before_install:
 script:
 - $HOME/gopath/bin/goveralls -service=travis-ci
 - $HOME/gopath/bin/golint -min_confidence 0.9 -set_exit_status
-- go test -v -race
+- go test -v -race -timeout 2m -count 3
 - go tool vet -v -all .
 branches:
   only:
