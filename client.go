@@ -56,12 +56,12 @@ type Config struct {
 	// Server is a host/ip of the server you want to connect to. This only
 	// has an affect during the dial process
 	Server string
+	// ServerPass is the server password used to authenticate. This only has
+	// an affect during the dial process.
+	ServerPass string
 	// Port is the port that will be used during server connection. This only
 	// has an affect during the dial process.
 	Port int
-	// Password is the server password used to authenticate. This only has an
-	// affect during the dial process.
-	Password string
 	// Nick is an rfc-valid nickname used during connection. This only has an
 	// affect during the dial process.
 	Nick string

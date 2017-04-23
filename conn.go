@@ -286,8 +286,8 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	c.RunHandlers(&Event{Command: INITIALIZED, Trailing: c.Server()})
 
 	// Passwords first.
-	if c.Config.Password != "" {
-		c.write(&Event{Command: PASS, Params: []string{c.Config.Password}})
+	if c.Config.ServerPass != "" {
+		c.write(&Event{Command: PASS, Params: []string{c.Config.ServerPass}})
 	}
 
 	// Then nickname.
