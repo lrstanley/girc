@@ -444,12 +444,12 @@ func recoverHandlerPanic(client *Client, event *Event, id string, skip int) {
 // applicable), filename, line in file where panic occurred, the call
 // trace, and original event.
 type HandlerError struct {
-	Event  Event
-	ID     string
-	File   string
-	Line   int
-	Panic  interface{}
-	Stack  []byte
+	Event  Event       // Event is the event that caused the error.
+	ID     string      // ID is the CUID of the handler.
+	File   string      // File is the file from where the panic originated.
+	Line   int         // Line number where panic originated.
+	Panic  interface{} // Panic is the error that was passed to panic().
+	Stack  []byte      // Stack is the call stack. Note you may have to skip 1 or 2 due to debug functions.
 	callOk bool
 }
 

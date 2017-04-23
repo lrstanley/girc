@@ -472,7 +472,7 @@ func (c *Client) pingLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 	c.conn.lastPong = time.Now()
 	c.conn.mu.Unlock()
 
-	// Delay for 30 seconds during connect to wait for the client to register
+	// Delay for 10 seconds during connect to wait for the client to register
 	// and what not.
 	time.Sleep(10 * time.Second)
 
