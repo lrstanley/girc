@@ -59,6 +59,15 @@ func (c *Client) registerBuiltins() {
 		c.Handlers.register(true, CAP_AWAY, HandlerFunc(handleAWAY))
 		c.Handlers.register(true, CAP_ACCOUNT, HandlerFunc(handleACCOUNT))
 		c.Handlers.register(true, ALLEVENTS, HandlerFunc(handleTags))
+
+		// SASL IRCv3 support.
+		c.Handlers.register(true, AUTHENTICATE, HandlerFunc(handleSASL))
+		c.Handlers.register(true, RPL_SASLSUCCESS, HandlerFunc(handleSASL))
+		c.Handlers.register(true, RPL_NICKLOCKED, HandlerFunc(handleSASLError))
+		c.Handlers.register(true, ERR_SASLFAIL, HandlerFunc(handleSASLError))
+		c.Handlers.register(true, ERR_SASLTOOLONG, HandlerFunc(handleSASLError))
+		c.Handlers.register(true, ERR_SASLABORTED, HandlerFunc(handleSASLError))
+		c.Handlers.register(true, RPL_SASLMECHS, HandlerFunc(handleSASLError))
 	}
 
 	// Nickname collisions.

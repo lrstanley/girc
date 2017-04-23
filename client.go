@@ -71,6 +71,9 @@ type Config struct {
 	// Name is the "realname" that's used during connection. This only has an
 	// affect during the dial process.
 	Name string
+	// SASL contains the necessary authentication data to authenticate
+	// with SASL. At this time, only PLAIN is supported.
+	SASL *SASLAuth
 	// Proxy is a proxy based address, used during the dial process when
 	// connecting to the server. This only has an affect during the dial
 	// process. Currently, x/net/proxy only supports socks5, however you can

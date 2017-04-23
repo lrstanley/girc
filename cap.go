@@ -6,6 +6,7 @@ package girc
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"strings"
@@ -33,6 +34,10 @@ func (c *Client) listCAP() {
 
 func possibleCapList(c *Client) map[string][]string {
 	out := make(map[string][]string)
+
+	if c.Config.SASL != nil {
+		out["sasl"] = nil
+	}
 
 	for k := range c.Config.SupportedCaps {
 		out[k] = c.Config.SupportedCaps[k]
@@ -150,12 +155,94 @@ func handleCAP(c *Client, e Event) {
 	if len(e.Params) == 2 && len(e.Trailing) > 1 && e.Params[1] == CAP_ACK {
 		c.state.mu.Lock()
 		c.state.enabledCap = strings.Split(e.Trailing, " ")
+
+		// Do we need to do sasl auth?
+		wantsSASL := false
+		for i := 0; i < len(c.state.enabledCap); i++ {
+			if c.state.enabledCap[i] == "sasl" {
+				wantsSASL = true
+				break
+			}
+		}
 		c.state.mu.Unlock()
+
+		if wantsSASL {
+			c.write(&Event{Command: AUTHENTICATE, Params: []string{"PLAIN"}})
+			// Don't "CAP END", since we want to authenticate.
+			return
+		}
 
 		// Let the server know that we're done.
 		c.write(&Event{Command: CAP, Params: []string{CAP_END}})
 		return
 	}
+}
+
+// SASLAuth contains the user and password needed for PLAIN SASL authentication.
+type SASLAuth struct {
+	User string // User is the username for SASL.
+	Pass string // Pass is the password for SASL.
+}
+
+func (sasl *SASLAuth) encode() (chunks []string) {
+	in := []byte(sasl.User)
+
+	in = append(in, 0x0)
+	in = append(in, []byte(sasl.User)...)
+	in = append(in, 0x0)
+	in = append(in, []byte(sasl.Pass)...)
+
+	out := base64.StdEncoding.EncodeToString(in)
+
+	for {
+		if len(out) > 400 {
+			chunks = append(chunks, out[0:399])
+			out = out[400:]
+			continue
+		}
+
+		if len(out) <= 400 {
+			chunks = append(chunks, out)
+			break
+		}
+	}
+
+	return chunks
+}
+
+func handleSASL(c *Client, e Event) {
+	if e.Command == RPL_SASLSUCCESS || e.Command == ERR_SASLALREADY {
+		// Let the server know that we're done.
+		c.write(&Event{Command: CAP, Params: []string{CAP_END}})
+		return
+	}
+
+	if len(e.Params) == 1 && e.Params[0] == "+" {
+		// Assume they want us to handle sending auth.
+		auth := c.Config.SASL.encode()
+
+		// Send in 400 byte chunks. If the last chuck is exactly 400 bytes,
+		// send a "AUTHENTICATE +" 0-byte response to let the server know
+		// that we're done.
+		for i := 0; i < len(auth); i++ {
+			c.write(&Event{Command: AUTHENTICATE, Params: []string{auth[i]}})
+
+			if i-1 == len(auth) && len(auth[i]) == 400 {
+				c.write(&Event{Command: AUTHENTICATE, Params: []string{"+"}})
+			}
+		}
+		return
+	}
+}
+
+func handleSASLError(c *Client, e Event) {
+	if c.Config.SASL != nil {
+		return
+	}
+
+	// This is supposed to panic. Per the IRCv3 spec, one must disconnect upon
+	// authentication error. Maybe though, just a QUIT would be better?
+	panic(fmt.Sprintf("unable to use SASL authentication: %s (%s)", e.Command, e.Trailing))
 }
 
 // handleCHGHOST handles incoming IRCv3 hostname change events. CHGHOST is
