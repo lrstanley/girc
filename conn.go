@@ -251,7 +251,7 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	c.cmux.Lock()
 
 	// Reset the state.
-	c.state = newState()
+	c.state.clean()
 
 	if mock == nil {
 		// Validate info, and actually make the connection.

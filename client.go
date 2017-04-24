@@ -207,7 +207,8 @@ func New(config Config) *Client {
 	c.Handlers = newCaller(c.debug)
 
 	// Give ourselves a new state.
-	c.state = newState()
+	c.state = &state{}
+	c.state.clean()
 
 	// Register builtin handlers.
 	c.registerBuiltins()

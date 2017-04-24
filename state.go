@@ -35,6 +35,18 @@ type state struct {
 	motd string
 }
 
+func (s *state) clean() {
+	s.mu.Lock()
+	s.nick = ""
+	s.ident = ""
+	s.host = ""
+	s.channels = make(map[string]*Channel)
+	s.serverOptions = make(map[string]string)
+	s.enabledCap = []string{}
+	s.motd = ""
+	s.mu.Unlock()
+}
+
 // User represents an IRC user and the state attached to them.
 type User struct {
 	// Nick is the users current nickname.
@@ -222,16 +234,6 @@ func (c *Channel) Messagef(format string, a ...interface{}) *Event {
 // joined the channel.
 func (c *Channel) Lifetime() time.Duration {
 	return time.Since(c.Joined)
-}
-
-// newState returns a clean client state.
-func newState() *state {
-	s := &state{}
-
-	s.channels = make(map[string]*Channel)
-	s.serverOptions = make(map[string]string)
-
-	return s
 }
 
 // createChanIfNotExists creates the channel in state, if not already done.
