@@ -5,6 +5,7 @@
 package girc_test
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -12,6 +13,19 @@ import (
 
 	"github.com/lrstanley/girc"
 )
+
+func ExampleNew() {
+	client := girc.New(girc.Config{
+		Server: "irc.byteirc.org",
+		Port:   6667,
+		Nick:   "test",
+		User:   "user",
+		SASL:   &girc.SASLAuth{User: "user1", Pass: "securepass1"},
+		Out:    os.Stdout,
+	})
+
+	log.Fatal(client.Connect())
+}
 
 // The bare-minimum needed to get started with girc. Just connects and idles.
 func Example_bare() {
@@ -88,4 +102,12 @@ func Example_commands() {
 	if err := client.Connect(); err != nil {
 		log.Fatalf("an error occurred while attempting to connect to %s: %s", client.Server(), err)
 	}
+}
+
+func ExampleGlob() {
+	fmt.Println(girc.Glob("The quick brown fox jumps over the lazy dog", "*brown fox*"))  // True.
+	fmt.Println(girc.Glob("The quick brown fox jumps over the lazy dog", "*yellow dog*")) // False.
+	// Output:
+	// true
+	// false
 }

@@ -184,7 +184,7 @@ type SASLAuth struct {
 	Pass string // Pass is the password for SASL.
 }
 
-func (sasl *SASLAuth) encode() (chunks []string) {
+func (sasl *SASLAuth) encode(chunkSize int) (chunks []string) {
 	in := []byte(sasl.User)
 
 	in = append(in, 0x0)
@@ -195,13 +195,13 @@ func (sasl *SASLAuth) encode() (chunks []string) {
 	out := base64.StdEncoding.EncodeToString(in)
 
 	for {
-		if len(out) > 400 {
-			chunks = append(chunks, out[0:399])
-			out = out[400:]
+		if len(out) > chunkSize {
+			chunks = append(chunks, out[0:chunkSize-1])
+			out = out[chunkSize:]
 			continue
 		}
 
-		if len(out) <= 400 {
+		if len(out) <= chunkSize {
 			chunks = append(chunks, out)
 			break
 		}
@@ -219,7 +219,7 @@ func handleSASL(c *Client, e Event) {
 
 	if len(e.Params) == 1 && e.Params[0] == "+" {
 		// Assume they want us to handle sending auth.
-		auth := c.Config.SASL.encode()
+		auth := c.Config.SASL.encode(400)
 
 		// Send in 400 byte chunks. If the last chuck is exactly 400 bytes,
 		// send a "AUTHENTICATE +" 0-byte response to let the server know
