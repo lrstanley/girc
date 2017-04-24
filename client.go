@@ -220,10 +220,7 @@ func New(config Config) *Client {
 
 // String returns a brief description of the current client state.
 func (c *Client) String() string {
-	var connected bool
-	if c.conn != nil {
-		connected = c.conn.connected
-	}
+	connected := c.IsConnected()
 
 	return fmt.Sprintf(
 		"<Client init:%q handlers:%d connected:%t>", c.initTime.String(), c.Handlers.Len(), connected,
@@ -298,7 +295,9 @@ func (c *Client) Uptime() (up *time.Time, err error) {
 		return nil, ErrNotConnected
 	}
 
+	c.conn.mu.Lock()
 	up = c.conn.connTime
+	c.conn.mu.Unlock()
 
 	return up, nil
 }
@@ -310,16 +309,25 @@ func (c *Client) ConnSince() (since *time.Duration, err error) {
 		return nil, ErrNotConnected
 	}
 
+	c.conn.mu.Lock()
 	timeSince := time.Since(*c.conn.connTime)
+	c.conn.mu.Unlock()
 
 	return &timeSince, nil
 }
 
 // IsConnected returns true if the client is connected to the server.
 func (c *Client) IsConnected() (connected bool) {
+	c.cmux.Lock()
 	if c.conn == nil {
+		c.cmux.Unlock()
 		return false
 	}
+	c.cmux.Unlock()
+
+	c.conn.mu.Lock()
+	defer c.conn.mu.Unlock()
+
 	return c.conn.connected
 }
 
@@ -476,7 +484,10 @@ func (c *Client) ServerMOTD() (motd string) {
 // determining the difference in time between when we ping the server, and
 // when we receive a pong.
 func (c *Client) Lag() time.Duration {
+	c.conn.mu.Lock()
 	delta := c.conn.lastPong.Sub(c.conn.lastPing)
+	c.conn.mu.Unlock()
+
 	if delta < 0 {
 		return 0
 	}
