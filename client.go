@@ -72,7 +72,8 @@ type Config struct {
 	// affect during the dial process.
 	Name string
 	// SASL contains the necessary authentication data to authenticate
-	// with SASL. At this time, only PLAIN is supported.
+	// with SASL. At this time, only PLAIN is supported. Capability tracking
+	// must be enabled for this to work, as this requires IRCv3 CAP handling.
 	SASL *SASLAuth
 	// Proxy is a proxy based address, used during the dial process when
 	// connecting to the server. This only has an affect during the dial
@@ -118,9 +119,8 @@ type Config struct {
 	// Debug is unset.
 	RecoverFunc func(c *Client, e *HandlerError)
 	// SupportedCaps are the IRCv3 capabilities you would like the client to
-	// support. Only use this if DisableTracking and DisableCapTracking are
-	// not enabled, otherwise you will need to handle CAP negotiation yourself.
-	// The keys value gets passed to the server if supported.
+	// support. Only use this if you have not called DisableTracking(). The
+	// keys value gets passed to the server if supported.
 	SupportedCaps map[string][]string
 	// Version is the application version information that will be used in
 	// response to a CTCP VERSION, if default CTCP replies have not been

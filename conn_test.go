@@ -129,7 +129,6 @@ func genMockConn() (client *Client, clientConn net.Conn, serverConn net.Conn) {
 		Nick:   "test",
 		User:   "test",
 		Name:   "Testing123",
-		// Debug:  os.Stdout,
 	})
 
 	conn1, conn2 := net.Pipe()
