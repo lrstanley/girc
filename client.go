@@ -327,17 +327,15 @@ func (c *Client) IsConnected() (connected bool) {
 // tracking is disabled.
 func (c *Client) GetNick() string {
 	c.panicIfNotTracking()
-	var nick string
 
 	c.state.mu.RLock()
-	if c.state.nick == "" {
-		nick = c.Config.Nick
-	} else {
-		nick = c.state.nick
-	}
-	c.state.mu.RUnlock()
+	defer c.state.mu.RUnlock()
 
-	return nick
+	if c.state.nick == "" {
+		return c.Config.Nick
+	}
+
+	return c.state.nick
 }
 
 // GetIdent returns the current ident of the active connection. Panics if
@@ -345,17 +343,15 @@ func (c *Client) GetNick() string {
 // a channel, as there is no other more efficient method to return this info.
 func (c *Client) GetIdent() string {
 	c.panicIfNotTracking()
-	var ident string
 
 	c.state.mu.RLock()
-	if c.state.ident == "" {
-		ident = c.Config.Name
-	} else {
-		ident = c.state.ident
-	}
-	c.state.mu.RUnlock()
+	defer c.state.mu.RUnlock()
 
-	return ident
+	if c.state.ident == "" {
+		return c.Config.User
+	}
+
+	return c.state.ident
 }
 
 // GetHost returns the current host of the active connection. Panics if
@@ -363,17 +359,11 @@ func (c *Client) GetIdent() string {
 // a channel, as there is no other more efficient method to return this info.
 func (c *Client) GetHost() string {
 	c.panicIfNotTracking()
-	var host string
 
 	c.state.mu.RLock()
-	if c.state.host == "" {
-		host = c.Config.Name
-	} else {
-		host = c.state.host
-	}
-	c.state.mu.RUnlock()
+	defer c.state.mu.RUnlock()
 
-	return host
+	return c.state.host
 }
 
 // Channels returns the active list of channels that the client is in.
