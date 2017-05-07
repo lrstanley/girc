@@ -279,6 +279,8 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	var ctx context.Context
 	ctx, c.stop = context.WithCancel(context.Background())
 
+	c.mu.Unlock()
+
 	// Start read loop to process messages from the server.
 	errs := make(chan error, 3)
 	done := make(chan struct{}, 4)
@@ -296,8 +298,6 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	} else {
 		go c.pingLoop(errs, done, &wg, 1*time.Second)
 	}
-
-	c.mu.Unlock()
 
 	// Send a virtual event allowing hooks for successful socket connection.
 	c.RunHandlers(&Event{Command: INITIALIZED, Trailing: c.Server()})
