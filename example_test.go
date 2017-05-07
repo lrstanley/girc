@@ -24,7 +24,9 @@ func ExampleNew() {
 		Out:    os.Stdout,
 	})
 
-	log.Fatal(client.Connect())
+	if err := client.Connect(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // The bare-minimum needed to get started with girc. Just connects and idles.
@@ -37,7 +39,9 @@ func Example_bare() {
 		Debug:  os.Stdout,
 	})
 
-	log.Fatal(client.Connect())
+	if err := client.Connect(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // Very simple example that connects, joins a channel, and responds to
@@ -60,14 +64,22 @@ func Example_simple() {
 		if strings.Contains(e.Trailing, "hello") {
 			c.Commands.Message(e.Params[0], "hello world!")
 		}
+
+		if strings.Contains(e.Trailing, "quit") {
+			c.Close()
+		}
 	})
 
 	// An example of how you would add reconnect logic.
 	for {
-		log.Printf("error: %s", client.Connect())
+		if err := client.Connect(); err != nil {
+			log.Printf("error: %s", err)
 
-		log.Println("reconnecting in 30 seconds...")
-		time.Sleep(30 * time.Second)
+			log.Println("reconnecting in 30 seconds...")
+			time.Sleep(30 * time.Second)
+		} else {
+			return
+		}
 	}
 }
 
