@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"net"
+	"sync"
 	"testing"
 	"time"
 )
@@ -194,14 +195,20 @@ func TestClose(t *testing.T) {
 	defer conn.Close()
 	defer server.Close()
 
+	var wg sync.WaitGroup
+
+	wg.Add(1)
 	go func() {
-		time.Sleep(1 * time.Second)
-		c.Close()
+		defer wg.Done()
+		if err := c.MockConnect(server); err != nil {
+			t.Fatalf("c.MockConnect() after c.Close() returned error but wanted nil: %s", err)
+		}
 	}()
 
-	if err := c.MockConnect(server); err != nil {
-		t.Fatalf("c.MockConnect() after c.Close() returned error but wanted nil: %s", err)
-	}
+	time.Sleep(3 * time.Second)
+	c.Close()
+
+	wg.Wait()
 }
 func TestClose2(t *testing.T) {
 	c, conn, server := genMockConn()
