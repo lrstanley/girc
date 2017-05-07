@@ -6,6 +6,7 @@ package girc
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -195,6 +196,10 @@ func (c *ircConn) Close() error {
 // will only return once all goroutines have been closed to ensure there are
 // no long-running routines becoming backed up. This also means that this
 // will wait for all non-background handlers to complete.
+//
+// If this returns nil, this means that the client requested to be closed
+// (e.g. Client.Close()). Connect will panic if called when the last call has
+// not completed.
 func (c *Client) Connect() error {
 	return c.internalConnect(nil)
 }
@@ -248,7 +253,11 @@ func (c *Client) MockConnect(conn net.Conn) error {
 
 func (c *Client) internalConnect(mock net.Conn) error {
 	// We want to be the only one handling connects/disconnects right now.
-	c.cmux.Lock()
+	c.mu.Lock()
+
+	if c.conn != nil {
+		panic("use of connect more than once")
+	}
 
 	// Reset the state.
 	c.state.clean()
@@ -258,7 +267,7 @@ func (c *Client) internalConnect(mock net.Conn) error {
 		c.debug.Printf("connecting to %s...", c.Server())
 		conn, err := newConn(c.Config, c.Server())
 		if err != nil {
-			c.cmux.Unlock()
+			c.mu.Unlock()
 			return err
 		}
 
@@ -267,7 +276,8 @@ func (c *Client) internalConnect(mock net.Conn) error {
 		c.conn = newMockConn(mock)
 	}
 
-	c.cmux.Unlock()
+	var ctx context.Context
+	ctx, c.stop = context.WithCancel(context.Background())
 
 	// Start read loop to process messages from the server.
 	errs := make(chan error, 3)
@@ -279,8 +289,15 @@ func (c *Client) internalConnect(mock net.Conn) error {
 
 	go c.execLoop(done, &wg)
 	go c.readLoop(errs, done, &wg)
-	go c.pingLoop(errs, done, &wg)
 	go c.sendLoop(errs, done, &wg)
+
+	if mock == nil {
+		go c.pingLoop(errs, done, &wg, 10*time.Second)
+	} else {
+		go c.pingLoop(errs, done, &wg, 1*time.Second)
+	}
+
+	c.mu.Unlock()
 
 	// Send a virtual event allowing hooks for successful socket connection.
 	c.RunHandlers(&Event{Command: INITIALIZED, Trailing: c.Server()})
@@ -305,26 +322,40 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	c.listCAP()
 
 	// Wait for the first error.
-	err := <-errs
+	var result error
+	select {
+	case err := <-errs:
+		c.debug.Print("received error, beginning clean up")
+		result = err
+	case <-ctx.Done():
+		c.debug.Print("received request to close, beginning clean up")
+	}
 
+	c.mu.Lock()
 	c.conn.mu.Lock()
 	c.conn.connected = false
 	c.conn.mu.Unlock()
+	c.mu.Unlock()
 
-	// Once we have our error, let all other functions know we're done.
+	// Once we have our error/result, let all other functions know we're done.
 	c.debug.Print("waiting for all routines to finish")
 	close(done)
+
 	// Wait for all goroutines to finish.
 	wg.Wait()
-
 	close(errs)
 
 	// Make sure that the connection is closed if not already.
-	c.cmux.Lock()
+	c.mu.Lock()
 	_ = c.conn.Close()
-	c.cmux.Unlock()
 
-	return err
+	// This helps ensure that the end user isn't improperly using the client
+	// more than once. If they want to do this, they should be using multiple
+	// clients, not multiple instances of Connect().
+	c.conn = nil
+	c.mu.Unlock()
+
+	return result
 }
 
 // readLoop sets a timeout of 300 seconds, and then attempts to read from the
@@ -463,7 +494,7 @@ type ErrTimedOut struct {
 
 func (ErrTimedOut) Error() string { return "timed out during ping to server" }
 
-func (c *Client) pingLoop(errs chan error, done chan struct{}, wg *sync.WaitGroup) {
+func (c *Client) pingLoop(errs chan error, done chan struct{}, wg *sync.WaitGroup, initDelay time.Duration) {
 	c.debug.Print("starting pingLoop")
 	defer c.debug.Print("closing pingLoop")
 
@@ -472,9 +503,8 @@ func (c *Client) pingLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 	c.conn.lastPong = time.Now()
 	c.conn.mu.Unlock()
 
-	// Delay for 10 seconds during connect to wait for the client to register
-	// and what not.
-	time.Sleep(10 * time.Second)
+	// Delay during connect to wait for the client to register and what not.
+	time.Sleep(initDelay)
 
 	tick := time.NewTicker(c.Config.PingDelay)
 	defer tick.Stop()

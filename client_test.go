@@ -59,7 +59,7 @@ func TestClientUptime(t *testing.T) {
 	defer server.Close()
 
 	go c.MockConnect(server)
-	defer c.Close(false)
+	defer c.Close()
 
 	time.Sleep(500 * time.Millisecond)
 
@@ -97,7 +97,7 @@ func TestClientGet(t *testing.T) {
 	defer server.Close()
 
 	go c.MockConnect(server)
-	defer c.Close(false)
+	defer c.Close()
 
 	time.Sleep(1 * time.Second)
 

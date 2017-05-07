@@ -94,7 +94,7 @@ func Example_commands() {
 		}
 
 		if strings.HasPrefix(e.Trailing, "!stop") {
-			c.Close(true)
+			c.Close()
 			return
 		}
 	})

@@ -5,6 +5,7 @@
 package girc
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -39,13 +40,20 @@ type Client struct {
 	// Commands contains various helper methods to interact with the server.
 	Commands *Commands
 
-	// conn is a net.Conn reference to the IRC server.
-	conn *ircConn
-
-	// cmux is the mux used for connections/disconnections from the server,
+	// mu is the mux used for connections/disconnections from the server,
 	// so multiple threads aren't trying to connect at the same time, and
 	// vice versa.
-	cmux sync.Mutex
+	mu sync.Mutex
+
+	// stop is used to communicate with Connect(), letting it know that the
+	// client wishes to cancel/close.
+	stop context.CancelFunc
+
+	// conn is a net.Conn reference to the IRC server. If this is nil, it is
+	// safe to assume that we're not connected. If this is not nil, this
+	// means we're either connected, connecting, or cleaning up. This should
+	// be guarded with Client.mu.
+	conn *ircConn
 
 	// debug is used if a writer is supplied for Client.Config.Debugger.
 	debug *log.Logger
@@ -228,23 +236,28 @@ func (c *Client) String() string {
 	)
 }
 
-// Close exits the clients main loop and any other goroutines created by
-// the client itself. This does not include handlers, as they will run for
-// any incoming events prior to when Close() or Quit() was called, until the
-// event queue is empty and execution has completed for those handlers. This
-// means that you are responsible to ensure that your handlers due not
-// execute forever. Use Client.Quit() first if you want to disconnect the
-// client from the server/connection gracefully.
-func (c *Client) Close(sendQuit bool) {
+// Close closes the network connection to the server, and sends a STOPPED
+// event. This should cause Connect() to return with nil. This should be
+// safe to call multiple times.
+func (c *Client) Close() {
 	c.RunHandlers(&Event{Command: STOPPED, Trailing: c.Server()})
-	if sendQuit {
-		c.Send(&Event{Command: QUIT, Trailing: "closing"})
 
-		// Give ourselves a bit of padding so we can let everyone know we're
-		// quitting.
-		time.Sleep(2 * time.Second)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.stop != nil {
+		c.debug.Print("requesting client to stop")
+		c.stop()
 	}
 
+	if c.conn == nil {
+		return
+	}
+
+	c.debug.Print("requesting client to close socket")
+
+	// Client.Connect() should do this on clean up, but they want this done
+	// immediately anyway.
 	_ = c.conn.Close()
 }
 
@@ -263,9 +276,9 @@ func (c *Client) execLoop(done chan struct{}, wg *sync.WaitGroup) {
 	}
 }
 
-// DisableTracking disables all channel and user-level tracking, and clears
+// DisableTracking disables all channel/user-level/CAP tracking, and clears
 // all internal handlers. Useful for highly embedded scripts with single
-// purposes. This cannot be un-done.
+// purposes. This cannot be un-done on a client.
 func (c *Client) DisableTracking() {
 	c.debug.Print("disabling tracking")
 	c.Config.disableTracking = true
@@ -319,12 +332,12 @@ func (c *Client) ConnSince() (since *time.Duration, err error) {
 
 // IsConnected returns true if the client is connected to the server.
 func (c *Client) IsConnected() (connected bool) {
-	c.cmux.Lock()
+	c.mu.Lock()
 	if c.conn == nil {
-		c.cmux.Unlock()
+		c.mu.Unlock()
 		return false
 	}
-	c.cmux.Unlock()
+	c.mu.Unlock()
 
 	c.conn.mu.Lock()
 	defer c.conn.mu.Unlock()

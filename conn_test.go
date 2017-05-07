@@ -144,7 +144,7 @@ func TestConnect(t *testing.T) {
 	defer server.Close()
 
 	go c.MockConnect(server)
-	defer c.Close(false)
+	defer c.Close()
 
 	var counter int
 	var events []*Event
@@ -187,4 +187,30 @@ func TestConnect(t *testing.T) {
 			t.Fatalf("TestConnect: invalud cap command: %#v", events[1])
 		}
 	}
+}
+
+func TestClose(t *testing.T) {
+	c, conn, server := genMockConn()
+	defer conn.Close()
+	defer server.Close()
+
+	go func() {
+		time.Sleep(1 * time.Second)
+		c.Close()
+	}()
+
+	if err := c.MockConnect(server); err != nil {
+		t.Fatalf("c.MockConnect() after c.Close() returned error but wanted nil: %s", err)
+	}
+}
+func TestClose2(t *testing.T) {
+	c, conn, server := genMockConn()
+	defer conn.Close()
+	defer server.Close()
+
+	// Just verifying it doesn't panic when called ahead of time.
+	c.Close()
+
+	// Aaaand when it is for some reason called multiple times.
+	c.Close()
 }
