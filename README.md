@@ -13,31 +13,26 @@
 **EXPECT BREAKING CHANGES TO OCCUR FREQUENTLY**. girc has **not hit version
 1.0.0 yet!**
 
-Changes are actively being made. At this time, most of the stateful parts of
-girc are not accessible, as well as other minor consistencies while things
-are still being flushed out. Not production ready! **_You've been warned!_**
+Changes are actively being made. At this time, you may notice minor consistencies
+while things are still being flushed out. Not production ready! **_You've been
+warned!_**
 
 ## Features
 
 - Focuses on simplicity, yet tries to still be flexible.
 - Only requires [standard library packages](https://godoc.org/github.com/lrstanley/girc?imports)
 - Event based triggering/responses (and CTCP too!).
-- Documentation is mostly on par.
+- Documentation is _mostly_ complete.
 - Full support for the IRCv3 spec.
 - Channel and user tracking. Easily find what users are in a channel, if a
-  user is away, or if they are authenticated.
+  user is away, or if they are authenticated (if the server supports it!)
 - Client state/capability tracking. Easy methods to access capability data.
 - Built-in support for things you would commmonly have to implement yourself.
   - Nick collision detection and prevention.
   - Event/message rate limiting.
   - Channel, nick, and user validation on connection methods.
   - CTCP handling and auto-responses.
-
-## TODO
-
-To review what is currently being worked on, or looked into, feel free to head
-over to the [project board](https://github.com/lrstanley/girc/projects/1) or
-the [issues list](https://github.com/lrstanley/girc/issues).
+  - And more!
 
 ## Installing
 
@@ -49,6 +44,12 @@ See [the examples](https://godoc.org/github.com/lrstanley/girc#example-package)
 within the documentation for real-world usecases.
 
 ## Contributing
+
+To review what is currently being worked on, or looked into, feel free to head
+over to the [project board](https://github.com/lrstanley/girc/projects/1) or
+the [issues list](https://github.com/lrstanley/girc/issues).
+
+----
 
 Below are a few guidelines if you would like to contribute. Keep the code
 clean, standardized, and much of the quality should match Golang's standard
