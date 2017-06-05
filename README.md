@@ -89,3 +89,13 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+## References
+
+   * [rfc1459: Internet Relay Chat Protocol](https://tools.ietf.org/html/rfc1459)
+   * [rfc2812: Internet Relay Chat: Client Protocol](https://tools.ietf.org/html/rfc2812)
+   * [rfc2813: Internet Relay Chat: Server Protocol](https://tools.ietf.org/html/rfc2813)
+   * [rfc7194: Default Port for Internet Relay Chat (IRC) via TLS/SSL](https://tools.ietf.org/html/rfc7194)
+   * [IRCv3: Specification Docs](http://ircv3.net/irc/)
+   * [IRCv3: Specification Repo](https://github.com/ircv3/ircv3-specifications)
+   * [IRCv3 Capability Registry](http://ircv3.net/registry.html)
