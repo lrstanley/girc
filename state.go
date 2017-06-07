@@ -5,7 +5,6 @@
 package girc
 
 import (
-	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -93,32 +92,6 @@ type User struct {
 		// server/tracking is disabled.
 		Away string
 	}
-}
-
-// Message returns an event which can be used to send a response to the user
-// as a private message.
-func (u *User) Message(message string) *Event {
-	return &Event{Command: PRIVMSG, Params: []string{u.Nick}, Trailing: message}
-}
-
-// Messagef returns an event which can be used to send a response to the user
-// as a private message. format is a printf format string, which a's
-// arbitrary arguments will be passed to.
-func (u *User) Messagef(format string, a ...interface{}) *Event {
-	return u.Message(fmt.Sprintf(format, a...))
-}
-
-// MessageTo returns an event which can be used to send a response to the
-// user in a channel as a private message.
-func (u *User) MessageTo(channel, message string) *Event {
-	return &Event{Command: PRIVMSG, Params: []string{u.Nick}, Trailing: channel + ": " + message}
-}
-
-// MessageTof returns an event which can be used to send a response to the
-// channel. format is a printf format string, which a's arbitrary arguments
-// will be passed to.
-func (u *User) MessageTof(channel, format string, a ...interface{}) *Event {
-	return u.MessageTo(channel, fmt.Sprintf(format, a...))
 }
 
 // Lifetime represents the amount of time that has passed since we have first
@@ -216,18 +189,6 @@ func (c *Channel) Lookup(nick string) *User {
 	}
 
 	return nil
-}
-
-// Message returns an event which can be used to send a response to the channel.
-func (c *Channel) Message(message string) *Event {
-	return &Event{Command: PRIVMSG, Params: []string{c.Name}, Trailing: message}
-}
-
-// Messagef returns an event which can be used to send a response to the
-// channel. format is a printf format string, which a's arbitrary arguments
-// will be passed to.
-func (c *Channel) Messagef(format string, a ...interface{}) *Event {
-	return c.Message(fmt.Sprintf(format, a...))
 }
 
 // Lifetime represents the amount of time that has passed since we have first
