@@ -140,6 +140,51 @@ func (cmd *Commands) Messagef(target, format string, a ...interface{}) error {
 	return cmd.Message(target, fmt.Sprintf(format, a...))
 }
 
+var ErrInvalidSource = errors.New("event has nil or invalid source address")
+
+// Reply sends a reply to channel or user, based on where the supplied event
+// originated from. See also ReplyTo().
+func (cmd *Commands) Reply(event Event, message string) error {
+	if event.Source == nil {
+		return ErrInvalidSource
+	}
+
+	if len(event.Params) > 0 && IsValidChannel(event.Params[0]) {
+		return cmd.Message(event.Params[0], message)
+	}
+
+	return cmd.Message(event.Source.Name, message)
+}
+
+// Replyf sends a reply to channel or user with a format string, based on
+// where the supplied event originated from. See also ReplyTof().
+func (cmd *Commands) Replyf(event Event, format string, a ...interface{}) error {
+	return cmd.Reply(event, fmt.Sprintf(format, a...))
+}
+
+// ReplyTo sends a reply to a channel or user, based on where the supplied
+// event originated from. ReplyTo(), when originating from a channel will
+// default to replying with "<user>, <message>". See also Reply().
+func (cmd *Commands) ReplyTo(event Event, message string) error {
+	if event.Source == nil {
+		return ErrInvalidSource
+	}
+
+	if len(event.Params) > 0 && IsValidChannel(event.Params[0]) {
+		return cmd.Message(event.Params[0], event.Source.Name+", "+message)
+	}
+
+	return cmd.Message(event.Source.Name, message)
+}
+
+// ReplyTof sends a reply to a channel or user with a format string, based
+// on where the supplied event originated from. ReplyTo(), when originating
+// from a channel will default to replying with "<user>, <message>". See
+// also Replyf().
+func (cmd *Commands) ReplyTof(event Event, format string, a ...interface{}) error {
+	return cmd.ReplyTo(event, fmt.Sprintf(format, a...))
+}
+
 // Action sends a PRIVMSG ACTION (/me) to target (either channel, service,
 // or user).
 func (cmd *Commands) Action(target, message string) error {
