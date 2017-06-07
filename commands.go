@@ -140,6 +140,9 @@ func (cmd *Commands) Messagef(target, format string, a ...interface{}) error {
 	return cmd.Message(target, fmt.Sprintf(format, a...))
 }
 
+// ErrInvalidSource is returned when a method needs to know the origin of an
+// event, however Event.Source is unknown (e.g. sent by the user, not the
+// server.)
 var ErrInvalidSource = errors.New("event has nil or invalid source address")
 
 // Reply sends a reply to channel or user, based on where the supplied event
