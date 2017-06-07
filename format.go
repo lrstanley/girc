@@ -40,13 +40,13 @@ var codes = []*ircFmtCode{
 	{aliases: []string{"ctcp"}, val: "\x01"}, // CTCP/ACTION delimiter.
 }
 
-// Format takes format strings like "{red}" and turns them into the resulting
+// Fmt takes format strings like "{red}" and turns them into the resulting
 // ASCII format/color codes for IRC.
 //
 // For example:
 //
-//   client.Message("#channel", Format("{red}{bold}Hello World{c}"))
-func Format(text string) string {
+//   client.Message("#channel", Fmt("{red}{bold}Hello World{c}"))
+func Fmt(text string) string {
 	for i := 0; i < len(codes); i++ {
 		for a := 0; a < len(codes[i].aliases); a++ {
 			text = strings.Replace(text, "{"+codes[i].aliases[a]+"}", codes[i].val, -1)
@@ -69,9 +69,9 @@ func Format(text string) string {
 	return text
 }
 
-// StripFormat strips all "{fmt}" formatting strings from the input text.
-// See Format() for more information.
-func StripFormat(text string) string {
+// TrimFmt strips all "{fmt}" formatting strings from the input text.
+// See Fmt() for more information.
+func TrimFmt(text string) string {
 	for i := 0; i < len(codes); i++ {
 		for a := 0; a < len(codes[i].aliases); a++ {
 			text = strings.Replace(text, "{"+codes[i].aliases[a]+"}", "", -1)

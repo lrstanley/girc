@@ -113,8 +113,8 @@ type Config struct {
 	// messages.
 	AllowFlood bool
 	// GlobalFormat enables passing through all events which have trailing
-	// text through the color Format() function, so you don't have to wrap
-	// every response in the Format() method.
+	// text through the color Fmt() function, so you don't have to wrap
+	// every response in the Fmt() method.
 	//
 	// Note that this only actually applies to PRIVMSG, NOTICE and TOPIC
 	// events, to ensure it doesn't clobber unwanted events.

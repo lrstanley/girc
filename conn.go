@@ -395,7 +395,7 @@ func (c *Client) Send(event *Event) {
 
 	if c.Config.GlobalFormat && event.Trailing != "" &&
 		(event.Command == PRIVMSG || event.Command == TOPIC || event.Command == NOTICE) {
-		event.Trailing = Format(event.Trailing)
+		event.Trailing = Fmt(event.Trailing)
 	}
 
 	c.write(event)

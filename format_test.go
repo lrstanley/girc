@@ -11,7 +11,7 @@ import (
 
 func BenchmarkFormat(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Format("{red}test{c}")
+		Fmt("{red}test{c}")
 	}
 
 	return
@@ -19,7 +19,7 @@ func BenchmarkFormat(b *testing.B) {
 
 func BenchmarkFormatLong(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		Format("{red}test {blue}2 {red}3 {brown} {italic}test{c}")
+		Fmt("{red}test {blue}2 {red}3 {brown} {italic}test{c}")
 	}
 
 	return
@@ -27,7 +27,7 @@ func BenchmarkFormatLong(b *testing.B) {
 
 func BenchmarkStripFormat(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		StripFormat("{red}test{c}")
+		TrimFmt("{red}test{c}")
 	}
 
 	return
@@ -35,14 +35,14 @@ func BenchmarkStripFormat(b *testing.B) {
 
 func BenchmarkStripFormatLong(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		StripFormat("{red}test {blue}2 {red}3 {brown} {italic}test{c}")
+		TrimFmt("{red}test {blue}2 {red}3 {brown} {italic}test{c}")
 	}
 
 	return
 }
 
 func BenchmarkStripRaw(b *testing.B) {
-	text := Format("{red}test{c}")
+	text := Fmt("{red}test{c}")
 	for i := 0; i < b.N; i++ {
 		StripRaw(text)
 	}
@@ -51,7 +51,7 @@ func BenchmarkStripRaw(b *testing.B) {
 }
 
 func BenchmarkStripRawLong(b *testing.B) {
-	text := Format("{red}test {blue}2 {red}3 {brown} {italic}test{c}")
+	text := Fmt("{red}test {blue}2 {red}3 {brown} {italic}test{c}")
 	for i := 0; i < b.N; i++ {
 		StripRaw(text)
 	}
@@ -77,7 +77,7 @@ func TestFormat(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := Format(tt.args.text); got != tt.want {
+		if got := Fmt(tt.args.text); got != tt.want {
 			t.Errorf("%s: Format() = %v, want %v", tt.name, got, tt.want)
 		}
 	}
@@ -101,7 +101,7 @@ func TestStripFormat(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := StripFormat(tt.args.text); got != tt.want {
+		if got := TrimFmt(tt.args.text); got != tt.want {
 			t.Errorf("%s: StripFormat() = %v, want %v", tt.name, got, tt.want)
 		}
 	}
@@ -125,7 +125,7 @@ func TestStripRaw(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := StripRaw(Format(tt.args.text)); got != tt.want {
+		if got := StripRaw(Fmt(tt.args.text)); got != tt.want {
 			t.Errorf("%s: StripRaw() = %v, want %v", tt.name, got, tt.want)
 		}
 	}
