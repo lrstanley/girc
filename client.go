@@ -112,6 +112,13 @@ type Config struct {
 	// AllowFlood allows the client to bypass the rate limit of outbound
 	// messages.
 	AllowFlood bool
+	// GlobalFormat enables passing through all events which have trailing
+	// text through the color Format() function, so you don't have to wrap
+	// every response in the Format() method.
+	//
+	// Note that this only actually applies to PRIVMSG, NOTICE and TOPIC
+	// events, to ensure it doesn't clobber unwanted events.
+	GlobalFormat bool
 	// Debug is an optional, user supplied location to log the raw lines
 	// sent from the server, or other useful debug logs. Defaults to
 	// ioutil.Discard. For quick debugging, this could be set to os.Stdout.

@@ -393,6 +393,11 @@ func (c *Client) Send(event *Event) {
 		<-time.After(c.conn.rate(event.Len()))
 	}
 
+	if c.Config.GlobalFormat && event.Trailing != "" &&
+		(event.Command == PRIVMSG || event.Command == TOPIC || event.Command == NOTICE) {
+		event.Trailing = Format(event.Trailing)
+	}
+
 	c.write(event)
 }
 
