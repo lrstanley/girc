@@ -5,7 +5,6 @@
 package girc_test
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -62,7 +61,8 @@ func Example_simple() {
 
 	client.Handlers.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
 		if strings.Contains(e.Trailing, "hello") {
-			c.Commands.Message(e.Params[0], "hello world!")
+			c.Commands.ReplyTo(e, "hello world!")
+			return
 		}
 
 		if strings.Contains(e.Trailing, "quit") {
@@ -101,7 +101,7 @@ func Example_commands() {
 
 	client.Handlers.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
 		if strings.HasPrefix(e.Trailing, "!hello") {
-			c.Commands.Message(e.Params[0], "hello world!")
+			c.Commands.ReplyTo(e, girc.Fmt("{b}hello{b} {blue}world{c}!"))
 			return
 		}
 
@@ -114,12 +114,4 @@ func Example_commands() {
 	if err := client.Connect(); err != nil {
 		log.Fatalf("an error occurred while attempting to connect to %s: %s", client.Server(), err)
 	}
-}
-
-func ExampleGlob() {
-	fmt.Println(girc.Glob("The quick brown fox jumps over the lazy dog", "*brown fox*"))  // True.
-	fmt.Println(girc.Glob("The quick brown fox jumps over the lazy dog", "*yellow dog*")) // False.
-	// Output:
-	// true
-	// false
 }
