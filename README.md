@@ -10,28 +10,28 @@
 
 ## Status
 
-**EXPECT BREAKING CHANGES TO OCCUR FREQUENTLY**. girc has **not hit version
-1.0.0 yet!**
-
-Changes are actively being made. At this time, you may notice minor consistencies
-while things are still being flushed out. Not production ready! **_You've been
-warned!_**
+**girc is fairly close to marking the 1.0.0 endpoint, which will be tagged as
+necessary, so you will be able to use this with care knowing the specific tag
+you're using won't have breaking changes**
 
 ## Features
 
 - Focuses on simplicity, yet tries to still be flexible.
 - Only requires [standard library packages](https://godoc.org/github.com/lrstanley/girc?imports)
-- Event based triggering/responses (and CTCP too!).
-- Documentation is _mostly_ complete.
-- Full support for the IRCv3 spec.
+- Event based triggering/responses ([example](https://godoc.org/github.com/lrstanley/girc#ex-package--Commands), and [CTCP too](https://godoc.org/github.com/lrstanley/girc#Commands.SendCTCP)!).
+- [Documentation](https://godoc.org/github.com/lrstanley/girc) is _mostly_ complete.
+- Support for almost all of the IRCv3 spec.
+  - SASL Auth (currently only `PLAIN` is support, more to come)
+  - Message tags (and with this, things like `account-tag` on by default)
+  - `account-notify`, `away-notify`, `chghost`, `extended-join`, etc -- all handled seemlessly ([cap.go](https://github.com/lrstanley/girc/blob/master/cap.go) for more info).
 - Channel and user tracking. Easily find what users are in a channel, if a
   user is away, or if they are authenticated (if the server supports it!)
-- Client state/capability tracking. Easy methods to access capability data.
+- Client state/capability tracking. Easy methods to access capability data ([Lookup](https://godoc.org/github.com/lrstanley/girc#Client.Lookup), [Event.GetChannel](https://godoc.org/github.com/lrstanley/girc#Event.GetChannel), [GetServerOption (ISUPPORT)](https://godoc.org/github.com/lrstanley/girc#Client.GetServerOption), etc.)
 - Built-in support for things you would commmonly have to implement yourself.
-  - Nick collision detection and prevention.
+  - Nick collision detection and prevention (also see [Config.HandleNickCollide](https://godoc.org/github.com/lrstanley/girc#Config).
   - Event/message rate limiting.
-  - Channel, nick, and user validation on connection methods.
-  - CTCP handling and auto-responses.
+  - Channel, nick, and user validation on connection methods ([IsValidChannel](https://godoc.org/github.com/lrstanley/girc#IsValidChannel), [IsValidNick](https://godoc.org/github.com/lrstanley/girc#IsValidNick), etc.)
+  - CTCP handling and auto-responses ([CTCP](https://godoc.org/github.com/lrstanley/girc#CTCP).)
   - And more!
 
 ## Installing
@@ -40,7 +40,7 @@ warned!_**
 
 ## Examples
 
-See [the examples](https://godoc.org/github.com/lrstanley/girc#example-package)
+See [the examples](https://godoc.org/github.com/lrstanley/girc#example-package--Bare)
 within the documentation for real-world usecases.
 
 ## Contributing
