@@ -53,20 +53,20 @@ func (c *Command) genHelp(prefix string) string {
 //
 // An example of how you would register this with girc:
 //
-//   ch, err := cmdhandler.New("!")
-//   if err != nil {
-//   	panic(err)
-//   }
-
-//   ch.Add(&cmdhandler.Command{
-//   	Name:    "ping",
-//   	Help:    "Sends a pong reply back to the original user.",
-//   	Fn: func(c *girc.Client, input *cmdhandler.Input) {
-//   		c.Commands.ReplyTo(*input.Origin, "pong!")
-//   	},
-//   })
+//	ch, err := cmdhandler.New("!")
+//	if err != nil {
+//		panic(err)
+//	}
 //
-//   client.Handlers.AddHandler(girc.PRIVMSG, ch)
+//	ch.Add(&cmdhandler.Command{
+//		Name:    "ping",
+//		Help:    "Sends a pong reply back to the original user.",
+//		Fn: func(c *girc.Client, input *cmdhandler.Input) {
+//			c.Commands.ReplyTo(*input.Origin, "pong!")
+//		},
+//	})
+//
+//	client.Handlers.AddHandler(girc.PRIVMSG, ch)
 type CmdHandler struct {
 	prefix string
 	re     *regexp.Regexp
