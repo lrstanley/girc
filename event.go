@@ -359,9 +359,48 @@ func (e *Event) Pretty() (out string, ok bool) {
 	return "", false
 }
 
+// GetChannel is a helper function around an event which lets you easily obtain
+// the channel information from state tracking. Note that this should only
+// be called from a PRIVMSG where the message originated from the server.
+// The returned result may be nil if not in state, and will panic if called
+// when tracking is disabled.
+func (e *Event) GetChannel(c *Client) *Channel {
+	if e == nil {
+		return nil
+	}
+
+	if !e.IsFromChannel() {
+		return nil
+	}
+
+	return c.Lookup(e.Params[0])
+}
+
+// GetUser is a helper function around an event which lets you easily obtain
+// the user information from state tracking. Note that this should only be
+// called from a PRIVMSG where the message originated from the server. The
+// returned result may be nil if not in state, and will panic if called when
+// tracking is disabled.
+func (e *Event) GetUser(c *Client) *User {
+	if e == nil {
+		return nil
+	}
+
+	if !e.IsFromChannel() {
+		return nil
+	}
+
+	channel := c.Lookup(e.Params[0])
+	if channel == nil {
+		return nil
+	}
+
+	return channel.Lookup(e.Source.Name)
+}
+
 // IsAction checks to see if the event is a PRIVMSG, and is an ACTION (/me).
 func (e *Event) IsAction() bool {
-	if len(e.Trailing) <= 0 || e.Command != PRIVMSG {
+	if e.Source == nil || e.Command != PRIVMSG || len(e.Trailing) < 9 {
 		return false
 	}
 
@@ -375,11 +414,11 @@ func (e *Event) IsAction() bool {
 // IsFromChannel checks to see if a message was from a channel (rather than
 // a private message).
 func (e *Event) IsFromChannel() bool {
-	if len(e.Params) != 1 {
+	if e.Source == nil || e.Command != PRIVMSG || len(e.Params) < 1 {
 		return false
 	}
 
-	if e.Command != "PRIVMSG" || !IsValidChannel(e.Params[0]) {
+	if !IsValidChannel(e.Params[0]) {
 		return false
 	}
 
@@ -389,11 +428,11 @@ func (e *Event) IsFromChannel() bool {
 // IsFromUser checks to see if a message was from a user (rather than a
 // channel).
 func (e *Event) IsFromUser() bool {
-	if len(e.Params) != 1 {
+	if e.Source == nil || e.Command != PRIVMSG || len(e.Params) < 1 {
 		return false
 	}
 
-	if e.Command != "PRIVMSG" || !IsValidNick(e.Params[0]) {
+	if !IsValidNick(e.Params[0]) {
 		return false
 	}
 
@@ -403,7 +442,7 @@ func (e *Event) IsFromUser() bool {
 // StripAction returns the stripped version of the action encoding from a
 // PRIVMSG ACTION (/me).
 func (e *Event) StripAction() string {
-	if !e.IsAction() || len(e.Trailing) < 9 {
+	if !e.IsAction() {
 		return e.Trailing
 	}
 
