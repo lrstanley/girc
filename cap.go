@@ -111,19 +111,12 @@ func handleCAP(c *Client, e Event) {
 					if caps[k][i] == possible[k][j] {
 						// Assume we have a matching split value.
 						contains = true
-						break
+						goto checkcontains
 					}
-
-					if contains {
-						break
-					}
-				}
-
-				if contains {
-					break
 				}
 			}
 
+		checkcontains:
 			if !contains {
 				continue
 			}
