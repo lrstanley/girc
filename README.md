@@ -28,7 +28,7 @@ you're using won't have breaking changes**
   user is away, or if they are authenticated (if the server supports it!)
 - Client state/capability tracking. Easy methods to access capability data ([Lookup](https://godoc.org/github.com/lrstanley/girc#Client.Lookup), [Event.GetChannel](https://godoc.org/github.com/lrstanley/girc#Event.GetChannel), [GetServerOption (ISUPPORT)](https://godoc.org/github.com/lrstanley/girc#Client.GetServerOption), etc.)
 - Built-in support for things you would commmonly have to implement yourself.
-  - Nick collision detection and prevention (also see [Config.HandleNickCollide](https://godoc.org/github.com/lrstanley/girc#Config).
+  - Nick collision detection and prevention (also see [Config.HandleNickCollide](https://godoc.org/github.com/lrstanley/girc#Config).)
   - Event/message rate limiting.
   - Channel, nick, and user validation on connection methods ([IsValidChannel](https://godoc.org/github.com/lrstanley/girc#IsValidChannel), [IsValidNick](https://godoc.org/github.com/lrstanley/girc#IsValidNick), etc.)
   - CTCP handling and auto-responses ([CTCP](https://godoc.org/github.com/lrstanley/girc#CTCP).)
