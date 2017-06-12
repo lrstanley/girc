@@ -84,29 +84,50 @@ func ParseEvent(raw string) (e *Event) {
 	// Find end of command.
 	j = i + strings.IndexByte(raw[i:], eventSpace)
 
-	// Extract command.
 	if j < i {
+		// If there are no proceeding spaces, it's the only thing specified.
 		e.Command = strings.ToUpper(raw[i:])
 		return e
 	}
 
 	e.Command = strings.ToUpper(raw[i:j])
-	// Skip space after command.
+
+	// Skip the space after the command.
 	j++
 
-	// Find prefix for trailer.
-	i = strings.IndexByte(raw[j:], messagePrefix)
+	// Check if and where the trailing text is within the incoming line.
+	var lastIndex, trailerIndex int
+	for {
+		// We must loop through, as it's possible that the first message
+		// prefix is not actually what we want. (e.g, colons are commonly
+		// used within ISUPPORT to delegate things like CHANLIMIT or TARGMAX.)
+		lastIndex = trailerIndex
+		trailerIndex = strings.IndexByte(raw[j+lastIndex:], messagePrefix)
 
-	if i < 0 || raw[j+i-1] != eventSpace {
-		// No trailing argument.
-		e.Params = strings.Split(raw[j:], string(eventSpace))
-		return e
+		if trailerIndex == -1 {
+			// No trailing argument found, assume the rest is just params.
+			e.Params = strings.Split(raw[j:], string(eventSpace))
+			return e
+		}
+
+		// This means we found a prefix that was proceeded by a space, and
+		// it's good to assume this is the start of trailing text to the line.
+		if raw[j+lastIndex+trailerIndex-1] == eventSpace {
+			i = lastIndex + trailerIndex
+			break
+		}
+
+		// Keep looping through until we either can't find any more prefixes,
+		// or we find the one we want.
+		trailerIndex += lastIndex + 1
 	}
 
-	// Compensate for index on substring.
-	i = i + j
+	// Set i to that of the substring we were using before, and where the
+	// trailing prefix is.
+	i = j + i
 
-	// Check if we need to parse arguments.
+	// Check if we need to parse arguments. If so, take everything after the
+	// command, and right before the trailing prefix, and cut it up.
 	if i > j {
 		e.Params = strings.Split(raw[j:i-1], string(eventSpace))
 	}
