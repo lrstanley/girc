@@ -166,6 +166,11 @@ func (conf Config) isValid() error {
 		return errors.New("invalid server specified")
 	}
 
+	// Default port to 6667 (the standard IRC port).
+	if conf.Port == 0 {
+		conf.Port = 6667
+	}
+
 	if conf.Port < 21 || conf.Port > 65535 {
 		return errors.New("invalid port (21-65535)")
 	}
