@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 )
 
@@ -382,7 +383,8 @@ func (t Tags) Count() int {
 }
 
 // Bytes returns a []byte representation of this tag map, including the tag
-// prefix ("@").
+// prefix ("@"). Note that this will return the tags sorted, regardless of
+// the order of how they were originally parsed.
 func (t Tags) Bytes() []byte {
 	max := len(t)
 	if max == 0 {
@@ -394,18 +396,26 @@ func (t Tags) Bytes() []byte {
 
 	var current int
 
-	for tagName, tagValue := range t {
+	// Sort the writing of tags so we can at least guarantee that they will
+	// be in order, and testable.
+	var names []string
+	for tagName := range t {
+		names = append(names, tagName)
+	}
+	sort.Strings(names)
+
+	for i := 0; i < len(names); i++ {
 		// Trim at max allowed chars.
-		if (buffer.Len() + len(tagName) + len(tagValue) + 2) > maxTagLength {
+		if (buffer.Len() + len(names[i]) + len(t[names[i]]) + 2) > maxTagLength {
 			return buffer.Bytes()
 		}
 
-		buffer.WriteString(tagName)
+		buffer.WriteString(names[i])
 
 		// Write the value as necessary.
-		if len(tagValue) > 0 {
+		if len(t[names[i]]) > 0 {
 			buffer.WriteByte(prefixTagValue)
-			buffer.WriteString(tagValue)
+			buffer.WriteString(t[names[i]])
 		}
 
 		// add the separator ";" between tags.
