@@ -63,7 +63,7 @@ func parseCap(raw string) map[string][]string {
 		// No value splitter, or has splitter but no trailing value.
 		if val < 1 || len(parts[i]) < val+1 {
 			// The capability doesn't contain a value.
-			out[parts[i]] = []string{}
+			out[parts[i]] = nil
 			continue
 		}
 
@@ -489,10 +489,14 @@ func (t Tags) Get(key string) (tag string, success bool) {
 // this is not concurrent safe.
 func (t Tags) Set(key, value string) error {
 	if !validTag(key) {
-		return fmt.Errorf("tag %q is invalid", key)
+		return fmt.Errorf("tag key %q is invalid", key)
 	}
 
 	value = tagEncoder.Replace(value)
+
+	if len(value) > 0 && !validTagValue(value) {
+		return fmt.Errorf("tag value %q of key %q is invalid", value, key)
+	}
 
 	// Check to make sure it's not too long here.
 	if (t.Len() + len(key) + len(value) + 2) > maxTagLength {
