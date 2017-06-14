@@ -21,7 +21,9 @@ you're using won't have breaking changes**
 - Event based triggering/responses ([example](https://godoc.org/github.com/lrstanley/girc#ex-package--Commands), and [CTCP too](https://godoc.org/github.com/lrstanley/girc#Commands.SendCTCP)!).
 - [Documentation](https://godoc.org/github.com/lrstanley/girc) is _mostly_ complete.
 - Support for almost all of the IRCv3 spec.
-  - SASL Auth (currently only `PLAIN` is support, more to come)
+  - SASL Auth (currently only `PLAIN` and `EXTERNAL` is support by default,
+  however you can simply implement `SASLMethod` yourself to support additional
+  mechanisms.)
   - Message tags (and with this, things like `account-tag` on by default)
   - `account-notify`, `away-notify`, `chghost`, `extended-join`, etc -- all handled seemlessly ([cap.go](https://github.com/lrstanley/girc/blob/master/cap.go) for more info).
 - Channel and user tracking. Easily find what users are in a channel, if a
@@ -69,7 +71,7 @@ library and common idioms.
 
 ```
 LICENSE: The MIT License (MIT)
-Copyright (c) Liam Stanley <me@liamstanley.io>
+Copyright (c) 2016 Liam Stanley <me@liamstanley.io>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
