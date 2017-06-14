@@ -12,7 +12,7 @@ func TestCapList(t *testing.T) {
 		Server:        "irc.example.com",
 		Nick:          "test",
 		User:          "user",
-		SASL:          &SASLAuth{User: "test", Pass: "example"},
+		SASL:          &SASLPlain{User: "test", Pass: "example"},
 		SupportedCaps: map[string][]string{"example": nil},
 	})
 

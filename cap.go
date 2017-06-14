@@ -161,7 +161,7 @@ func handleCAP(c *Client, e Event) {
 		c.state.mu.Unlock()
 
 		if wantsSASL {
-			c.write(&Event{Command: AUTHENTICATE, Params: []string{"PLAIN"}})
+			c.write(&Event{Command: AUTHENTICATE, Params: []string{c.Config.SASL.Method()}})
 			// Don't "CAP END", since we want to authenticate.
 			return
 		}
@@ -172,13 +172,46 @@ func handleCAP(c *Client, e Event) {
 	}
 }
 
-// SASLAuth contains the user and password needed for PLAIN SASL authentication.
-type SASLAuth struct {
+// SASLMethod is an representation of what a SASL mechanism should support.
+// See SASLExternal and SASLPlain for implementations of this.
+type SASLMethod interface {
+	// Method returns the uppercase version of the SASL mechanism name.
+	Method() string
+	// Encode returns the response that the SASL mechanism wants to use,
+	// chunked out as necessary. if this returns nil, an "AUTHENTICATE +" will
+	// be used to respond (essentially telling the server that it should handle
+	// the rest.)
+	Encode(chunkSize int) (chunks []string)
+}
+
+// SASLExternal implements the "EXTERNAL" SASL type.
+type SASLExternal struct {
+}
+
+// Method identifies what type of SASL this implements.
+func (sasl *SASLExternal) Method() string {
+	return "EXTERNAL"
+}
+
+// Encode is not directly used by SASLExternal -- it currently only returns
+// nil.
+func (sasl *SASLExternal) Encode(chunkSize int) (chunks []string) {
+	return nil
+}
+
+// SASLPlain contains the user and password needed for PLAIN SASL authentication.
+type SASLPlain struct {
 	User string // User is the username for SASL.
 	Pass string // Pass is the password for SASL.
 }
 
-func (sasl *SASLAuth) encode(chunkSize int) (chunks []string) {
+// Method identifies what type of SASL this implements.
+func (sasl *SASLPlain) Method() string {
+	return "PLAIN"
+}
+
+// Encode encodes the plain user+password into a standardized chunk size.
+func (sasl *SASLPlain) Encode(chunkSize int) (chunks []string) {
 	in := []byte(sasl.User)
 
 	in = append(in, 0x0)
@@ -213,13 +246,20 @@ func handleSASL(c *Client, e Event) {
 
 	if len(e.Params) == 1 && e.Params[0] == "+" {
 		// Assume they want us to handle sending auth.
-		auth := c.Config.SASL.encode(400)
+		auth := c.Config.SASL.Encode(400)
+
+		if auth == nil {
+			// Assume the SASL authentication method doesn't need to encode
+			// data and pass it to the server.
+			c.write(&Event{Command: AUTHENTICATE, Params: []string{"+"}})
+			return
+		}
 
 		// Send in 400 byte chunks. If the last chuck is exactly 400 bytes,
 		// send a "AUTHENTICATE +" 0-byte response to let the server know
 		// that we're done.
 		for i := 0; i < len(auth); i++ {
-			c.write(&Event{Command: AUTHENTICATE, Params: []string{auth[i]}})
+			c.write(&Event{Command: AUTHENTICATE, Params: []string{auth[i]}, Sensitive: true})
 
 			if i-1 == len(auth) && len(auth[i]) == 400 {
 				c.write(&Event{Command: AUTHENTICATE, Params: []string{"+"}})
@@ -236,7 +276,7 @@ func handleSASLError(c *Client, e Event) {
 
 	// This is supposed to panic. Per the IRCv3 spec, one must disconnect upon
 	// authentication error. Maybe though, just a QUIT would be better?
-	panic(fmt.Sprintf("unable to use SASL authentication: %s (%s)", e.Command, e.Trailing))
+	panic(fmt.Sprintf("unable to use SASL %s authentication: %s (%s)", c.Config.SASL.Method(), e.Command, e.Trailing))
 }
 
 // handleCHGHOST handles incoming IRCv3 hostname change events. CHGHOST is

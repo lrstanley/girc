@@ -19,7 +19,7 @@ func ExampleNew() {
 		Port:   6667,
 		Nick:   "test",
 		User:   "user",
-		SASL:   &girc.SASLAuth{User: "user1", Pass: "securepass1"},
+		SASL:   &girc.SASLPlain{User: "user1", Pass: "securepass1"},
 		Out:    os.Stdout,
 	})
 

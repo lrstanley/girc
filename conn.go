@@ -304,7 +304,7 @@ func (c *Client) internalConnect(mock net.Conn) error {
 
 	// Passwords first.
 	if c.Config.ServerPass != "" {
-		c.write(&Event{Command: PASS, Params: []string{c.Config.ServerPass}})
+		c.write(&Event{Command: PASS, Params: []string{c.Config.ServerPass}, Sensitive: true})
 	}
 
 	// Then nickname.
@@ -315,7 +315,7 @@ func (c *Client) internalConnect(mock net.Conn) error {
 		c.Config.Name = c.Config.User
 	}
 
-	c.write(&Event{Command: USER, Params: []string{c.Config.User, "+iw", "*"}, Trailing: c.Config.Name})
+	c.write(&Event{Command: USER, Params: []string{c.Config.User, "*", "*"}, Trailing: c.Config.Name})
 
 	// List the IRCv3 capabilities, specifically with the max protocol we
 	// support.
@@ -437,7 +437,9 @@ func (c *Client) sendLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 		select {
 		case event := <-c.tx:
 			// Log the event.
-			if !event.Sensitive {
+			if event.Sensitive {
+				c.debug.Printf("> %s ***redacted***", event.Command)
+			} else {
 				c.debug.Print("> ", StripRaw(event.String()))
 			}
 			if c.Config.Out != nil {
