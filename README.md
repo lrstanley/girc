@@ -22,7 +22,7 @@ you're using won't have breaking changes**
 - [Documentation](https://godoc.org/github.com/lrstanley/girc) is _mostly_ complete.
 - Support for almost all of the IRCv3 spec.
   - SASL Auth (currently only `PLAIN` and `EXTERNAL` is support by default,
-  however you can simply implement `SASLMethod` yourself to support additional
+  however you can simply implement `SASLMech` yourself to support additional
   mechanisms.)
   - Message tags (and with this, things like `account-tag` on by default)
   - `account-notify`, `away-notify`, `chghost`, `extended-join`, etc -- all handled seemlessly ([cap.go](https://github.com/lrstanley/girc/blob/master/cap.go) for more info).

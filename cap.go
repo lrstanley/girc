@@ -172,9 +172,9 @@ func handleCAP(c *Client, e Event) {
 	}
 }
 
-// SASLMethod is an representation of what a SASL mechanism should support.
+// SASLMech is an representation of what a SASL mechanism should support.
 // See SASLExternal and SASLPlain for implementations of this.
-type SASLMethod interface {
+type SASLMech interface {
 	// Method returns the uppercase version of the SASL mechanism name.
 	Method() string
 	// Encode returns the response that the SASL mechanism wants to use,
