@@ -56,12 +56,12 @@ func Example_simple() {
 	})
 
 	client.Handlers.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
-		c.Commands.Join("#dev")
+		c.Cmd.Join("#dev")
 	})
 
 	client.Handlers.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
 		if strings.Contains(e.Trailing, "hello") {
-			c.Commands.ReplyTo(e, "hello world!")
+			c.Cmd.ReplyTo(e, "hello world!")
 			return
 		}
 
@@ -96,12 +96,12 @@ func Example_commands() {
 	})
 
 	client.Handlers.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
-		c.Commands.Join("#channel", "#other-channel")
+		c.Cmd.Join("#channel", "#other-channel")
 	})
 
 	client.Handlers.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
 		if strings.HasPrefix(e.Trailing, "!hello") {
-			c.Commands.ReplyTo(e, girc.Fmt("{b}hello{b} {blue}world{c}!"))
+			c.Cmd.ReplyTo(e, girc.Fmt("{b}hello{b} {blue}world{c}!"))
 			return
 		}
 

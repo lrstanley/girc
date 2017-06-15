@@ -158,23 +158,23 @@ func (ch *CmdHandler) Execute(client *girc.Client, event girc.Event) {
 
 	if invCmd == "help" {
 		if len(args) == 0 {
-			client.Commands.ReplyTo(event, girc.Fmt("type '{b}!help {blue}<command>{c}{b}' to optionally get more info about a specific command."))
+			client.Cmd.ReplyTo(event, girc.Fmt("type '{b}!help {blue}<command>{c}{b}' to optionally get more info about a specific command."))
 			return
 		}
 
 		args[0] = strings.ToLower(args[0])
 
 		if _, ok := ch.cmds[args[0]]; !ok {
-			client.Commands.ReplyTof(event, girc.Fmt("unknown command {b}%q{b}."), args[0])
+			client.Cmd.ReplyTof(event, girc.Fmt("unknown command {b}%q{b}."), args[0])
 			return
 		}
 
 		if ch.cmds[args[0]].Help == "" {
-			client.Commands.ReplyTof(event, girc.Fmt("there is no help documentaiton for {b}%q{b}"), args[0])
+			client.Cmd.ReplyTof(event, girc.Fmt("there is no help documentaiton for {b}%q{b}"), args[0])
 			return
 		}
 
-		client.Commands.ReplyTo(event, girc.Fmt(ch.cmds[args[0]].genHelp(ch.prefix)))
+		client.Cmd.ReplyTo(event, girc.Fmt(ch.cmds[args[0]].genHelp(ch.prefix)))
 		return
 	}
 
@@ -184,7 +184,7 @@ func (ch *CmdHandler) Execute(client *girc.Client, event girc.Event) {
 	}
 
 	if len(args) < cmd.MinArgs {
-		client.Commands.ReplyTof(event, girc.Fmt("not enough arguments supplied for {b}%q{b}. try '{b}%shelp %s{b}'?"), invCmd, ch.prefix, invCmd)
+		client.Cmd.ReplyTof(event, girc.Fmt("not enough arguments supplied for {b}%q{b}. try '{b}%shelp %s{b}'?"), invCmd, ch.prefix, invCmd)
 		return
 	}
 

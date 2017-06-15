@@ -540,7 +540,7 @@ func (c *Client) pingLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 			c.conn.lastPing = time.Now()
 			c.conn.mu.Unlock()
 
-			c.Commands.Ping(fmt.Sprintf("%d", time.Now().UnixNano()))
+			c.Cmd.Ping(fmt.Sprintf("%d", time.Now().UnixNano()))
 		case <-done:
 			wg.Done()
 			return

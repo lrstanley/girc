@@ -37,8 +37,8 @@ type Client struct {
 	Handlers *Caller
 	// CTCP is a handler which manages internal and external CTCP handlers.
 	CTCP *CTCP
-	// Commands contains various helper methods to interact with the server.
-	Commands *Commands
+	// Cmd contains various helper methods to interact with the server.
+	Cmd *Commands
 
 	// mu is the mux used for connections/disconnections from the server,
 	// so multiple threads aren't trying to connect at the same time, and
@@ -209,7 +209,7 @@ func New(config Config) *Client {
 		initTime: time.Now(),
 	}
 
-	c.Commands = &Commands{c: c}
+	c.Cmd = &Commands{c: c}
 
 	if c.Config.PingDelay < (20 * time.Second) {
 		c.Config.PingDelay = 20 * time.Second

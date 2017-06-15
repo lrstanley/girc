@@ -101,16 +101,16 @@ func handleConnect(c *Client, e Event) {
 // nicknames with another bot, user, etc.
 func nickCollisionHandler(c *Client, e Event) {
 	if c.Config.HandleNickCollide == nil {
-		c.Commands.Nick(c.GetNick() + "_")
+		c.Cmd.Nick(c.GetNick() + "_")
 		return
 	}
 
-	c.Commands.Nick(c.Config.HandleNickCollide(c.GetNick()))
+	c.Cmd.Nick(c.Config.HandleNickCollide(c.GetNick()))
 }
 
 // handlePING helps respond to ping requests from the server.
 func handlePING(c *Client, e Event) {
-	c.Commands.Pong(e.Trailing)
+	c.Cmd.Pong(e.Trailing)
 }
 
 func handlePONG(c *Client, e Event) {
