@@ -276,13 +276,13 @@ func (cmd *Commands) Whois(nick string) error {
 // Ping sends a PING query to the server, with a specific identifier that
 // the server should respond with.
 func (cmd *Commands) Ping(id string) {
-	cmd.c.Send(&Event{Command: PING, Params: []string{id}})
+	cmd.c.write(&Event{Command: PING, Params: []string{id}})
 }
 
 // Pong sends a PONG query to the server, with an identifier which was
 // received from a previous PING query received by the client.
 func (cmd *Commands) Pong(id string) {
-	cmd.c.Send(&Event{Command: PONG, Params: []string{id}})
+	cmd.c.write(&Event{Command: PONG, Params: []string{id}})
 }
 
 // Oper sends a OPER authentication query to the server, with a username
