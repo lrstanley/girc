@@ -177,15 +177,20 @@ func handleCAP(c *Client, e Event) {
 type SASLMech interface {
 	// Method returns the uppercase version of the SASL mechanism name.
 	Method() string
-	// Encode returns the response that the SASL mechanism wants to use,
-	// chunked out as necessary. if this returns nil, an "AUTHENTICATE +" will
-	// be used to respond (essentially telling the server that it should handle
-	// the rest.)
-	Encode(chunkSize int) (chunks []string)
+	// Encode returns the response that the SASL mechanism wants to use. If
+	// the returned string is empty (e.g. the mechanism gives up), the handler
+	// will attempt to panic, as expectation is that if SASL authentication
+	// fails, the client will disconnect.
+	Encode(params []string) (output string)
 }
 
 // SASLExternal implements the "EXTERNAL" SASL type.
 type SASLExternal struct {
+	// Identity is an optional field which allows the client to specify
+	// pre-authentication identification. This means that EXTERNAL will
+	// supply this in the initial response. This usually isn't needed (e.g.
+	// CertFP).
+	Identity string
 }
 
 // Method identifies what type of SASL this implements.
@@ -193,10 +198,19 @@ func (sasl *SASLExternal) Method() string {
 	return "EXTERNAL"
 }
 
-// Encode is not directly used by SASLExternal -- it currently only returns
-// nil.
-func (sasl *SASLExternal) Encode(chunkSize int) (chunks []string) {
-	return nil
+// Encode for external SALS authentication should really only return a "+",
+// unless the user has specified pre-authentication or identification data.
+// See https://tools.ietf.org/html/rfc4422#appendix-A for more info.
+func (sasl *SASLExternal) Encode(params []string) string {
+	if len(params) != 1 || params[0] != "+" {
+		return ""
+	}
+
+	if sasl.Identity != "" {
+		return sasl.Identity
+	}
+
+	return "+"
 }
 
 // SASLPlain contains the user and password needed for PLAIN SASL authentication.
@@ -210,8 +224,13 @@ func (sasl *SASLPlain) Method() string {
 	return "PLAIN"
 }
 
-// Encode encodes the plain user+password into a standardized chunk size.
-func (sasl *SASLPlain) Encode(chunkSize int) (chunks []string) {
+// Encode encodes the plain user+password into a SASL PLAIN implementation.
+// See https://tools.ietf.org/rfc/rfc4422.txt for more info.
+func (sasl *SASLPlain) Encode(params []string) string {
+	if len(params) != 1 || params[0] != "+" {
+		return ""
+	}
+
 	in := []byte(sasl.User)
 
 	in = append(in, 0x0)
@@ -219,23 +238,10 @@ func (sasl *SASLPlain) Encode(chunkSize int) (chunks []string) {
 	in = append(in, 0x0)
 	in = append(in, []byte(sasl.Pass)...)
 
-	out := base64.StdEncoding.EncodeToString(in)
-
-	for {
-		if len(out) > chunkSize {
-			chunks = append(chunks, out[0:chunkSize-1])
-			out = out[chunkSize:]
-			continue
-		}
-
-		if len(out) <= chunkSize {
-			chunks = append(chunks, out)
-			break
-		}
-	}
-
-	return chunks
+	return base64.StdEncoding.EncodeToString(in)
 }
+
+const saslChunkSize = 400
 
 func handleSASL(c *Client, e Event) {
 	if e.Command == RPL_SASLSUCCESS || e.Command == ERR_SASLALREADY {
@@ -244,39 +250,65 @@ func handleSASL(c *Client, e Event) {
 		return
 	}
 
-	if len(e.Params) == 1 && e.Params[0] == "+" {
-		// Assume they want us to handle sending auth.
-		auth := c.Config.SASL.Encode(400)
+	// Assume they want us to handle sending auth.
+	auth := c.Config.SASL.Encode(e.Params)
 
-		if auth == nil {
-			// Assume the SASL authentication method doesn't need to encode
-			// data and pass it to the server.
-			c.write(&Event{Command: AUTHENTICATE, Params: []string{"+"}})
-			return
+	if auth == "" {
+		// Assume the SASL authentication method doesn't want to respond
+		// for some reason. Unfortunately, the SALS spec and IRCv3 spec do
+		// not define a clear way to abort a SASL exchange, other than
+		// disconnecting or sending a "CAP END".
+		//
+		// One can avoid disconnecting by handling this error using a
+		// Config.RecoverFunc.
+		panic(ErrAuthSASL{Method: c.Config.SASL.Method(), Cmd: e.Command, Text: e.Trailing})
+	}
+
+	// Send in "saslChunkSize"-length byte chunks. If the last chuck is
+	// exactly "saslChunkSize" bytes, send a "AUTHENTICATE +" 0-byte
+	// acknowledgement response to let the server know that we're done.
+	for {
+		if len(auth) > saslChunkSize {
+			c.write(&Event{Command: AUTHENTICATE, Params: []string{auth[0 : saslChunkSize-1]}, Sensitive: true})
+			auth = auth[saslChunkSize:]
+			continue
 		}
 
-		// Send in 400 byte chunks. If the last chuck is exactly 400 bytes,
-		// send a "AUTHENTICATE +" 0-byte response to let the server know
-		// that we're done.
-		for i := 0; i < len(auth); i++ {
-			c.write(&Event{Command: AUTHENTICATE, Params: []string{auth[i]}, Sensitive: true})
+		if len(auth) <= saslChunkSize {
+			c.write(&Event{Command: AUTHENTICATE, Params: []string{auth}, Sensitive: true})
 
-			if i-1 == len(auth) && len(auth[i]) == 400 {
+			if len(auth) == 400 {
 				c.write(&Event{Command: AUTHENTICATE, Params: []string{"+"}})
 			}
+			break
 		}
-		return
 	}
+	return
+}
+
+// ErrAuthSASL is returned when the client is unable to successfully auth
+// via the provided SASL mechanisms.
+type ErrAuthSASL struct {
+	Method string // Method is the mechanism.
+	Cmd    string // Cmd is the SASL command.
+	Text   string // Text is the trailing text that followed the command if any.
+}
+
+// Error returns a stringified version of ErrAuthSASL.
+func (e *ErrAuthSASL) Error() string {
+	return fmt.Sprintf("unable to use SASL %s authentication: %s (%s)", e.Method, e.Cmd, e.Text)
 }
 
 func handleSASLError(c *Client, e Event) {
-	if c.Config.SASL != nil {
+	if c.Config.SASL == nil {
+		c.write(&Event{Command: CAP, Params: []string{CAP_END}})
 		return
 	}
 
 	// This is supposed to panic. Per the IRCv3 spec, one must disconnect upon
-	// authentication error. Maybe though, just a QUIT would be better?
-	panic(fmt.Sprintf("unable to use SASL %s authentication: %s (%s)", c.Config.SASL.Method(), e.Command, e.Trailing))
+	// authentication error. One can avoid disconnecting by handling this
+	// error using a Config.RecoverFunc.
+	panic(ErrAuthSASL{Method: c.Config.SASL.Method(), Cmd: e.Command, Text: e.Trailing})
 }
 
 // handleCHGHOST handles incoming IRCv3 hostname change events. CHGHOST is
