@@ -104,7 +104,7 @@ func newConn(conf Config, addr string) (*ircConn, error) {
 		}
 	} else {
 		if conn, err = dialer.Dial("tcp", addr); err != nil {
-			return nil, ErrProxy{conf.Proxy, err}
+			return nil, err
 		}
 	}
 
