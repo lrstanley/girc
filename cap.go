@@ -446,11 +446,19 @@ func ParseTags(raw string) (t Tags) {
 // does not include the trailing space required when creating an event, but
 // does include the tag prefix ("@").
 func (t Tags) Len() (length int) {
+	if t == nil {
+		return 0
+	}
+
 	return len(t.Bytes())
 }
 
 // Count finds how many total tags that there are.
 func (t Tags) Count() int {
+	if t == nil {
+		return 0
+	}
+
 	return len(t)
 }
 
@@ -458,6 +466,10 @@ func (t Tags) Count() int {
 // prefix ("@"). Note that this will return the tags sorted, regardless of
 // the order of how they were originally parsed.
 func (t Tags) Bytes() []byte {
+	if t == nil {
+		return []byte{}
+	}
+
 	max := len(t)
 	if max == 0 {
 		return nil
@@ -503,6 +515,10 @@ func (t Tags) Bytes() []byte {
 
 // String returns a string representation of this tag map.
 func (t Tags) String() string {
+	if t == nil {
+		return ""
+	}
+
 	return string(t.Bytes())
 }
 
@@ -549,6 +565,10 @@ var tagEncoder = strings.NewReplacer(tagEncode...)
 // Get returns the unescaped value of given tag key. Note that this is not
 // concurrent safe.
 func (t Tags) Get(key string) (tag string, success bool) {
+	if t == nil {
+		return "", false
+	}
+
 	if _, ok := t[key]; ok {
 		tag = tagDecoder.Replace(t[key])
 		success = true
@@ -560,6 +580,10 @@ func (t Tags) Get(key string) (tag string, success bool) {
 // Set escapes given value and saves it as the value for given key. Note that
 // this is not concurrent safe.
 func (t Tags) Set(key, value string) error {
+	if t == nil {
+		t = make(Tags)
+	}
+
 	if !validTag(key) {
 		return fmt.Errorf("tag key %q is invalid", key)
 	}
@@ -582,6 +606,10 @@ func (t Tags) Set(key, value string) error {
 
 // Remove deletes the tag frwom the tag map.
 func (t Tags) Remove(key string) (success bool) {
+	if t == nil {
+		return false
+	}
+
 	if _, success = t[key]; success {
 		delete(t, key)
 	}
