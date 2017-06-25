@@ -436,6 +436,24 @@ func (c *Client) sendLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 	for {
 		select {
 		case event := <-c.tx:
+			// Check if tags exist on the event. If they do, and message-tags
+			// isn't a supported capability, remove them from the event.
+			if event.Tags != nil {
+				c.state.mu.Lock()
+				var in bool
+				for i := 0; i < len(c.state.enabledCap); i++ {
+					if c.state.enabledCap[i] == "message-tags" {
+						in = true
+						break
+					}
+				}
+				c.state.mu.Unlock()
+
+				if !in {
+					event.Tags = Tags{}
+				}
+			}
+
 			// Log the event.
 			if event.Sensitive {
 				c.debug.Printf("> %s ***redacted***", event.Command)
