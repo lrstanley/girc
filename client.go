@@ -142,11 +142,12 @@ type Config struct {
 	// response to a CTCP VERSION, if default CTCP replies have not been
 	// overwritten or a VERSION handler was already supplied.
 	Version string
-	// PingDelay is the frequency between when the client sends keep-alive
-	// ping's to the server, and awaits a response (timing out if the server
-	// doesn't respond in time). This must be between 20-600 seconds. See
+	// PingDelay is the frequency between when the client sends a keep-alive
+	// PING to the server, and awaits a response (and times out if the server
+	// doesn't respond in time). This should be between 20-600 seconds. See
 	// Client.Lag() if you want to determine the delay between the server
-	// and the client.
+	// and the client. If this is set to -1, the client will not attempt to
+	// send client -> server PING requests.
 	PingDelay time.Duration
 
 	// disableTracking disables all channel and user-level tracking. Useful
@@ -211,7 +212,7 @@ func New(config Config) *Client {
 
 	c.Cmd = &Commands{c: c}
 
-	if c.Config.PingDelay < (20 * time.Second) {
+	if c.Config.PingDelay >= 0 && c.Config.PingDelay < (20*time.Second) {
 		c.Config.PingDelay = 20 * time.Second
 	} else if c.Config.PingDelay > (600 * time.Second) {
 		c.Config.PingDelay = 600 * time.Second

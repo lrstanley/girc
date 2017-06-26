@@ -294,9 +294,9 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	go c.sendLoop(errs, done, &wg)
 
 	if mock == nil {
-		go c.pingLoop(errs, done, &wg, 10*time.Second)
+		go c.pingLoop(errs, done, &wg)
 	} else {
-		go c.pingLoop(errs, done, &wg, 1*time.Second)
+		go c.pingLoop(errs, done, &wg)
 	}
 
 	// Send a virtual event allowing hooks for successful socket connection.
@@ -519,7 +519,13 @@ type ErrTimedOut struct {
 
 func (ErrTimedOut) Error() string { return "timed out during ping to server" }
 
-func (c *Client) pingLoop(errs chan error, done chan struct{}, wg *sync.WaitGroup, initDelay time.Duration) {
+func (c *Client) pingLoop(errs chan error, done chan struct{}, wg *sync.WaitGroup) {
+	// Don't run the pingLoop if they want to disable it.
+	if c.Config.PingDelay <= 0 {
+		wg.Done()
+		return
+	}
+
 	c.debug.Print("starting pingLoop")
 	defer c.debug.Print("closing pingLoop")
 
@@ -528,15 +534,25 @@ func (c *Client) pingLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 	c.conn.lastPong = time.Now()
 	c.conn.mu.Unlock()
 
-	// Delay during connect to wait for the client to register and what not.
-	time.Sleep(initDelay)
-
 	tick := time.NewTicker(c.Config.PingDelay)
 	defer tick.Stop()
+
+	started := time.Now()
+	past := false
 
 	for {
 		select {
 		case <-tick.C:
+			// Delay during connect to wait for the client to register, otherwise
+			// some ircd's will not respond (e.g. during SASL negotiation).
+			if !past {
+				if time.Since(started) < 30*time.Second {
+					continue
+				}
+
+				past = true
+			}
+
 			c.conn.mu.RLock()
 			if time.Since(c.conn.lastPong) > c.Config.PingDelay+(60*time.Second) {
 				// It's 60 seconds over what out ping delay is, connection
