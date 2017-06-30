@@ -123,13 +123,16 @@ func handleJOIN(c *Client, e Event) {
 		return
 	}
 
-	if len(e.Params) < 1 {
-		return
+	var channel string
+	if len(e.Params) > 0 {
+		channel = e.Params[0]
+	} else {
+		channel = e.Trailing
 	}
 
 	// Create the user in state. This will also verify the channel.
 	c.state.mu.Lock()
-	user := c.state.createUserIfNotExists(e.Params[0], e.Source.Name)
+	user := c.state.createUserIfNotExists(channel, e.Source.Name)
 	c.state.mu.Unlock()
 	if user == nil {
 		return
@@ -149,10 +152,10 @@ func handleJOIN(c *Client, e Event) {
 	if e.Source.Name == c.GetNick() {
 		// If it's us, don't just add our user to the list. Run a WHO which
 		// will tell us who exactly is in the entire channel.
-		c.Send(&Event{Command: WHO, Params: []string{e.Params[0], "%tacuhnr,1"}})
+		c.Send(&Event{Command: WHO, Params: []string{channel, "%tacuhnr,1"}})
 
 		// Also send a MODE to obtain the list of channel modes.
-		c.Send(&Event{Command: MODE, Params: []string{e.Params[0]}})
+		c.Send(&Event{Command: MODE, Params: []string{channel}})
 
 		// Update our ident and host too, in state -- since there is no
 		// cleaner method to do this.
@@ -216,7 +219,7 @@ func handleTOPIC(c *Client, e Event) {
 // handlWHO updates our internal tracking of users/channels with WHO/WHOX
 // information.
 func handleWHO(c *Client, e Event) {
-	var channel, ident, host, nick, account string
+	var channel, ident, host, nick, account, realname string
 
 	// Assume WHOX related.
 	if e.Command == RPL_WHOSPCRPL {
@@ -234,7 +237,11 @@ func handleWHO(c *Client, e Event) {
 
 		channel, ident, host, nick, account = e.Params[2], e.Params[3], e.Params[4], e.Params[5], e.Params[6]
 	} else {
+		// Assume RPL_WHOREPLY.
 		channel, ident, host, nick = e.Params[1], e.Params[2], e.Params[3], e.Params[5]
+		if len(e.Trailing) > 2 {
+			realname = e.Trailing[2:]
+		}
 	}
 
 	c.state.mu.Lock()
@@ -246,7 +253,7 @@ func handleWHO(c *Client, e Event) {
 
 	user.Host = host
 	user.Ident = ident
-	user.Extras.Name = e.Trailing
+	user.Extras.Name = realname
 
 	if account != "0" {
 		user.Extras.Account = account
