@@ -101,3 +101,4 @@ SOFTWARE.
    * [IRCv3: Specification Docs](http://ircv3.net/irc/)
    * [IRCv3: Specification Repo](https://github.com/ircv3/ircv3-specifications)
    * [IRCv3 Capability Registry](http://ircv3.net/registry.html)
+   * [Extended WHO (also known as WHOX)](https://github.com/quakenet/snircd/blob/master/doc/readme.who)
