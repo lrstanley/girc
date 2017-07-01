@@ -5,7 +5,7 @@
   <a href="http://gocover.io/github.com/lrstanley/girc"><img src="https://coveralls.io/repos/github/lrstanley/girc/badge.svg?branch=master" alt="Coverage Status"></a>
   <a href="https://godoc.org/github.com/lrstanley/girc"><img src="https://godoc.org/github.com/lrstanley/girc?status.png" alt="GoDoc"></a>
   <a href="https://goreportcard.com/report/github.com/lrstanley/girc"><img src="https://goreportcard.com/badge/github.com/lrstanley/girc" alt="Go Report Card"></a>
-  <a href="http://byteirc.org/channel/L"><img src="https://img.shields.io/badge/ByteIRC-%23L-blue.svg" alt="IRC Chat"></a>
+  <a href="https://byteirc.org/channel/L"><img src="https://img.shields.io/badge/ByteIRC-%23L-blue.svg" alt="IRC Chat"></a>
 </p>
 
 ## Status
@@ -43,29 +43,19 @@ you're using won't have breaking changes**
 ## Examples
 
 See [the examples](https://godoc.org/github.com/lrstanley/girc#example-package--Bare)
-within the documentation for real-world usecases.
+within the documentation for real-world usecases. Here are a few real-world
+usecases/examples/projects which utilize girc:
+
+| Project | Description |
+| --- | --- |
+| [nagios-check-ircd](github.com/lrstanley/nagios-check-ircd) | Nagios script for monitoring the health of an ircd |
+
+Working on a project and want to add it to the list? Submit a pull request!
 
 ## Contributing
 
-To review what is currently being worked on, or looked into, feel free to head
-over to the [project board](https://github.com/lrstanley/girc/projects/1) or
-the [issues list](https://github.com/lrstanley/girc/issues).
-
-----
-
-Below are a few guidelines if you would like to contribute. Keep the code
-clean, standardized, and much of the quality should match Golang's standard
-library and common idioms.
-
-   * Always test using the latest Go version.
-   * Always use `gofmt` before committing anything.
-   * Always have proper documentation before committing.
-   * Keep the same whitespacing, documentation, and newline format as the
-     rest of the project.
-   * Only use 3rd party libraries if necessary. If only a small portion of
-     the library is needed, simply rewrite it within the library to prevent
-     useless imports.
-   * Also see [golang/go/wiki/CodeReviewComments](https://github.com/golang/go/wiki/CodeReviewComments)
+Please review the [CONTRIBUTING](https://github.com/lrstanley/girc/blob/master/README.md)
+doc for submitting issues/a guide on submitting pull requests and helping out.
 
 ## License
 
