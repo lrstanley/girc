@@ -4,7 +4,7 @@
 
 package girc
 
-// Standard CTCP based constants
+// Standard CTCP based constants.
 const (
 	CTCP_PING       = "PING"
 	CTCP_PONG       = "PONG"
@@ -13,6 +13,7 @@ const (
 	CTCP_CLIENTINFO = "CLIENTINFO"
 	CTCP_SOURCE     = "SOURCE"
 	CTCP_TIME       = "TIME"
+	CTCP_FINGER     = "FINGER"
 	CTCP_ERRMSG     = "ERRMSG"
 )
 
@@ -26,7 +27,7 @@ const (
 	STOPPED      = "STOPPED"      // occurs when Client.Stop() has been called
 )
 
-// User/channel prefixes :: RFC1459
+// User/channel prefixes :: RFC1459.
 const (
 	DefaultPrefixes = "(ov)@+" // the most common default prefixes
 	ModeAddPrefix   = "+"      // modes are being added
@@ -41,7 +42,7 @@ const (
 	VoicePrefix        = "+" // user has voice +v
 )
 
-// User modes :: RFC1459; section 4.2.3.2
+// User modes :: RFC1459; section 4.2.3.2.
 const (
 	UserModeInvisible     = "i" // invisible
 	UserModeOperator      = "o" // server operator
@@ -49,7 +50,7 @@ const (
 	UserModeWallops       = "w" // user wants to receive wallops
 )
 
-// Channel modes :: RFC1459; section 4.2.3.1
+// Channel modes :: RFC1459; section 4.2.3.1.
 const (
 	ModeDefaults = "beI,k,l,imnpst" // the most common default modes
 
@@ -68,7 +69,7 @@ const (
 	ModeHalfOperator = "h" // half-operator privileges (non-rfc)
 )
 
-// IRC commands :: RFC2812; section 3 :: RFC2813; section 4
+// IRC commands :: RFC2812; section 3 :: RFC2813; section 4.
 const (
 	ADMIN    = "ADMIN"
 	AWAY     = "AWAY"
@@ -119,7 +120,7 @@ const (
 	WHOWAS   = "WHOWAS"
 )
 
-// Numeric IRC reply mapping :: RFC2812; section 5
+// Numeric IRC reply mapping :: RFC2812; section 5.
 const (
 	RPL_WELCOME           = "001"
 	RPL_YOURHOST          = "002"
@@ -261,7 +262,7 @@ const (
 	ERR_USERSDONTMATCH    = "502"
 )
 
-// IRCv3 commands and extensions :: http://ircv3.net/irc/
+// IRCv3 commands and extensions :: http://ircv3.net/irc/.
 const (
 	AUTHENTICATE = "AUTHENTICATE"
 	STARTTLS     = "STARTTLS"
@@ -282,7 +283,7 @@ const (
 	CAP_ACCOUNT = "ACCOUNT"
 )
 
-// Numeric IRC reply mapping for ircv3 :: http://ircv3.net/irc/
+// Numeric IRC reply mapping for ircv3 :: http://ircv3.net/irc/.
 const (
 	RPL_LOGGEDIN    = "900"
 	RPL_LOGGEDOUT   = "901"
@@ -297,7 +298,7 @@ const (
 	ERR_STARTTLS    = "691"
 )
 
-// Numeric IRC event mapping :: RFC2812; section 5.3
+// Numeric IRC event mapping :: RFC2812; section 5.3.
 const (
 	RPL_STATSCLINE    = "213"
 	RPL_STATSNLINE    = "214"
@@ -330,6 +331,6 @@ const (
 	ERR_TOOMANYMATCHES = "416" // IRCNet.
 	RPL_GLOBALUSERS    = "266" // aircd/hybrid/bahamut, used on freenode.
 	RPL_LOCALUSERS     = "265" // aircd/hybrid/bahamut, used on freenode.
-	RPL_TOPICWHOTIME   = "333" // ircu, in use on Freenode.
+	RPL_TOPICWHOTIME   = "333" // ircu, used on freenode.
 	RPL_WHOSPCRPL      = "354" // ircu, used on networks with WHOX support.
 )

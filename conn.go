@@ -30,8 +30,11 @@ type ircConn struct {
 	sock net.Conn
 
 	mu sync.RWMutex
-	// lastWrite is used ot keep track of when we last wrote to the server.
+	// lastWrite is used to keep track of when we last wrote to the server.
 	lastWrite time.Time
+	// lastActive is the last time the client was interacting with the server,
+	// excluding a few background commands (PING, PONG, WHO, etc).
+	lastActive time.Time
 	// writeDelay is used to keep track of rate limiting of events sent to
 	// the server.
 	writeDelay time.Duration
@@ -468,6 +471,10 @@ func (c *Client) sendLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 
 			c.conn.mu.Lock()
 			c.conn.lastWrite = time.Now()
+
+			if event.Command != PING && event.Command != PONG && event.Command != WHO {
+				c.conn.lastActive = c.conn.lastWrite
+			}
 			c.conn.mu.Unlock()
 
 			// Write the raw line.

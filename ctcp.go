@@ -5,6 +5,7 @@
 package girc
 
 import (
+	"fmt"
 	"runtime"
 	"strings"
 	"sync"
@@ -230,6 +231,7 @@ func (c *CTCP) addDefaultHandlers() {
 	c.SetBg(CTCP_VERSION, handleCTCPVersion)
 	c.SetBg(CTCP_SOURCE, handleCTCPSource)
 	c.SetBg(CTCP_TIME, handleCTCPTime)
+	c.SetBg(CTCP_FINGER, handleCTCPFinger)
 }
 
 // handleCTCPPing replies with a ping and whatever was originally requested.
@@ -273,4 +275,14 @@ func handleCTCPSource(client *Client, ctcp CTCPEvent) {
 // local time.
 func handleCTCPTime(client *Client, ctcp CTCPEvent) {
 	client.Cmd.SendCTCPReply(ctcp.Source.Name, CTCP_TIME, ":"+time.Now().Format(time.RFC1123Z))
+}
+
+// handleCTCPFinger replies with the realname and idle time of the user. This
+// is obsoleted by improvements to the IRC protocol, however still supported.
+func handleCTCPFinger(client *Client, ctcp CTCPEvent) {
+	client.conn.mu.RLock()
+	active := client.conn.lastActive
+	client.conn.mu.RUnlock()
+
+	client.Cmd.SendCTCPReply(ctcp.Source.Name, CTCP_FINGER, fmt.Sprintf("%s -- idle %s", client.Config.Name, time.Since(active)))
 }
