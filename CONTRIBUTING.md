@@ -8,7 +8,7 @@
      being used.
    * Provide the minimum needed viable source to replicate the problem.
 
-## Pull Requests
+## Pull requests
 
 To review what is currently being worked on, or looked into, feel free to head
 over to the [project board](https://github.com/lrstanley/girc/projects/1) or
