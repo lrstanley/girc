@@ -170,7 +170,7 @@ func (ch *CmdHandler) Execute(client *girc.Client, event girc.Event) {
 		}
 
 		if ch.cmds[args[0]].Help == "" {
-			client.Cmd.ReplyTof(event, girc.Fmt("there is no help documentaiton for {b}%q{b}"), args[0])
+			client.Cmd.ReplyTof(event, girc.Fmt("there is no help documentation for {b}%q{b}"), args[0])
 			return
 		}
 

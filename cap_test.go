@@ -38,13 +38,13 @@ func TestParseCap(t *testing.T) {
 	}{
 		{in: "userhost-in-names", want: map[string][]string{"userhost-in-names": nil}},
 		{in: "userhost-in-names test2", want: map[string][]string{"userhost-in-names": nil, "test2": nil}},
-		{in: "example/name=test", want: map[string][]string{"example/name": []string{"test"}}},
+		{in: "example/name=test", want: map[string][]string{"example/name": {"test"}}},
 		{
 			in: "userhost-in-names example/name example/name2=test,test2",
 			want: map[string][]string{
 				"userhost-in-names": nil,
 				"example/name":      nil,
-				"example/name2":     []string{"test", "test2"},
+				"example/name2":     {"test", "test2"},
 			},
 		},
 	}
