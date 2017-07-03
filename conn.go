@@ -196,9 +196,11 @@ func (c *ircConn) Close() error {
 
 // Connect attempts to connect to the given IRC server. Returns only when
 // an error has occurred, or a disconnect was requested with Close(). Connect
-// will only return once all goroutines have been closed to ensure there are
-// no long-running routines becoming backed up. This also means that this
-// will wait for all non-background handlers to complete.
+// will only return once all client-based goroutines have been closed to
+// ensure there are no long-running routines becoming backed up.
+//
+// Connect will wait for all non-goroutine handlers to complete on error/quit,
+// however it will not wait for goroutine handlers.
 //
 // If this returns nil, this means that the client requested to be closed
 // (e.g. Client.Close()). Connect will panic if called when the last call has

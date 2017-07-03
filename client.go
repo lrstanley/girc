@@ -124,8 +124,11 @@ type Config struct {
 	// sent from the server, or other useful debug logs. Defaults to
 	// ioutil.Discard. For quick debugging, this could be set to os.Stdout.
 	Debug io.Writer
-	// Out is used to print out a prettified version of certain, important
-	// events, ignoring ones that are not important.
+	// Out is used to write out a prettified version of incoming events. For
+	// example, channel JOIN/PART, PRIVMSG/NOTICE, KICk, etc. Useful to get
+	// a brief output of the activity of the client. If you are looking to
+	// log raw messages, look at a handler and girc.ALLEVENTS and the relevant
+	// Event.Bytes() or Event.String() methods.
 	Out io.Writer
 	// RecoverFunc is called when a handler throws a panic. If RecoverFunc is
 	// set, the panic will be considered recovered, otherwise the client will
@@ -135,8 +138,10 @@ type Config struct {
 	// Debug is unset.
 	RecoverFunc func(c *Client, e *HandlerError)
 	// SupportedCaps are the IRCv3 capabilities you would like the client to
-	// support. Only use this if you have not called DisableTracking(). The
-	// keys value gets passed to the server if supported.
+	// support on top of the ones which the client already supports (see
+	// cap.go for which ones the client enables by default). Only use this
+	// if you have not called DisableTracking(). The keys value gets passed
+	// to the server if supported.
 	SupportedCaps map[string][]string
 	// Version is the application version information that will be used in
 	// response to a CTCP VERSION, if default CTCP replies have not been
@@ -151,7 +156,9 @@ type Config struct {
 	PingDelay time.Duration
 
 	// disableTracking disables all channel and user-level tracking. Useful
-	// for highly embedded scripts with single purposes.
+	// for highly embedded scripts with single purposes. This has an exported
+	// method which enables this and ensures prop cleanup, see
+	// Client.DisableTracking().
 	disableTracking bool
 	// HandleNickCollide when set, allows the client to handle nick collisions
 	// in a custom way. If unset, the client will attempt to append a
@@ -252,7 +259,8 @@ func (c *Client) String() string {
 
 // Close closes the network connection to the server, and sends a STOPPED
 // event. This should cause Connect() to return with nil. This should be
-// safe to call multiple times.
+// safe to call multiple times. See Connect()'s documentation on how
+// handlers and goroutines are handled when disconnected from the server.
 func (c *Client) Close() {
 	c.RunHandlers(&Event{Command: STOPPED, Trailing: c.Server()})
 
@@ -279,12 +287,28 @@ func (c *Client) execLoop(done chan struct{}, wg *sync.WaitGroup) {
 	c.debug.Print("starting execLoop")
 	defer c.debug.Print("closing execLoop")
 
+	var event *Event
+
 	for {
 		select {
 		case <-done:
+			// We've been told to exit, however we shouldn't bail on the
+			// current events in the queue that should be processed, as one
+			// may want to handle an ERROR, QUIT, etc.
+
+			for {
+				select {
+				case event = <-c.rx:
+					c.RunHandlers(event)
+				default:
+					goto done
+				}
+			}
+
+		done:
 			wg.Done()
 			return
-		case event := <-c.rx:
+		case event = <-c.rx:
 			c.RunHandlers(event)
 		}
 	}
