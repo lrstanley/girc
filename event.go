@@ -394,7 +394,7 @@ func (e *Event) GetChannel(c *Client) *Channel {
 		return nil
 	}
 
-	return c.Lookup(e.Params[0])
+	return c.LookupChannel(e.Params[0])
 }
 
 // GetUser is a helper function around an event which lets you easily obtain
@@ -411,12 +411,7 @@ func (e *Event) GetUser(c *Client) *User {
 		return nil
 	}
 
-	channel := c.Lookup(e.Params[0])
-	if channel == nil {
-		return nil
-	}
-
-	return channel.Lookup(e.Source.Name)
+	return c.LookupUser(e.Source.Name)
 }
 
 // IsAction checks to see if the event is a PRIVMSG, and is an ACTION (/me).

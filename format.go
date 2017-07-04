@@ -239,7 +239,7 @@ func IsValidUser(name string) bool {
 
 // ToRFC1459 converts a string to the stripped down conversion within RFC
 // 1459. This will do things like replace an "A" with an "a", "[]" with "{}",
-// and so forth. Useful to compare two nicknames.
+// and so forth. Useful to compare two nicknames or channels.
 func ToRFC1459(input string) (out string) {
 	for i := 0; i < len(input); i++ {
 		if input[i] >= 65 && input[i] <= 94 {

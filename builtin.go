@@ -140,6 +140,7 @@ func handleJOIN(c *Client, e Event) {
 
 	// Assume extended-join (ircv3).
 	if len(e.Params) == 2 {
+		c.state.mu.Lock()
 		if e.Params[1] != "*" {
 			user.Extras.Account = e.Params[1]
 		}
@@ -147,6 +148,7 @@ func handleJOIN(c *Client, e Event) {
 		if len(e.Trailing) > 0 {
 			user.Extras.Name = e.Trailing
 		}
+		c.state.mu.Unlock()
 	}
 
 	if e.Source.Name == c.GetNick() {
@@ -176,19 +178,26 @@ func handlePART(c *Client, e Event) {
 		return
 	}
 
-	if len(e.Params) == 0 {
+	var channel string
+	if len(e.Params) > 0 {
+		channel = e.Params[0]
+	} else {
+		channel = e.Trailing
+	}
+
+	if channel == "" {
 		return
 	}
 
 	if e.Source.Name == c.GetNick() {
 		c.state.mu.Lock()
-		c.state.deleteChannel(e.Params[0])
+		c.state.deleteChannel(channel)
 		c.state.mu.Unlock()
 		return
 	}
 
 	c.state.mu.Lock()
-	c.state.deleteUser(e.Source.Name)
+	c.state.deleteUser(channel, e.Source.Name)
 	c.state.mu.Unlock()
 }
 
@@ -236,6 +245,7 @@ func handleWHO(c *Client, e Event) {
 		}
 
 		channel, ident, host, nick, account = e.Params[2], e.Params[3], e.Params[4], e.Params[5], e.Params[6]
+		realname = e.Trailing
 	} else {
 		// Assume RPL_WHOREPLY.
 		channel, ident, host, nick = e.Params[1], e.Params[2], e.Params[3], e.Params[5]
@@ -279,7 +289,7 @@ func handleKICK(c *Client, e Event) {
 
 	// Assume it's just another user.
 	c.state.mu.Lock()
-	c.state.deleteUser(e.Params[1])
+	c.state.deleteUser(e.Params[0], e.Params[1])
 	c.state.mu.Unlock()
 }
 
@@ -306,8 +316,12 @@ func handleQUIT(c *Client, e Event) {
 		return
 	}
 
+	if e.Source.Name == c.GetNick() {
+		return
+	}
+
 	c.state.mu.Lock()
-	c.state.deleteUser(e.Source.Name)
+	c.state.deleteUser("", e.Source.Name)
 	c.state.mu.Unlock()
 }
 
@@ -450,10 +464,13 @@ func updateLastActive(c *Client, e Event) {
 	}
 
 	c.state.mu.Lock()
+	defer c.state.mu.Unlock()
+
 	// Update the users last active time, if they exist.
-	users := c.state.lookupUsers("nick", e.Source.Name)
-	for i := 0; i < len(users); i++ {
-		users[i].LastActive = time.Now()
+	user := c.state.lookupUser(e.Source.Name)
+	if user == nil {
+		return
 	}
-	c.state.mu.Unlock()
+
+	user.LastActive = time.Now()
 }

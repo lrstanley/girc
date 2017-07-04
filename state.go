@@ -5,7 +5,7 @@
 package girc
 
 import (
-	"strings"
+	"sort"
 	"sync"
 	"time"
 )
@@ -20,6 +20,8 @@ type state struct {
 	nick, ident, host string
 	// channels represents all channels we're active in.
 	channels map[string]*Channel
+	// users represents all of users that we're tracking.
+	users map[string]*User
 	// enabledCap are the capabilities which are enabled for this connection.
 	enabledCap []string
 	// tmpCap are the capabilties which we share with the server during the
@@ -34,12 +36,14 @@ type state struct {
 	motd string
 }
 
-func (s *state) clean() {
+// reset resets the state back to it's original form.
+func (s *state) reset() {
 	s.mu.Lock()
 	s.nick = ""
 	s.ident = ""
 	s.host = ""
 	s.channels = make(map[string]*Channel)
+	s.users = make(map[string]*User)
 	s.serverOptions = make(map[string]string)
 	s.enabledCap = []string{}
 	s.motd = ""
@@ -48,7 +52,7 @@ func (s *state) clean() {
 
 // User represents an IRC user and the state attached to them.
 type User struct {
-	// Nick is the users current nickname.
+	// Nick is the users current nickname. rfc1459 compliant.
 	Nick string
 	// Ident is the users username/ident. Ident is commonly prefixed with a
 	// "~", which indicates that they do not have a identd server setup for
@@ -59,6 +63,10 @@ type User struct {
 	// many networks spoofing/hiding parts of the hostname for privacy
 	// reasons.
 	Host string
+
+	// Channels is a sorted list of all channels that we are currently tracking
+	// the user in. Each channel name is rfc1459 compliant.
+	Channels []string
 
 	// FirstSeen represents the first time that the user was seen by the
 	// client for the given channel. Only usable if from state, not in past.
@@ -94,6 +102,46 @@ type User struct {
 	}
 }
 
+// Copy returns a deep copy of the user which can be modified without making
+// changes to the actual state.
+func (u *User) Copy() *User {
+	nu := &User{}
+	*nu = *u
+
+	_ = copy(nu.Channels, u.Channels)
+
+	return nu
+}
+
+func (u *User) deleteChannel(name string) {
+	name = ToRFC1459(name)
+
+	j := -1
+	for i := 0; i < len(u.Channels); i++ {
+		if u.Channels[i] == name {
+			j = i
+			break
+		}
+	}
+
+	if j != -1 {
+		u.Channels = append(u.Channels[:j], u.Channels[j+1:]...)
+	}
+}
+
+// InChannel checks to see if a user is in the given channel.
+func (u *User) InChannel(name string) bool {
+	name = ToRFC1459(name)
+
+	for i := 0; i < len(u.Channels); i++ {
+		if u.Channels[i] == name {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Lifetime represents the amount of time that has passed since we have first
 // seen the user.
 func (u *User) Lifetime() time.Duration {
@@ -113,18 +161,34 @@ func (u *User) IsActive() bool {
 
 // Channel represents an IRC channel and the state attached to it.
 type Channel struct {
-	// Name of the channel. Must be rfc compliant. Always represented as
-	// lower-case, to ensure that the channel is only being tracked once.
+	// Name of the channel. Must be rfc1459 compliant.
 	Name string
 	// Topic of the channel.
 	Topic string
-	// users represents the users that we can currently see within the
-	// channel.
-	users map[string]*User
+
+	// Users is a sorted list of all users we are currently tracking within
+	// the channel. Each is the nickname, and is rfc1459 compliant.
+	Users []string
 	// Joined represents the first time that the client joined the channel.
 	Joined time.Time
 	// Modes are the known channel modes that the bot has captured.
 	Modes CModes
+}
+
+func (c *Channel) deleteUser(nick string) {
+	nick = ToRFC1459(nick)
+
+	j := -1
+	for i := 0; i < len(c.Users); i++ {
+		if c.Users[i] == nick {
+			j = i
+			break
+		}
+	}
+
+	if j != -1 {
+		c.Users = append(c.Users[:j], c.Users[j+1:]...)
+	}
 }
 
 // Copy returns a deep copy of a given channel.
@@ -132,11 +196,7 @@ func (c *Channel) Copy() *Channel {
 	nc := &Channel{}
 	*nc = *c
 
-	// Copy the users.
-	nc.users = make(map[string]*User)
-	for k, v := range c.users {
-		nc.users[k] = v
-	}
+	_ = copy(nc.Users, c.Users)
 
 	// And modes.
 	nc.Modes = c.Modes.Copy()
@@ -144,51 +204,22 @@ func (c *Channel) Copy() *Channel {
 	return nc
 }
 
-// Users returns a list of users in a given channel.
-func (c *Channel) Users() []*User {
-	out := make([]*User, len(c.users))
-
-	var index int
-	for _, u := range c.users {
-		out[index] = u
-
-		index++
-	}
-
-	return out
-}
-
-// NickList returns a list of nicknames in a given channel.
-func (c *Channel) NickList() []string {
-	out := make([]string, len(c.users))
-
-	var index int
-	for k := range c.users {
-		out[index] = k
-
-		index++
-	}
-
-	return out
-}
-
 // Len returns the count of users in a given channel.
 func (c *Channel) Len() int {
-	return len(c.users)
+	return len(c.Users)
 }
 
-// Lookup looks up a user in a channel based on a given nickname. If the
-// user wasn't found, user is nil.
-func (c *Channel) Lookup(nick string) *User {
-	for k, v := range c.users {
-		if ToRFC1459(k) == ToRFC1459(nick) {
-			// No need to have a copy, as if one has access to a channel,
-			// should already have a full copy.
-			return v
+// UserIn checks to see if a given user is in a channel.
+func (c *Channel) UserIn(name string) bool {
+	name = ToRFC1459(name)
+
+	for i := 0; i < len(c.Users); i++ {
+		if c.Users[i] == name {
+			return true
 		}
 	}
 
-	return nil
+	return false
 }
 
 // Lifetime represents the amount of time that has passed since we have first
@@ -208,18 +239,17 @@ func (s *state) createChanIfNotExists(name string) (channel *Channel) {
 	supported := s.chanModes()
 	prefixes, _ := parsePrefixes(s.userPrefixes())
 
-	name = strings.ToLower(name)
-	if _, ok := s.channels[name]; !ok {
-		channel = &Channel{
-			Name:   name,
-			users:  make(map[string]*User),
-			Joined: time.Now(),
-			Modes:  NewCModes(supported, prefixes),
-		}
-		s.channels[name] = channel
-	} else {
-		channel = s.channels[name]
+	if _, ok := s.channels[ToRFC1459(name)]; ok {
+		return s.channels[ToRFC1459(name)]
 	}
+
+	channel = &Channel{
+		Name:   name,
+		Users:  []string{},
+		Joined: time.Now(),
+		Modes:  NewCModes(supported, prefixes),
+	}
+	s.channels[ToRFC1459(name)] = channel
 
 	return channel
 }
@@ -227,24 +257,45 @@ func (s *state) createChanIfNotExists(name string) (channel *Channel) {
 // deleteChannel removes the channel from state, if not already done. Always
 // use state.mu for transaction.
 func (s *state) deleteChannel(name string) {
-	channel := s.createChanIfNotExists(name)
-	if channel == nil {
+	name = ToRFC1459(name)
+
+	_, ok := s.channels[name]
+	if !ok {
 		return
 	}
 
-	if _, ok := s.channels[channel.Name]; ok {
-		delete(s.channels, channel.Name)
+	for _, user := range s.channels[name].Users {
+		s.users[user].deleteChannel(name)
+
+		if len(s.users[user].Channels) == 0 {
+			// Assume we were only tracking them in this channel, and they
+			// should be removed from state.
+
+			delete(s.users, user)
+		}
 	}
+
+	delete(s.channels, name)
 }
 
-// lookupChannel returns a reference to a channel with a given case-insensitive
-// name. nil returned if no results found.
+// lookupChannel returns a reference to a channel, nil returned if no results
+// found. Always use state.mu for transaction.
 func (s *state) lookupChannel(name string) *Channel {
 	if !IsValidChannel(name) {
 		return nil
 	}
 
-	return s.channels[strings.ToLower(name)]
+	return s.channels[ToRFC1459(name)]
+}
+
+// lookupUser returns a reference to a user, nil returned if no results
+// found. Always use state.mu for transaction.
+func (s *state) lookupUser(name string) *User {
+	if !IsValidNick(name) {
+		return nil
+	}
+
+	return s.users[ToRFC1459(name)]
 }
 
 // createUserIfNotExists creates the channel and user in state, if not already
@@ -256,34 +307,66 @@ func (s *state) createUserIfNotExists(channelName, nick string) (user *User) {
 
 	channel := s.createChanIfNotExists(channelName)
 	if channel == nil {
-		return nil
+		return
 	}
 
-	if _, ok := channel.users[nick]; ok {
-		channel.users[nick].LastActive = time.Now()
-		return channel.users[nick]
+	user = s.lookupUser(nick)
+	if user != nil {
+		if !user.InChannel(channelName) {
+			user.Channels = append(user.Channels, ToRFC1459(channelName))
+			sort.StringsAreSorted(user.Channels)
+		}
+
+		user.LastActive = time.Now()
+		return user
 	}
 
-	user = &User{Nick: nick, FirstSeen: time.Now(), LastActive: time.Now()}
-	channel.users[nick] = user
+	user = &User{
+		Nick:       nick,
+		FirstSeen:  time.Now(),
+		LastActive: time.Now(),
+	}
+	s.users[ToRFC1459(nick)] = user
+	channel.Users = append(channel.Users, ToRFC1459(nick))
+	sort.Strings(channel.Users)
 
 	return user
 }
 
 // deleteUser removes the user from channel state. Always use state.mu for
 // transaction.
-func (s *state) deleteUser(nick string) {
+func (s *state) deleteUser(channelName, nick string) {
 	if !IsValidNick(nick) {
 		return
 	}
 
-	for k := range s.channels {
-		// Check to see if they're in this channel.
-		if _, ok := s.channels[k].users[nick]; !ok {
-			continue
+	user := s.lookupUser(nick)
+	if user == nil {
+		return
+	}
+
+	if channelName == "" {
+		for i := 0; i < len(user.Channels); i++ {
+			s.channels[user.Channels[i]].deleteUser(nick)
 		}
 
-		delete(s.channels[k].users, nick)
+		delete(s.users, ToRFC1459(nick))
+		return
+	}
+
+	channel := s.lookupChannel(channelName)
+	if channel == nil {
+		return
+	}
+
+	user.deleteChannel(channelName)
+	channel.deleteUser(nick)
+
+	if len(user.Channels) == 0 {
+		// This means they are no longer in any channels we track, delete
+		// them from state.
+
+		delete(s.users, ToRFC1459(nick))
 	}
 }
 
@@ -294,59 +377,29 @@ func (s *state) renameUser(from, to string) {
 		return
 	}
 
+	from = ToRFC1459(from)
+
 	// Update our nickname.
-	if from == s.nick {
+	if from == ToRFC1459(s.nick) {
 		s.nick = to
 	}
 
-	for k := range s.channels {
-		// Check to see if they're in this channel.
-		if _, ok := s.channels[k].users[from]; !ok {
-			continue
-		}
-
-		// Take the actual reference to the pointer.
-		source := *s.channels[k].users[from]
-
-		// Update the nick field (as we not only have a key, but a matching
-		// struct field).
-		source.Nick = to
-		source.LastActive = time.Now()
-
-		// Delete the old reference.
-		delete(s.channels[k].users, from)
-
-		// In with the new.
-		s.channels[k].users[to] = &source
+	user := s.lookupUser(from)
+	if user == nil {
+		return
 	}
-}
 
-// lookupUsers returns a slice of references to users matching a given
-// query. mathType is of "nick", "name", "ident" or "account".
-func (s *state) lookupUsers(matchType, toMatch string) []*User {
-	var users []*User
+	delete(s.users, from)
 
-	for c := range s.channels {
-		for u := range s.channels[c].users {
-			switch matchType {
-			case "nick":
-				if ToRFC1459(s.channels[c].users[u].Nick) == ToRFC1459(toMatch) {
-					users = append(users, s.channels[c].users[u])
-					continue
-				}
-			case "ident":
-				if ToRFC1459(s.channels[c].users[u].Ident) == ToRFC1459(toMatch) {
-					users = append(users, s.channels[c].users[u])
-					continue
-				}
-			case "account":
-				if ToRFC1459(s.channels[c].users[u].Extras.Account) == ToRFC1459(toMatch) {
-					users = append(users, s.channels[c].users[u])
-					continue
-				}
+	user.Nick = to
+	user.LastActive = time.Now()
+	s.users[ToRFC1459(to)] = user
+
+	for i := 0; i < len(user.Channels); i++ {
+		for j := 0; j < len(s.channels[user.Channels[i]].Users); j++ {
+			if s.channels[user.Channels[i]].Users[j] == from {
+				s.channels[user.Channels[i]].Users[j] = ToRFC1459(to)
 			}
 		}
 	}
-
-	return users
 }

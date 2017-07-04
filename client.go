@@ -13,7 +13,7 @@ import (
 	"io/ioutil"
 	"log"
 	"runtime"
-	"strings"
+	"sort"
 	"sync"
 	"time"
 )
@@ -237,7 +237,7 @@ func New(config Config) *Client {
 
 	// Give ourselves a new state.
 	c.state = &state{}
-	c.state.clean()
+	c.state.reset()
 
 	// Register builtin handlers.
 	c.registerBuiltins()
@@ -430,32 +430,74 @@ func (c *Client) GetHost() string {
 // Panics if tracking is disabled.
 func (c *Client) Channels() []string {
 	c.panicIfNotTracking()
-	channels := make([]string, len(c.state.channels))
 
 	c.state.mu.RLock()
+	channels := make([]string, len(c.state.channels))
 	var i int
 	for channel := range c.state.channels {
 		channels[i] = channel
 		i++
 	}
 	c.state.mu.RUnlock()
+	sort.Strings(channels)
 
 	return channels
 }
 
-// Lookup looks up a given channel in state. If the channel doesn't exist,
-// channel is nil. Panics if tracking is disabled.
-func (c *Client) Lookup(name string) *Channel {
+// Users returns the active list of users that the client is tracking across
+// all files. Panics if tracking is disabled.
+func (c *Client) Users() []string {
 	c.panicIfNotTracking()
+
+	c.state.mu.RLock()
+	users := make([]string, len(c.state.users))
+	var i int
+	for user := range c.state.users {
+		users[i] = user
+		i++
+	}
+	c.state.mu.RUnlock()
+	sort.Strings(users)
+
+	return users
+}
+
+// LookupChannel looks up a given channel in state. If the channel doesn't
+// exist, nil is returned. Panics if tracking is disabled.
+func (c *Client) LookupChannel(name string) *Channel {
+	c.panicIfNotTracking()
+	if name == "" {
+		return nil
+	}
+
 	c.state.mu.Lock()
-	defer c.state.mu.Unlock()
 
 	channel := c.state.lookupChannel(name)
+	c.state.mu.Unlock()
 	if channel == nil {
 		return nil
 	}
 
 	return channel.Copy()
+}
+
+// LookupUser looks up a given user in state. If the user doesn't exist, nil
+// is returned. Panics if tracking is disabled.
+func (c *Client) LookupUser(nick string) *User {
+	c.panicIfNotTracking()
+	if nick == "" {
+		return nil
+	}
+
+	c.state.mu.Lock()
+
+	user := c.state.lookupUser(nick)
+	c.state.mu.Unlock()
+	if user == nil {
+		return nil
+	}
+
+	return user.Copy()
 }
 
 // IsInChannel returns true if the client is in channel. Panics if tracking
@@ -464,7 +506,7 @@ func (c *Client) IsInChannel(channel string) bool {
 	c.panicIfNotTracking()
 
 	c.state.mu.RLock()
-	_, inChannel := c.state.channels[strings.ToLower(channel)]
+	_, inChannel := c.state.channels[ToRFC1459(channel)]
 	c.state.mu.RUnlock()
 
 	return inChannel

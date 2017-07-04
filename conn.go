@@ -265,7 +265,7 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	}
 
 	// Reset the state.
-	c.state.clean()
+	c.state.reset()
 
 	if mock == nil {
 		// Validate info, and actually make the connection.

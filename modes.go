@@ -351,9 +351,9 @@ func handleMODE(c *Client, e Event) {
 			continue
 		}
 
-		users := c.state.lookupUsers("nick", modes[i].args)
-		for j := 0; j < len(users); j++ {
-			users[j].Perms.setFromMode(modes[i])
+		user := c.state.lookupUser(modes[i].args)
+		if user != nil {
+			user.Perms.setFromMode(modes[i])
 		}
 	}
 
