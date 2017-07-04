@@ -380,40 +380,6 @@ func (e *Event) Pretty() (out string, ok bool) {
 	return "", false
 }
 
-// GetChannel is a helper function around an event which lets you easily obtain
-// the channel information from state tracking. Note that this should only
-// be called from a PRIVMSG where the message originated from the server.
-// The returned result may be nil if not in state, and will panic if called
-// when tracking is disabled.
-func (e *Event) GetChannel(c *Client) *Channel {
-	if e == nil {
-		return nil
-	}
-
-	if !e.IsFromChannel() {
-		return nil
-	}
-
-	return c.LookupChannel(e.Params[0])
-}
-
-// GetUser is a helper function around an event which lets you easily obtain
-// the user information from state tracking. Note that this should only be
-// called from a PRIVMSG where the message originated from the server. The
-// returned result may be nil if not in state, and will panic if called when
-// tracking is disabled.
-func (e *Event) GetUser(c *Client) *User {
-	if e == nil {
-		return nil
-	}
-
-	if !e.IsFromChannel() {
-		return nil
-	}
-
-	return c.LookupUser(e.Source.Name)
-}
-
 // IsAction checks to see if the event is a PRIVMSG, and is an ACTION (/me).
 func (e *Event) IsAction() bool {
 	if e.Source == nil || e.Command != PRIVMSG || len(e.Trailing) < 9 {
