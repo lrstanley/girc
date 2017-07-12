@@ -41,7 +41,7 @@ func decodeCTCP(e *Event) *CTCPEvent {
 		return nil
 	}
 
-	if (e.Command != "PRIVMSG" && e.Command != "NOTICE") || !IsValidNick(e.Params[0]) {
+	if (e.Command != PRIVMSG && e.Command != NOTICE) || !IsValidNick(e.Params[0]) {
 		return nil
 	}
 
@@ -67,7 +67,7 @@ func decodeCTCP(e *Event) *CTCPEvent {
 			Origin:  e,
 			Source:  e.Source,
 			Command: text,
-			Reply:   e.Command == "NOTICE",
+			Reply:   e.Command == NOTICE,
 		}
 	}
 
@@ -84,7 +84,7 @@ func decodeCTCP(e *Event) *CTCPEvent {
 		Source:  e.Source,
 		Command: text[0:s],
 		Text:    text[s+1:],
-		Reply:   e.Command == "NOTICE",
+		Reply:   e.Command == NOTICE,
 	}
 }
 

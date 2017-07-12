@@ -51,7 +51,7 @@ func ParseEvent(raw string) (e *Event) {
 		return nil
 	}
 
-	i, j := 0, 0
+	var i, j int
 	e = &Event{}
 
 	if raw[0] == prefixTag {
