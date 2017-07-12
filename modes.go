@@ -329,10 +329,10 @@ func handleMODE(c *Client, e Event) {
 		return
 	}
 
-	c.state.mu.Lock()
+	c.state.RLock()
 	channel := c.state.lookupChannel(e.Params[0])
 	if channel == nil {
-		c.state.mu.Unlock()
+		c.state.RUnlock()
 		return
 	}
 
@@ -357,7 +357,8 @@ func handleMODE(c *Client, e Event) {
 		}
 	}
 
-	c.state.mu.Unlock()
+	c.state.RUnlock()
+	c.state.notify(c, UPDATE_STATE)
 }
 
 // chanModes returns the ISUPPORT list of server-supported channel modes,

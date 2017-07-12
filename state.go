@@ -11,11 +11,10 @@ import (
 )
 
 // state represents the actively-changing variables within the client
-// runtime.
+// runtime. Note that everything within the state should be guarded by the
+// embedded sync.RWMutex.
 type state struct {
-	// m is a RW mutex lock, used to guard the state from goroutines causing
-	// corruption.
-	mu sync.RWMutex
+	sync.RWMutex
 	// nick, ident, and host are the internal trackers for our user.
 	nick, ident, host string
 	// channels represents all channels we're active in.
@@ -36,9 +35,15 @@ type state struct {
 	motd string
 }
 
+// notify sends state change notifications so users can update their refs
+// when state changes.
+func (s *state) notify(c *Client, ntype string) {
+	c.RunHandlers(&Event{Command: ntype})
+}
+
 // reset resets the state back to it's original form.
 func (s *state) reset() {
-	s.mu.Lock()
+	s.Lock()
 	s.nick = ""
 	s.ident = ""
 	s.host = ""
@@ -47,7 +52,7 @@ func (s *state) reset() {
 	s.serverOptions = make(map[string]string)
 	s.enabledCap = []string{}
 	s.motd = ""
-	s.mu.Unlock()
+	s.Unlock()
 }
 
 // User represents an IRC user and the state attached to them.
@@ -113,6 +118,13 @@ func (u *User) Copy() *User {
 	return nu
 }
 
+// addChannel adds the channel to the users channel list.
+func (u *User) addChannel(name string) {
+	u.Channels = append(u.Channels, ToRFC1459(name))
+	sort.StringsAreSorted(u.Channels)
+}
+
+// deleteChannel removes an existing channel from the users channel list.
 func (u *User) deleteChannel(name string) {
 	name = ToRFC1459(name)
 
@@ -175,6 +187,13 @@ type Channel struct {
 	Modes CModes
 }
 
+// addUser adds a user to the users list.
+func (c *Channel) addUser(nick string) {
+	c.Users = append(c.Users, ToRFC1459(nick))
+	sort.Strings(c.Users)
+}
+
+// deleteUser removes an existing user from the users list.
 func (c *Channel) deleteUser(nick string) {
 	nick = ToRFC1459(nick)
 
@@ -228,34 +247,26 @@ func (c *Channel) Lifetime() time.Duration {
 	return time.Since(c.Joined)
 }
 
-// createChanIfNotExists creates the channel in state, if not already done.
-// Always use state.mu for transaction.
-func (s *state) createChanIfNotExists(name string) (channel *Channel) {
-	// Not a valid channel.
-	if !IsValidChannel(name) {
-		return nil
-	}
-
+// createChannel creates the channel in state, if not already done.
+func (s *state) createChannel(name string) (ok bool) {
 	supported := s.chanModes()
 	prefixes, _ := parsePrefixes(s.userPrefixes())
 
 	if _, ok := s.channels[ToRFC1459(name)]; ok {
-		return s.channels[ToRFC1459(name)]
+		return false
 	}
 
-	channel = &Channel{
+	s.channels[ToRFC1459(name)] = &Channel{
 		Name:   name,
 		Users:  []string{},
 		Joined: time.Now(),
 		Modes:  NewCModes(supported, prefixes),
 	}
-	s.channels[ToRFC1459(name)] = channel
 
-	return channel
+	return true
 }
 
-// deleteChannel removes the channel from state, if not already done. Always
-// use state.mu for transaction.
+// deleteChannel removes the channel from state, if not already done.
 func (s *state) deleteChannel(name string) {
 	name = ToRFC1459(name)
 
@@ -279,67 +290,35 @@ func (s *state) deleteChannel(name string) {
 }
 
 // lookupChannel returns a reference to a channel, nil returned if no results
-// found. Always use state.mu for transaction.
+// found.
 func (s *state) lookupChannel(name string) *Channel {
-	if !IsValidChannel(name) {
-		return nil
-	}
-
 	return s.channels[ToRFC1459(name)]
 }
 
 // lookupUser returns a reference to a user, nil returned if no results
-// found. Always use state.mu for transaction.
+// found.
 func (s *state) lookupUser(name string) *User {
-	if !IsValidNick(name) {
-		return nil
-	}
-
 	return s.users[ToRFC1459(name)]
 }
 
-// createUserIfNotExists creates the channel and user in state, if not already
-// done. Always use state.mu for transaction.
-func (s *state) createUserIfNotExists(channelName, nick string) (user *User) {
-	if !IsValidNick(nick) {
-		return nil
+// createUser creates the user in state, if not already done.
+func (s *state) createUser(nick string) (ok bool) {
+	if _, ok := s.users[ToRFC1459(nick)]; ok {
+		// User already exists.
+		return false
 	}
 
-	channel := s.createChanIfNotExists(channelName)
-	if channel == nil {
-		return
-	}
-
-	user = s.lookupUser(nick)
-	if user != nil {
-		if !user.InChannel(channelName) {
-			user.Channels = append(user.Channels, ToRFC1459(channelName))
-			sort.StringsAreSorted(user.Channels)
-		}
-
-		user.LastActive = time.Now()
-		return user
-	}
-
-	user = &User{
+	s.users[ToRFC1459(nick)] = &User{
 		Nick:       nick,
 		FirstSeen:  time.Now(),
 		LastActive: time.Now(),
 	}
-	s.users[ToRFC1459(nick)] = user
-	channel.Users = append(channel.Users, ToRFC1459(nick))
-	sort.Strings(channel.Users)
 
-	return user
+	return true
 }
 
-// deleteUser removes the user from channel state. Always use state.mu for
-// transaction.
+// deleteUser removes the user from channel state.
 func (s *state) deleteUser(channelName, nick string) {
-	if !IsValidNick(nick) {
-		return
-	}
-
 	user := s.lookupUser(nick)
 	if user == nil {
 		return
@@ -371,12 +350,7 @@ func (s *state) deleteUser(channelName, nick string) {
 }
 
 // renameUser renames the user in state, in all locations where relevant.
-// Always use state.mu for transaction.
 func (s *state) renameUser(from, to string) {
-	if !IsValidNick(from) || !IsValidNick(to) {
-		return
-	}
-
 	from = ToRFC1459(from)
 
 	// Update our nickname.

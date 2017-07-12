@@ -444,7 +444,7 @@ func (c *Client) sendLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 			// Check if tags exist on the event. If they do, and message-tags
 			// isn't a supported capability, remove them from the event.
 			if event.Tags != nil {
-				c.state.mu.Lock()
+				c.state.RLock()
 				var in bool
 				for i := 0; i < len(c.state.enabledCap); i++ {
 					if c.state.enabledCap[i] == "message-tags" {
@@ -452,7 +452,7 @@ func (c *Client) sendLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 						break
 					}
 				}
-				c.state.mu.Unlock()
+				c.state.RUnlock()
 
 				if !in {
 					event.Tags = Tags{}

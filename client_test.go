@@ -27,8 +27,8 @@ func TestDisableTracking(t *testing.T) {
 		t.Fatal("Client.Handlers contains capability tracking handlers, though disabled")
 	}
 
-	client.state.mu.Lock()
-	defer client.state.mu.Unlock()
+	client.state.Lock()
+	defer client.state.Unlock()
 
 	if client.state.channels != nil {
 		t.Fatal("Client.DisableTracking() called but channel state still exists")

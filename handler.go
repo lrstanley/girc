@@ -30,7 +30,7 @@ func (c *Client) RunHandlers(event *Event) {
 	}
 
 	// Regular wildcard handlers.
-	c.Handlers.exec(ALLEVENTS, c, event.Copy())
+	c.Handlers.exec(ALL_EVENTS, c, event.Copy())
 
 	// Then regular handlers.
 	c.Handlers.exec(event.Command, c, event.Copy())

@@ -92,7 +92,7 @@ func handleCAP(c *Client, e Event) {
 	possible := possibleCapList(c)
 
 	if len(e.Params) >= 2 && len(e.Trailing) > 1 && e.Params[1] == CAP_LS {
-		c.state.mu.Lock()
+		c.state.Lock()
 
 		caps := parseCap(e.Trailing)
 
@@ -124,7 +124,7 @@ func handleCAP(c *Client, e Event) {
 
 			c.state.tmpCap = append(c.state.tmpCap, k)
 		}
-		c.state.mu.Unlock()
+		c.state.Unlock()
 
 		// Indicates if this is a multi-line LS. (2 args means it's the
 		// last LS).
@@ -140,14 +140,14 @@ func handleCAP(c *Client, e Event) {
 
 			// Re-initialize the tmpCap, so if we get multiple 'CAP LS' requests
 			// due to cap-notify, we can re-evaluate what we can support.
-			c.state.mu.Lock()
+			c.state.Lock()
 			c.state.tmpCap = []string{}
-			c.state.mu.Unlock()
+			c.state.Unlock()
 		}
 	}
 
 	if len(e.Params) == 2 && len(e.Trailing) > 1 && e.Params[1] == CAP_ACK {
-		c.state.mu.Lock()
+		c.state.Lock()
 		c.state.enabledCap = strings.Split(e.Trailing, " ")
 
 		// Do we need to do sasl auth?
@@ -158,7 +158,7 @@ func handleCAP(c *Client, e Event) {
 				break
 			}
 		}
-		c.state.mu.Unlock()
+		c.state.Unlock()
 
 		if wantsSASL {
 			c.write(&Event{Command: AUTHENTICATE, Params: []string{c.Config.SASL.Method()}})
@@ -320,24 +320,26 @@ func handleCHGHOST(c *Client, e Event) {
 		return
 	}
 
-	c.state.mu.Lock()
+	c.state.Lock()
 	user := c.state.lookupUser(e.Source.Name)
 	if user != nil {
 		user.Ident = e.Params[0]
 		user.Host = e.Params[1]
 	}
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_STATE)
 }
 
 // handleAWAY handles incoming IRCv3 AWAY events, for which are sent both
 // when users are no longer away, or when they are away.
 func handleAWAY(c *Client, e Event) {
-	c.state.mu.Lock()
+	c.state.Lock()
 	user := c.state.lookupUser(e.Source.Name)
 	if user != nil {
 		user.Extras.Away = e.Trailing
 	}
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_STATE)
 }
 
 // handleACCOUNT handles incoming IRCv3 ACCOUNT events. ACCOUNT is sent when
@@ -354,12 +356,13 @@ func handleACCOUNT(c *Client, e Event) {
 		account = ""
 	}
 
-	c.state.mu.Lock()
+	c.state.Lock()
 	user := c.state.lookupUser(e.Source.Name)
 	if user != nil {
 		user.Extras.Account = account
 	}
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_STATE)
 }
 
 // handleTags handles any messages that have tags that will affect state. (e.g.
@@ -374,12 +377,13 @@ func handleTags(c *Client, e Event) {
 		return
 	}
 
-	c.state.mu.Lock()
+	c.state.Lock()
 	user := c.state.lookupUser(e.Source.Name)
 	if user != nil {
 		user.Extras.Account = account
 	}
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_STATE)
 }
 
 const (

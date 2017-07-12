@@ -322,9 +322,10 @@ func (c *Client) DisableTracking() {
 	c.Config.disableTracking = true
 	c.Handlers.clearInternal()
 
-	c.state.mu.Lock()
+	c.state.Lock()
 	c.state.channels = nil
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_STATE)
 
 	c.registerBuiltins()
 }
@@ -388,8 +389,8 @@ func (c *Client) IsConnected() (connected bool) {
 func (c *Client) GetNick() string {
 	c.panicIfNotTracking()
 
-	c.state.mu.RLock()
-	defer c.state.mu.RUnlock()
+	c.state.RLock()
+	defer c.state.RUnlock()
 
 	if c.state.nick == "" {
 		return c.Config.Nick
@@ -404,8 +405,8 @@ func (c *Client) GetNick() string {
 func (c *Client) GetIdent() string {
 	c.panicIfNotTracking()
 
-	c.state.mu.RLock()
-	defer c.state.mu.RUnlock()
+	c.state.RLock()
+	defer c.state.RUnlock()
 
 	if c.state.ident == "" {
 		return c.Config.User
@@ -420,8 +421,8 @@ func (c *Client) GetIdent() string {
 func (c *Client) GetHost() string {
 	c.panicIfNotTracking()
 
-	c.state.mu.RLock()
-	defer c.state.mu.RUnlock()
+	c.state.RLock()
+	defer c.state.RUnlock()
 
 	return c.state.host
 }
@@ -431,14 +432,14 @@ func (c *Client) GetHost() string {
 func (c *Client) Channels() []string {
 	c.panicIfNotTracking()
 
-	c.state.mu.RLock()
+	c.state.RLock()
 	channels := make([]string, len(c.state.channels))
 	var i int
 	for channel := range c.state.channels {
 		channels[i] = channel
 		i++
 	}
-	c.state.mu.RUnlock()
+	c.state.RUnlock()
 	sort.Strings(channels)
 
 	return channels
@@ -449,14 +450,14 @@ func (c *Client) Channels() []string {
 func (c *Client) Users() []string {
 	c.panicIfNotTracking()
 
-	c.state.mu.RLock()
+	c.state.RLock()
 	users := make([]string, len(c.state.users))
 	var i int
 	for user := range c.state.users {
 		users[i] = user
 		i++
 	}
-	c.state.mu.RUnlock()
+	c.state.RUnlock()
 	sort.Strings(users)
 
 	return users
@@ -470,10 +471,10 @@ func (c *Client) LookupChannel(name string) *Channel {
 		return nil
 	}
 
-	c.state.mu.Lock()
+	c.state.RLock()
+	defer c.state.RUnlock()
 
 	channel := c.state.lookupChannel(name)
-	c.state.mu.Unlock()
 	if channel == nil {
 		return nil
 	}
@@ -489,10 +490,10 @@ func (c *Client) LookupUser(nick string) *User {
 		return nil
 	}
 
-	c.state.mu.Lock()
+	c.state.RLock()
+	defer c.state.RUnlock()
 
 	user := c.state.lookupUser(nick)
-	c.state.mu.Unlock()
 	if user == nil {
 		return nil
 	}
@@ -505,9 +506,9 @@ func (c *Client) LookupUser(nick string) *User {
 func (c *Client) IsInChannel(channel string) bool {
 	c.panicIfNotTracking()
 
-	c.state.mu.RLock()
+	c.state.RLock()
 	_, inChannel := c.state.channels[ToRFC1459(channel)]
-	c.state.mu.RUnlock()
+	c.state.RUnlock()
 
 	return inChannel
 }
@@ -521,9 +522,9 @@ func (c *Client) IsInChannel(channel string) bool {
 func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	c.panicIfNotTracking()
 
-	c.state.mu.Lock()
+	c.state.RLock()
 	result, ok = c.state.serverOptions[key]
-	c.state.mu.Unlock()
+	c.state.RUnlock()
 
 	return result, ok
 }
@@ -567,9 +568,9 @@ func (c *Client) ServerVersion() (version string) {
 func (c *Client) ServerMOTD() (motd string) {
 	c.panicIfNotTracking()
 
-	c.state.mu.Lock()
+	c.state.RLock()
 	motd = c.state.motd
-	c.state.mu.Unlock()
+	c.state.RUnlock()
 
 	return motd
 }

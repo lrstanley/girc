@@ -20,11 +20,13 @@ const (
 // Emulated event commands used to allow easier hooks into the changing
 // state of the client.
 const (
-	ALLEVENTS    = "*"            // trigger on all events
-	CONNECTED    = "CONNECTED"    // when it's safe to send arbitrary commands (joins, list, who, etc), trailing is host:port
-	INITIALIZED  = "INIT"         // verifies successful socket connection, trailing is host:port
-	DISCONNECTED = "DISCONNECTED" // occurs when we're disconnected from the server (user-requested or not)
-	STOPPED      = "STOPPED"      // occurs when Client.Stop() has been called
+	UPDATE_STATE   = "CLIENT_STATE_UPDATED"   // when channel/user state is updated.
+	UPDATE_GENERAL = "CLIENT_GENERAL_UPDATED" // when general state (client nick, server name, etc) is updated.
+	ALL_EVENTS     = "*"                      // trigger on all events
+	CONNECTED      = "CLIENT_CONNECTED"       // when it's safe to send arbitrary commands (joins, list, who, etc), trailing is host:port
+	INITIALIZED    = "CLIENT_INIT"            // verifies successful socket connection, trailing is host:port
+	DISCONNECTED   = "CLIENT_DISCONNECTED"    // occurs when we're disconnected from the server (user-requested or not)
+	STOPPED        = "CLIENT_STOPPED"         // occurs when Client.Stop() has been called
 )
 
 // User/channel prefixes :: RFC1459.

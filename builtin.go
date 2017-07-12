@@ -58,7 +58,7 @@ func (c *Client) registerBuiltins() {
 		c.Handlers.register(true, CAP_CHGHOST, HandlerFunc(handleCHGHOST))
 		c.Handlers.register(true, CAP_AWAY, HandlerFunc(handleAWAY))
 		c.Handlers.register(true, CAP_ACCOUNT, HandlerFunc(handleACCOUNT))
-		c.Handlers.register(true, ALLEVENTS, HandlerFunc(handleTags))
+		c.Handlers.register(true, ALL_EVENTS, HandlerFunc(handleTags))
 
 		// SASL IRCv3 support.
 		c.Handlers.register(true, AUTHENTICATE, HandlerFunc(handleSASL))
@@ -87,13 +87,14 @@ func handleConnect(c *Client, e Event) {
 	// the one we supplied during connection, but some networks will rename
 	// users on connect.
 	if len(e.Params) > 0 {
-		c.state.mu.Lock()
+		c.state.Lock()
 		c.state.nick = e.Params[0]
-		c.state.mu.Unlock()
+		c.state.Unlock()
+
+		c.state.notify(c, UPDATE_GENERAL)
 	}
 
 	time.Sleep(2 * time.Second)
-
 	c.RunHandlers(&Event{Command: CONNECTED, Trailing: c.Server()})
 }
 
@@ -123,24 +124,39 @@ func handleJOIN(c *Client, e Event) {
 		return
 	}
 
-	var channel string
+	var channelName string
 	if len(e.Params) > 0 {
-		channel = e.Params[0]
+		channelName = e.Params[0]
 	} else {
-		channel = e.Trailing
+		channelName = e.Trailing
 	}
 
-	// Create the user in state. This will also verify the channel.
-	c.state.mu.Lock()
-	user := c.state.createUserIfNotExists(channel, e.Source.Name)
-	c.state.mu.Unlock()
-	if user == nil {
+	if e.Source.Name == c.GetNick() {
+		if ok := c.state.createChannel(channelName); !ok {
+			return
+		}
+	}
+
+	c.state.Lock()
+	if ok := c.state.createUser(e.Source.Name); !ok {
+		c.state.Unlock()
 		return
 	}
 
+	channel := c.state.lookupChannel(channelName)
+	user := c.state.lookupUser(e.Source.Name)
+
+	if channel == nil || user == nil {
+		return
+	}
+
+	defer c.state.notify(c, UPDATE_STATE)
+
+	channel.addUser(user.Nick)
+	user.addChannel(channel.Name)
+
 	// Assume extended-join (ircv3).
 	if len(e.Params) == 2 {
-		c.state.mu.Lock()
 		if e.Params[1] != "*" {
 			user.Extras.Account = e.Params[1]
 		}
@@ -148,23 +164,23 @@ func handleJOIN(c *Client, e Event) {
 		if len(e.Trailing) > 0 {
 			user.Extras.Name = e.Trailing
 		}
-		c.state.mu.Unlock()
 	}
+	c.state.Unlock()
 
 	if e.Source.Name == c.GetNick() {
 		// If it's us, don't just add our user to the list. Run a WHO which
 		// will tell us who exactly is in the entire channel.
-		c.Send(&Event{Command: WHO, Params: []string{channel, "%tacuhnr,1"}})
+		c.Send(&Event{Command: WHO, Params: []string{channelName, "%tacuhnr,1"}})
 
 		// Also send a MODE to obtain the list of channel modes.
-		c.Send(&Event{Command: MODE, Params: []string{channel}})
+		c.Send(&Event{Command: MODE, Params: []string{channelName}})
 
 		// Update our ident and host too, in state -- since there is no
 		// cleaner method to do this.
-		c.state.mu.Lock()
+		c.state.Lock()
 		c.state.ident = e.Source.Ident
 		c.state.host = e.Source.Host
-		c.state.mu.Unlock()
+		c.state.Unlock()
 		return
 	}
 
@@ -189,16 +205,18 @@ func handlePART(c *Client, e Event) {
 		return
 	}
 
+	defer c.state.notify(c, UPDATE_STATE)
+
 	if e.Source.Name == c.GetNick() {
-		c.state.mu.Lock()
+		c.state.Lock()
 		c.state.deleteChannel(channel)
-		c.state.mu.Unlock()
+		c.state.Unlock()
 		return
 	}
 
-	c.state.mu.Lock()
+	c.state.Lock()
 	c.state.deleteUser(channel, e.Source.Name)
-	c.state.mu.Unlock()
+	c.state.Unlock()
 }
 
 // handleTOPIC handles incoming TOPIC events and keeps channel tracking info
@@ -214,21 +232,22 @@ func handleTOPIC(c *Client, e Event) {
 		name = e.Params[len(e.Params)-1]
 	}
 
-	c.state.mu.Lock()
-	channel := c.state.createChanIfNotExists(name)
+	c.state.Lock()
+	channel := c.state.lookupChannel(name)
 	if channel == nil {
-		c.state.mu.Unlock()
+		c.state.Unlock()
 		return
 	}
 
 	channel.Topic = e.Trailing
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_STATE)
 }
 
 // handlWHO updates our internal tracking of users/channels with WHO/WHOX
 // information.
 func handleWHO(c *Client, e Event) {
-	var channel, ident, host, nick, account, realname string
+	var ident, host, nick, account, realname string
 
 	// Assume WHOX related.
 	if e.Command == RPL_WHOSPCRPL {
@@ -244,20 +263,20 @@ func handleWHO(c *Client, e Event) {
 			return
 		}
 
-		channel, ident, host, nick, account = e.Params[2], e.Params[3], e.Params[4], e.Params[5], e.Params[6]
+		ident, host, nick, account = e.Params[3], e.Params[4], e.Params[5], e.Params[6]
 		realname = e.Trailing
 	} else {
 		// Assume RPL_WHOREPLY.
-		channel, ident, host, nick = e.Params[1], e.Params[2], e.Params[3], e.Params[5]
+		ident, host, nick = e.Params[2], e.Params[3], e.Params[5]
 		if len(e.Trailing) > 2 {
 			realname = e.Trailing[2:]
 		}
 	}
 
-	c.state.mu.Lock()
-	user := c.state.createUserIfNotExists(channel, nick)
+	c.state.Lock()
+	user := c.state.lookupUser(nick)
 	if user == nil {
-		c.state.mu.Unlock()
+		c.state.Unlock()
 		return
 	}
 
@@ -269,7 +288,8 @@ func handleWHO(c *Client, e Event) {
 		user.Extras.Account = account
 	}
 
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_STATE)
 }
 
 // handleKICK ensures that users are cleaned up after being kicked from the
@@ -280,17 +300,19 @@ func handleKICK(c *Client, e Event) {
 		return
 	}
 
+	defer c.state.notify(c, UPDATE_STATE)
+
 	if e.Params[1] == c.GetNick() {
-		c.state.mu.Lock()
+		c.state.Lock()
 		c.state.deleteChannel(e.Params[0])
-		c.state.mu.Unlock()
+		c.state.Unlock()
 		return
 	}
 
 	// Assume it's just another user.
-	c.state.mu.Lock()
+	c.state.Lock()
 	c.state.deleteUser(e.Params[0], e.Params[1])
-	c.state.mu.Unlock()
+	c.state.Unlock()
 }
 
 // handleNICK ensures that users are renamed in state, or the client name is
@@ -300,14 +322,15 @@ func handleNICK(c *Client, e Event) {
 		return
 	}
 
-	c.state.mu.Lock()
+	c.state.Lock()
 	// renameUser updates the LastActive time automatically.
 	if len(e.Params) == 1 {
 		c.state.renameUser(e.Source.Name, e.Params[0])
 	} else if len(e.Trailing) > 0 {
 		c.state.renameUser(e.Source.Name, e.Trailing)
 	}
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_STATE)
 }
 
 // handleQUIT handles users that are quitting from the network.
@@ -320,9 +343,10 @@ func handleQUIT(c *Client, e Event) {
 		return
 	}
 
-	c.state.mu.Lock()
+	c.state.Lock()
 	c.state.deleteUser("", e.Source.Name)
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_STATE)
 }
 
 // handleMYINFO handles incoming MYINFO events -- these are commonly used
@@ -335,10 +359,11 @@ func handleMYINFO(c *Client, e Event) {
 		return
 	}
 
-	c.state.mu.Lock()
+	c.state.Lock()
 	c.state.serverOptions["SERVER"] = e.Params[1]
 	c.state.serverOptions["VERSION"] = e.Params[2]
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_GENERAL)
 }
 
 // handleISUPPORT handles incoming RPL_ISUPPORT (also known as RPL_PROTOCTL)
@@ -359,7 +384,7 @@ func handleISUPPORT(c *Client, e Event) {
 		return
 	}
 
-	c.state.mu.Lock()
+	c.state.Lock()
 	// Skip the first parameter, as it's our nickname.
 	for i := 1; i < len(e.Params); i++ {
 		j := strings.IndexByte(e.Params[i], 0x3D) // =
@@ -373,19 +398,22 @@ func handleISUPPORT(c *Client, e Event) {
 		val := e.Params[i][j+1:]
 		c.state.serverOptions[name] = val
 	}
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_GENERAL)
 }
 
 // handleMOTD handles incoming MOTD messages and buffers them up for use with
 // Client.ServerMOTD().
 func handleMOTD(c *Client, e Event) {
-	c.state.mu.Lock()
+	c.state.Lock()
+
+	defer c.state.notify(c, UPDATE_GENERAL)
 
 	// Beginning of the MOTD.
 	if e.Command == RPL_MOTDSTART {
 		c.state.motd = ""
 
-		c.state.mu.Unlock()
+		c.state.Unlock()
 		return
 	}
 
@@ -395,15 +423,19 @@ func handleMOTD(c *Client, e Event) {
 	}
 
 	c.state.motd += e.Trailing
-
-	c.state.mu.Unlock()
+	c.state.Unlock()
 }
 
 // handleNAMES handles incoming NAMES queries, of which lists all users in
 // a given channel. Optionally also obtains ident/host values, as well as
 // permissions for each user, depending on what capabilities are enabled.
 func handleNAMES(c *Client, e Event) {
-	if len(e.Params) < 1 || !IsValidChannel(e.Params[len(e.Params)-1]) {
+	if len(e.Params) < 1 {
+		return
+	}
+
+	channel := c.state.lookupChannel(e.Params[len(e.Params)-1])
+	if channel == nil {
 		return
 	}
 
@@ -412,7 +444,7 @@ func handleNAMES(c *Client, e Event) {
 	var host, ident, modes, nick string
 	var ok bool
 
-	c.state.mu.Lock()
+	c.state.Lock()
 	for i := 0; i < len(parts); i++ {
 		modes, nick, ok = parseUserPrefix(parts[i])
 		if !ok {
@@ -435,10 +467,14 @@ func handleNAMES(c *Client, e Event) {
 			continue
 		}
 
-		user := c.state.createUserIfNotExists(e.Params[len(e.Params)-1], nick)
+		c.state.createUser(nick)
+		user := c.state.lookupUser(nick)
 		if user == nil {
 			continue
 		}
+
+		user.addChannel(channel.Name)
+		channel.addUser(nick)
 
 		// Add necessary userhost-in-names data into the user.
 		if host != "" {
@@ -451,7 +487,8 @@ func handleNAMES(c *Client, e Event) {
 		// Don't append modes, overwrite them.
 		user.Perms.set(modes, false)
 	}
-	c.state.mu.Unlock()
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_STATE)
 }
 
 // updateLastActive is a wrapper for any event which the source author
@@ -463,14 +500,15 @@ func updateLastActive(c *Client, e Event) {
 		return
 	}
 
-	c.state.mu.Lock()
-	defer c.state.mu.Unlock()
+	c.state.Lock()
 
 	// Update the users last active time, if they exist.
 	user := c.state.lookupUser(e.Source.Name)
 	if user == nil {
+		c.state.Unlock()
 		return
 	}
 
 	user.LastActive = time.Now()
+	c.state.Unlock()
 }
