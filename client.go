@@ -283,7 +283,7 @@ func (c *Client) Close() {
 	_ = c.conn.Close()
 }
 
-func (c *Client) execLoop(done chan struct{}, wg *sync.WaitGroup) {
+func (c *Client) execLoop(ctx context.Context, wg *sync.WaitGroup) {
 	c.debug.Print("starting execLoop")
 	defer c.debug.Print("closing execLoop")
 
@@ -291,7 +291,7 @@ func (c *Client) execLoop(done chan struct{}, wg *sync.WaitGroup) {
 
 	for {
 		select {
-		case <-done:
+		case <-ctx.Done():
 			// We've been told to exit, however we shouldn't bail on the
 			// current events in the queue that should be processed, as one
 			// may want to handle an ERROR, QUIT, etc.

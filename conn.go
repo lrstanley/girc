@@ -288,21 +288,15 @@ func (c *Client) internalConnect(mock net.Conn) error {
 
 	// Start read loop to process messages from the server.
 	errs := make(chan error, 3)
-	done := make(chan struct{}, 4)
 	var wg sync.WaitGroup
 	// 4 being the number of goroutines we need to finish when this function
 	// returns.
 	wg.Add(4)
 
-	go c.execLoop(done, &wg)
-	go c.readLoop(errs, done, &wg)
-	go c.sendLoop(errs, done, &wg)
-
-	if mock == nil {
-		go c.pingLoop(errs, done, &wg)
-	} else {
-		go c.pingLoop(errs, done, &wg)
-	}
+	go c.execLoop(ctx, &wg)
+	go c.readLoop(errs, ctx, &wg)
+	go c.sendLoop(errs, ctx, &wg)
+	go c.pingLoop(errs, ctx, &wg)
 
 	// Passwords first.
 	if c.Config.ServerPass != "" {
@@ -344,7 +338,6 @@ func (c *Client) internalConnect(mock net.Conn) error {
 
 	// Once we have our error/result, let all other functions know we're done.
 	c.debug.Print("waiting for all routines to finish")
-	close(done)
 
 	// Wait for all goroutines to finish.
 	wg.Wait()
@@ -365,7 +358,7 @@ func (c *Client) internalConnect(mock net.Conn) error {
 
 // readLoop sets a timeout of 300 seconds, and then attempts to read from the
 // IRC server. If there is an error, it calls Reconnect.
-func (c *Client) readLoop(errs chan error, done chan struct{}, wg *sync.WaitGroup) {
+func (c *Client) readLoop(errs chan error, ctx context.Context, wg *sync.WaitGroup) {
 	c.debug.Print("starting readLoop")
 	defer c.debug.Print("closing readLoop")
 
@@ -374,7 +367,7 @@ func (c *Client) readLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 
 	for {
 		select {
-		case <-done:
+		case <-ctx.Done():
 			wg.Done()
 			return
 		default:
@@ -432,7 +425,7 @@ func (c *ircConn) rate(chars int) time.Duration {
 	return 0
 }
 
-func (c *Client) sendLoop(errs chan error, done chan struct{}, wg *sync.WaitGroup) {
+func (c *Client) sendLoop(errs chan error, ctx context.Context, wg *sync.WaitGroup) {
 	c.debug.Print("starting sendLoop")
 	defer c.debug.Print("closing sendLoop")
 
@@ -495,7 +488,7 @@ func (c *Client) sendLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 				wg.Done()
 				return
 			}
-		case <-done:
+		case <-ctx.Done():
 			wg.Done()
 			return
 		}
@@ -528,7 +521,7 @@ type ErrTimedOut struct {
 
 func (ErrTimedOut) Error() string { return "timed out during ping to server" }
 
-func (c *Client) pingLoop(errs chan error, done chan struct{}, wg *sync.WaitGroup) {
+func (c *Client) pingLoop(errs chan error, ctx context.Context, wg *sync.WaitGroup) {
 	// Don't run the pingLoop if they want to disable it.
 	if c.Config.PingDelay <= 0 {
 		wg.Done()
@@ -584,7 +577,7 @@ func (c *Client) pingLoop(errs chan error, done chan struct{}, wg *sync.WaitGrou
 			c.conn.mu.Unlock()
 
 			c.Cmd.Ping(fmt.Sprintf("%d", time.Now().UnixNano()))
-		case <-done:
+		case <-ctx.Done():
 			wg.Done()
 			return
 		}
