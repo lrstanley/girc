@@ -304,9 +304,6 @@ func (c *Client) internalConnect(mock net.Conn) error {
 		go c.pingLoop(errs, done, &wg)
 	}
 
-	// Send a virtual event allowing hooks for successful socket connection.
-	c.RunHandlers(&Event{Command: INITIALIZED, Trailing: c.Server()})
-
 	// Passwords first.
 	if c.Config.ServerPass != "" {
 		c.write(&Event{Command: PASS, Params: []string{c.Config.ServerPass}, Sensitive: true})
@@ -325,6 +322,9 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	// List the IRCv3 capabilities, specifically with the max protocol we
 	// support.
 	c.listCAP()
+
+	// Send a virtual event allowing hooks for successful socket connection.
+	c.RunHandlers(&Event{Command: INITIALIZED, Trailing: c.Server()})
 
 	// Wait for the first error.
 	var result error
