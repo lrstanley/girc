@@ -170,7 +170,7 @@ type Config struct {
 }
 
 // isValid checks some basic settings to ensure the config is valid.
-func (conf Config) isValid() error {
+func (conf *Config) isValid() error {
 	if conf.Server == "" {
 		return errors.New("invalid server specified")
 	}
