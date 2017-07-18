@@ -283,16 +283,13 @@ func (c *Client) internalConnect(mock net.Conn) error {
 
 	var ctx context.Context
 	ctx, c.stop = context.WithCancel(context.Background())
-
 	c.mu.Unlock()
 
-	// Start read loop to process messages from the server.
 	errs := make(chan error, 3)
 	var wg sync.WaitGroup
 	// 4 being the number of goroutines we need to finish when this function
 	// returns.
 	wg.Add(4)
-
 	go c.execLoop(ctx, &wg)
 	go c.readLoop(errs, ctx, &wg)
 	go c.sendLoop(errs, ctx, &wg)
@@ -323,16 +320,18 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	// Wait for the first error.
 	var result error
 	select {
+	case <-ctx.Done():
+		c.debug.Print("received request to close, beginning clean up")
 	case err := <-errs:
 		c.debug.Print("received error, beginning clean up")
 		result = err
-	case <-ctx.Done():
-		c.debug.Print("received request to close, beginning clean up")
 	}
 
+	// Make sure that the connection is closed if not already.
 	c.mu.Lock()
 	c.conn.mu.Lock()
 	c.conn.connected = false
+	_ = c.conn.Close()
 	c.conn.mu.Unlock()
 	c.mu.Unlock()
 
@@ -343,13 +342,10 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	wg.Wait()
 	close(errs)
 
-	// Make sure that the connection is closed if not already.
-	c.mu.Lock()
-	_ = c.conn.Close()
-
 	// This helps ensure that the end user isn't improperly using the client
 	// more than once. If they want to do this, they should be using multiple
 	// clients, not multiple instances of Connect().
+	c.mu.Lock()
 	c.conn = nil
 	c.mu.Unlock()
 

@@ -43,7 +43,7 @@ type Client struct {
 	// mu is the mux used for connections/disconnections from the server,
 	// so multiple threads aren't trying to connect at the same time, and
 	// vice versa.
-	mu sync.Mutex
+	mu sync.RWMutex
 
 	// stop is used to communicate with Connect(), letting it know that the
 	// client wishes to cancel/close.
@@ -264,23 +264,12 @@ func (c *Client) String() string {
 func (c *Client) Close() {
 	c.RunHandlers(&Event{Command: STOPPED, Trailing: c.Server()})
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
+	c.mu.RLock()
 	if c.stop != nil {
 		c.debug.Print("requesting client to stop")
 		c.stop()
 	}
-
-	if c.conn == nil {
-		return
-	}
-
-	c.debug.Print("requesting client to close socket")
-
-	// Client.Connect() should do this on clean up, but they want this done
-	// immediately anyway.
-	_ = c.conn.Close()
+	c.mu.RUnlock()
 }
 
 func (c *Client) execLoop(ctx context.Context, wg *sync.WaitGroup) {
@@ -295,7 +284,7 @@ func (c *Client) execLoop(ctx context.Context, wg *sync.WaitGroup) {
 			// We've been told to exit, however we shouldn't bail on the
 			// current events in the queue that should be processed, as one
 			// may want to handle an ERROR, QUIT, etc.
-
+			c.debug.Printf("received signal to close, flushing %d events and executing", len(c.rx))
 			for {
 				select {
 				case event = <-c.rx:
