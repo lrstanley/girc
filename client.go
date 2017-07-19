@@ -337,9 +337,11 @@ func (c *Client) Uptime() (up *time.Time, err error) {
 		return nil, ErrNotConnected
 	}
 
-	c.conn.mu.Lock()
+	c.mu.RLock()
+	c.conn.mu.RLock()
 	up = c.conn.connTime
-	c.conn.mu.Unlock()
+	c.conn.mu.RUnlock()
+	c.mu.RUnlock()
 
 	return up, nil
 }
@@ -351,26 +353,29 @@ func (c *Client) ConnSince() (since *time.Duration, err error) {
 		return nil, ErrNotConnected
 	}
 
-	c.conn.mu.Lock()
+	c.mu.RLock()
+	c.conn.mu.RLock()
 	timeSince := time.Since(*c.conn.connTime)
-	c.conn.mu.Unlock()
+	c.conn.mu.RUnlock()
+	c.mu.RUnlock()
 
 	return &timeSince, nil
 }
 
 // IsConnected returns true if the client is connected to the server.
 func (c *Client) IsConnected() (connected bool) {
-	c.mu.Lock()
+	c.mu.RLock()
 	if c.conn == nil {
-		c.mu.Unlock()
+		c.mu.RUnlock()
 		return false
 	}
-	c.mu.Unlock()
 
-	c.conn.mu.Lock()
-	defer c.conn.mu.Unlock()
+	c.conn.mu.RLock()
+	connected = c.conn.connected
+	c.conn.mu.RUnlock()
+	c.mu.RUnlock()
 
-	return c.conn.connected
+	return connected
 }
 
 // GetNick returns the current nickname of the active connection. Panics if
@@ -568,9 +573,11 @@ func (c *Client) ServerMOTD() (motd string) {
 // determining the difference in time between when we ping the server, and
 // when we receive a pong.
 func (c *Client) Lag() time.Duration {
-	c.conn.mu.Lock()
+	c.mu.RLock()
+	c.conn.mu.RLock()
 	delta := c.conn.lastPong.Sub(c.conn.lastPing)
-	c.conn.mu.Unlock()
+	c.conn.mu.RUnlock()
+	c.mu.RUnlock()
 
 	if delta < 0 {
 		return 0
