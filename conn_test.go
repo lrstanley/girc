@@ -109,19 +109,6 @@ func TestRate(t *testing.T) {
 	return
 }
 
-func TestFlushTx(t *testing.T) {
-	c := &Client{tx: make(chan *Event, 50)}
-
-	for i := 0; i < 25; i++ {
-		c.tx <- &Event{}
-	}
-
-	c.flushTx()
-	if len(c.tx) > 0 {
-		t.Fatalf("flush failed too flush all events: %d remaining", len(c.tx))
-	}
-}
-
 func genMockConn() (client *Client, clientConn net.Conn, serverConn net.Conn) {
 	client = New(Config{
 		Server: "dummy.int",
@@ -187,16 +174,4 @@ func TestConnect(t *testing.T) {
 			t.Fatalf("TestConnect: invalud cap command: %#v", events[1])
 		}
 	}
-}
-
-func TestClose2(t *testing.T) {
-	c, conn, server := genMockConn()
-	defer conn.Close()
-	defer server.Close()
-
-	// Just verifying it doesn't panic when called ahead of time.
-	c.Close()
-
-	// Aaaand when it is for some reason called multiple times.
-	c.Close()
 }

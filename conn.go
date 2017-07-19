@@ -367,7 +367,7 @@ func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 			wg.Done()
 			return
 		default:
-			// c.conn.sock.SetDeadline(time.Now().Add(300 * time.Second))
+			_ = c.conn.sock.SetReadDeadline(time.Now().Add(300 * time.Second))
 			event, err = c.conn.decode()
 			if err != nil {
 				errs <- err
@@ -486,17 +486,6 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 			}
 		case <-ctx.Done():
 			wg.Done()
-			return
-		}
-	}
-}
-
-// flushTx empties c.tx.
-func (c *Client) flushTx() {
-	for {
-		select {
-		case <-c.tx:
-		default:
 			return
 		}
 	}
