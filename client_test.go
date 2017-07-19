@@ -176,8 +176,8 @@ func TestClientGet(t *testing.T) {
 
 func TestClientClose(t *testing.T) {
 	c, conn, server := genMockConn()
-	defer conn.Close()
 	defer server.Close()
+	defer conn.Close()
 
 	errchan := make(chan error, 1)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -186,8 +186,10 @@ func TestClientClose(t *testing.T) {
 		cancel()
 	})
 	c.Handlers.AddBg(INITIALIZED, func(c *Client, e Event) {
-		time.Sleep(300 * time.Millisecond)
 		c.Close()
+		// Speed up the disconnect process.
+		server.Close()
+		conn.Close()
 	})
 
 	go func() {
@@ -196,7 +198,7 @@ func TestClientClose(t *testing.T) {
 	defer c.Close()
 
 	select {
-	case <-time.After(35 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("Client.Close() timed out")
 		cancel()
 	case <-ctx.Done():
@@ -207,7 +209,7 @@ func TestClientClose(t *testing.T) {
 		if err != nil && err != io.ErrClosedPipe {
 			t.Fatalf("connect returned with error when close was invoked: %s", err)
 		}
-	case <-time.After(35 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("timed out while waiting for connect to return")
 	}
 
