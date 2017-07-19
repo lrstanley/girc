@@ -186,6 +186,7 @@ func TestClientClose(t *testing.T) {
 		cancel()
 	})
 	c.Handlers.AddBg(INITIALIZED, func(c *Client, e Event) {
+		time.Sleep(300 * time.Millisecond)
 		c.Close()
 	})
 
@@ -195,7 +196,7 @@ func TestClientClose(t *testing.T) {
 	defer c.Close()
 
 	select {
-	case <-time.After(5 * time.Second):
+	case <-time.After(35 * time.Second):
 		t.Fatal("Client.Close() timed out")
 		cancel()
 	case <-ctx.Done():
@@ -206,7 +207,7 @@ func TestClientClose(t *testing.T) {
 		if err != nil && err != io.ErrClosedPipe {
 			t.Fatalf("connect returned with error when close was invoked: %s", err)
 		}
-	case <-time.After(5 * time.Second):
+	case <-time.After(35 * time.Second):
 		t.Fatal("timed out while waiting for connect to return")
 	}
 
