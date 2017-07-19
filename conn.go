@@ -291,9 +291,9 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	// returns.
 	wg.Add(4)
 	go c.execLoop(ctx, &wg)
-	go c.readLoop(errs, ctx, &wg)
-	go c.sendLoop(errs, ctx, &wg)
-	go c.pingLoop(errs, ctx, &wg)
+	go c.readLoop(ctx, errs, &wg)
+	go c.sendLoop(ctx, errs, &wg)
+	go c.pingLoop(ctx, errs, &wg)
 
 	// Passwords first.
 	if c.Config.ServerPass != "" {
@@ -354,7 +354,7 @@ func (c *Client) internalConnect(mock net.Conn) error {
 
 // readLoop sets a timeout of 300 seconds, and then attempts to read from the
 // IRC server. If there is an error, it calls Reconnect.
-func (c *Client) readLoop(errs chan error, ctx context.Context, wg *sync.WaitGroup) {
+func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
 	c.debug.Print("starting readLoop")
 	defer c.debug.Print("closing readLoop")
 
@@ -421,7 +421,7 @@ func (c *ircConn) rate(chars int) time.Duration {
 	return 0
 }
 
-func (c *Client) sendLoop(errs chan error, ctx context.Context, wg *sync.WaitGroup) {
+func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
 	c.debug.Print("starting sendLoop")
 	defer c.debug.Print("closing sendLoop")
 
@@ -517,7 +517,7 @@ type ErrTimedOut struct {
 
 func (ErrTimedOut) Error() string { return "timed out during ping to server" }
 
-func (c *Client) pingLoop(errs chan error, ctx context.Context, wg *sync.WaitGroup) {
+func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
 	// Don't run the pingLoop if they want to disable it.
 	if c.Config.PingDelay <= 0 {
 		wg.Done()
