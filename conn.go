@@ -328,12 +328,12 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	}
 
 	// Make sure that the connection is closed if not already.
-	c.mu.Lock()
+	c.mu.RLock()
 	c.conn.mu.Lock()
 	c.conn.connected = false
 	_ = c.conn.Close()
 	c.conn.mu.Unlock()
-	c.mu.Unlock()
+	c.mu.RUnlock()
 
 	// Once we have our error/result, let all other functions know we're done.
 	c.debug.Print("waiting for all routines to finish")
