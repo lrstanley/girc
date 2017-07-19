@@ -212,12 +212,3 @@ func TestClientClose(t *testing.T) {
 
 	close(errchan)
 }
-
-func TestClientExec(t *testing.T) {
-	c, conn, server := genMockConn()
-	defer conn.Close()
-	defer server.Close()
-
-	go c.MockConnect(server)
-	defer c.Close()
-}
