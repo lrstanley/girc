@@ -190,7 +190,7 @@ type SASLExternal struct {
 	// pre-authentication identification. This means that EXTERNAL will
 	// supply this in the initial response. This usually isn't needed (e.g.
 	// CertFP).
-	Identity string
+	Identity string `json:"identity"`
 }
 
 // Method identifies what type of SASL this implements.
@@ -215,8 +215,8 @@ func (sasl *SASLExternal) Encode(params []string) string {
 
 // SASLPlain contains the user and password needed for PLAIN SASL authentication.
 type SASLPlain struct {
-	User string // User is the username for SASL.
-	Pass string // Pass is the password for SASL.
+	User string `json:"user"` // User is the username for SASL.
+	Pass string `json:"pass"` // Pass is the password for SASL.
 }
 
 // Method identifies what type of SASL this implements.

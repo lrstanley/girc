@@ -18,16 +18,16 @@ const ctcpDelim byte = 0x01 // Prefix and suffix for CTCP messages.
 // CTCPEvent is the necessary information from an IRC message.
 type CTCPEvent struct {
 	// Origin is the original event that the CTCP event was decoded from.
-	Origin *Event
+	Origin *Event `json:"origin"`
 	// Source is the author of the CTCP event.
-	Source *Source
+	Source *Source `json:"source"`
 	// Command is the type of CTCP event. E.g. PING, TIME, VERSION.
-	Command string
+	Command string `json:"command"`
 	// Text is the raw arguments following the command.
-	Text string
+	Text string `json:"text"`
 	// Reply is true if the CTCP event is intended to be a reply to a
 	// previous CTCP (e.g, if we sent one).
-	Reply bool
+	Reply bool `json:"reply"`
 }
 
 // decodeCTCP decodes an incoming CTCP event, if it is CTCP. nil is returned

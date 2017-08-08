@@ -58,32 +58,32 @@ func (s *state) reset() {
 // User represents an IRC user and the state attached to them.
 type User struct {
 	// Nick is the users current nickname. rfc1459 compliant.
-	Nick string
+	Nick string `json:"nick"`
 	// Ident is the users username/ident. Ident is commonly prefixed with a
 	// "~", which indicates that they do not have a identd server setup for
 	// authentication.
-	Ident string
+	Ident string `json:"ident"`
 	// Host is the visible host of the users connection that the server has
 	// provided to us for their connection. May not always be accurate due to
 	// many networks spoofing/hiding parts of the hostname for privacy
 	// reasons.
-	Host string
+	Host string `json:"host"`
 
 	// Channels is a sorted list of all channels that we are currently tracking
 	// the user in. Each channel name is rfc1459 compliant.
-	Channels []string
+	Channels []string `json:"channels"`
 
 	// FirstSeen represents the first time that the user was seen by the
 	// client for the given channel. Only usable if from state, not in past.
-	FirstSeen time.Time
+	FirstSeen time.Time `json:"first_seen"`
 	// LastActive represents the last time that we saw the user active,
 	// which could be during nickname change, message, channel join, etc.
 	// Only usable if from state, not in past.
-	LastActive time.Time
+	LastActive time.Time `json:"last_active"`
 
 	// Perms are the user permissions applied to this user that affect the given
 	// channel. This supports non-rfc style modes like Admin, Owner, and HalfOp.
-	Perms *UserPerms
+	Perms *UserPerms `json:"perms"`
 
 	// Extras are things added on by additional tracking methods, which may
 	// or may not work on the IRC server in mention.
@@ -91,18 +91,18 @@ type User struct {
 		// Name is the users "realname" or full name. Commonly contains links
 		// to the IRC client being used, or something of non-importance. May
 		// also be empty if unsupported by the server/tracking is disabled.
-		Name string
+		Name string `json:"name"`
 		// Account refers to the account which the user is authenticated as.
 		// This differs between each network (e.g. usually Nickserv, but
 		// could also be something like Undernet). May also be empty if
 		// unsupported by the server/tracking is disabled.
-		Account string
+		Account string `json:"account"`
 		// Away refers to the away status of the user. An empty string
 		// indicates that they are active, otherwise the string is what they
 		// set as their away message. May also be empty if unsupported by the
 		// server/tracking is disabled.
-		Away string
-	}
+		Away string `json:"away"`
+	} `json:"extras"`
 }
 
 // Copy returns a deep copy of the user which can be modified without making
@@ -177,17 +177,17 @@ func (u *User) IsActive() bool {
 // Channel represents an IRC channel and the state attached to it.
 type Channel struct {
 	// Name of the channel. Must be rfc1459 compliant.
-	Name string
+	Name string `json:"name"`
 	// Topic of the channel.
-	Topic string
+	Topic string `json:"topic"`
 
 	// Users is a sorted list of all users we are currently tracking within
 	// the channel. Each is the nickname, and is rfc1459 compliant.
-	Users []string
+	Users []string `json:"users"`
 	// Joined represents the first time that the client joined the channel.
-	Joined time.Time
+	Joined time.Time `json:"joined"`
 	// Modes are the known channel modes that the bot has captured.
-	Modes CModes
+	Modes CModes `json:"modes"`
 }
 
 // addUser adds a user to the users list.

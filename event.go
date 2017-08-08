@@ -33,13 +33,13 @@ func cutCRFunc(r rune) bool {
 //                   CR or LF>
 //    <crlf>     :: CR LF
 type Event struct {
-	Source        *Source  // The source of the event.
-	Tags          Tags     // IRCv3 style message tags. Only use if network supported.
-	Command       string   // the IRC command, e.g. JOIN, PRIVMSG, KILL.
-	Params        []string // parameters to the command. Commonly nickname, channel, etc.
-	Trailing      string   // any trailing data. e.g. with a PRIVMSG, this is the message text.
-	EmptyTrailing bool     // if true, trailing prefix (:) will be added even if Event.Trailing is empty.
-	Sensitive     bool     // if the message is sensitive (e.g. and should not be logged).
+	Source        *Source  `json:"source"`         // The source of the event.
+	Tags          Tags     `json:"tags"`           // IRCv3 style message tags. Only use if network supported.
+	Command       string   `json:"command"`        // the IRC command, e.g. JOIN, PRIVMSG, KILL.
+	Params        []string `json:"params"`         // parameters to the command. Commonly nickname, channel, etc.
+	Trailing      string   `json:"trailing"`       // any trailing data. e.g. with a PRIVMSG, this is the message text.
+	EmptyTrailing bool     `json:"empty_trailing"` // if true, trailing prefix (:) will be added even if Event.Trailing is empty.
+	Sensitive     bool     `json:"sensitive"`      // if the message is sensitive (e.g. and should not be logged).
 }
 
 // ParseEvent takes a string and attempts to create a Event struct.
@@ -441,12 +441,12 @@ const (
 // <servername> | <nick> [ '!' <user> ] [ '@' <host> ]
 type Source struct {
 	// Name is the nickname, server name, or service name.
-	Name string
+	Name string `json:"name"`
 	// Ident is commonly known as the "user".
-	Ident string
+	Ident string `json:"ident"`
 	// Host is the hostname or IP address of the user/service. Is not accurate
 	// due to how IRC servers can spoof hostnames.
-	Host string
+	Host string `json:"host"`
 }
 
 // Copy returns a deep copy of Source.
