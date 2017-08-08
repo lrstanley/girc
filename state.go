@@ -83,9 +83,7 @@ type User struct {
 
 	// Perms are the user permissions applied to this user that affect the given
 	// channel. This supports non-rfc style modes like Admin, Owner, and HalfOp.
-	// If you want to easily check if a user has permissions equal or greater
-	// than OP, use Perms.IsAdmin().
-	Perms UserPerms
+	Perms *UserPerms
 
 	// Extras are things added on by additional tracking methods, which may
 	// or may not work on the IRC server in mention.
@@ -113,6 +111,7 @@ func (u *User) Copy() *User {
 	nu := &User{}
 	*nu = *u
 
+	nu.Perms = u.Perms.Copy()
 	_ = copy(nu.Channels, u.Channels)
 
 	return nu
@@ -122,6 +121,8 @@ func (u *User) Copy() *User {
 func (u *User) addChannel(name string) {
 	u.Channels = append(u.Channels, ToRFC1459(name))
 	sort.StringsAreSorted(u.Channels)
+
+	u.Perms.set(name, Perms{})
 }
 
 // deleteChannel removes an existing channel from the users channel list.
@@ -139,6 +140,8 @@ func (u *User) deleteChannel(name string) {
 	if j != -1 {
 		u.Channels = append(u.Channels[:j], u.Channels[j+1:]...)
 	}
+
+	u.Perms.remove(name)
 }
 
 // InChannel checks to see if a user is in the given channel.
@@ -312,6 +315,7 @@ func (s *state) createUser(nick string) (ok bool) {
 		Nick:       nick,
 		FirstSeen:  time.Now(),
 		LastActive: time.Now(),
+		Perms:      &UserPerms{channels: make(map[string]Perms)},
 	}
 
 	return true

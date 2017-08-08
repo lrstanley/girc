@@ -4,7 +4,11 @@
 
 package girc
 
-import "strings"
+import (
+	"encoding/json"
+	"strings"
+	"sync"
+)
 
 // CMode represents a single step of a given mode change.
 type CMode struct {
@@ -353,7 +357,9 @@ func handleMODE(c *Client, e Event) {
 
 		user := c.state.lookupUser(modes[i].args)
 		if user != nil {
-			user.Perms.setFromMode(modes[i])
+			perms, _ := user.Perms.Lookup(channel.Name)
+			perms.setFromMode(modes[i])
+			user.Perms.set(channel.Name, perms)
 		}
 	}
 
@@ -382,30 +388,83 @@ func (s *state) userPrefixes() string {
 	return DefaultPrefixes
 }
 
-// UserPerms contains all channel-based user permissions. The minimum op, and
+// UserPerms contains all of the permissions for each channel the user is
+// in.
+type UserPerms struct {
+	mu       sync.RWMutex
+	channels map[string]Perms
+}
+
+// Copy returns a deep copy of the channel permissions.
+func (p *UserPerms) Copy() (perms *UserPerms) {
+	np := &UserPerms{
+		channels: make(map[string]Perms),
+	}
+
+	p.mu.RLock()
+	for key := range p.channels {
+		np.channels[key] = p.channels[key]
+	}
+	p.mu.RUnlock()
+
+	return np
+}
+
+// MarshalJSON implements json.Marshaler.
+func (p *UserPerms) MarshalJSON() ([]byte, error) {
+	p.mu.Lock()
+	out, err := json.Marshal(&p.channels)
+	p.mu.Unlock()
+
+	return out, err
+}
+
+// Lookup looks up the users permissions for a given channel. ok is false
+// if the user is not in the given channel.
+func (p *UserPerms) Lookup(channel string) (perms Perms, ok bool) {
+	p.mu.RLock()
+	perms, ok = p.channels[ToRFC1459(channel)]
+	p.mu.RUnlock()
+
+	return perms, ok
+}
+
+func (p *UserPerms) set(channel string, perms Perms) {
+	p.mu.Lock()
+	p.channels[ToRFC1459(channel)] = perms
+	p.mu.Unlock()
+}
+
+func (p *UserPerms) remove(channel string) {
+	p.mu.Lock()
+	delete(p.channels, ToRFC1459(channel))
+	p.mu.Unlock()
+}
+
+// Perms contains all channel-based user permissions. The minimum op, and
 // voice should be supported on all networks. This also supports non-rfc
 // Owner, Admin, and HalfOp, if the network has support for it.
-type UserPerms struct {
+type Perms struct {
 	// Owner (non-rfc) indicates that the user has full permissions to the
 	// channel. More than one user can have owner permission.
-	Owner bool
+	Owner bool `json:"owner"`
 	// Admin (non-rfc) is commonly given to users that are trusted enough
 	// to manage channel permissions, as well as higher level service settings.
-	Admin bool
+	Admin bool `json:"admin"`
 	// Op is commonly given to trusted users who can manage a given channel
 	// by kicking, and banning users.
-	Op bool
+	Op bool `json:"op"`
 	// HalfOp (non-rfc) is commonly used to give users permissions like the
 	// ability to kick, without giving them greater abilities to ban all users.
-	HalfOp bool
+	HalfOp bool `json:"half_op"`
 	// Voice indicates the user has voice permissions, commonly given to known
 	// users, with very light trust, or to indicate a user is active.
-	Voice bool
+	Voice bool `json:"voice"`
 }
 
 // IsAdmin indicates that the user has banning abilities, and are likely a
 // very trustable user (e.g. op+).
-func (m UserPerms) IsAdmin() bool {
+func (m Perms) IsAdmin() bool {
 	if m.Owner || m.Admin || m.Op {
 		return true
 	}
@@ -415,7 +474,7 @@ func (m UserPerms) IsAdmin() bool {
 
 // IsTrusted indicates that the user at least has modes set upon them, higher
 // than a regular joining user.
-func (m UserPerms) IsTrusted() bool {
+func (m Perms) IsTrusted() bool {
 	if m.IsAdmin() || m.HalfOp || m.Voice {
 		return true
 	}
@@ -424,7 +483,7 @@ func (m UserPerms) IsTrusted() bool {
 }
 
 // reset resets the modes of a user.
-func (m *UserPerms) reset() {
+func (m *Perms) reset() {
 	m.Owner = false
 	m.Admin = false
 	m.Op = false
@@ -434,7 +493,7 @@ func (m *UserPerms) reset() {
 
 // set translates raw prefix characters into proper permissions. Only
 // use this function when you have a session lock.
-func (m *UserPerms) set(prefix string, append bool) {
+func (m *Perms) set(prefix string, append bool) {
 	if !append {
 		m.reset()
 	}
@@ -457,7 +516,7 @@ func (m *UserPerms) set(prefix string, append bool) {
 
 // setFromMode sets user-permissions based on channel user mode chars. E.g.
 // "o" being oper, "v" being voice, etc.
-func (m *UserPerms) setFromMode(mode CMode) {
+func (m *Perms) setFromMode(mode CMode) {
 	switch string(mode.name) {
 	case ModeOwner:
 		m.Owner = mode.add

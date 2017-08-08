@@ -485,7 +485,9 @@ func handleNAMES(c *Client, e Event) {
 		}
 
 		// Don't append modes, overwrite them.
-		user.Perms.set(modes, false)
+		perms, _ := user.Perms.Lookup(channel.Name)
+		perms.set(modes, false)
+		user.Perms.set(channel.Name, perms)
 	}
 	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)
