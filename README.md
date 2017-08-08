@@ -24,16 +24,16 @@ you're using won't have breaking changes**
   - SASL Auth (currently only `PLAIN` and `EXTERNAL` is support by default,
   however you can simply implement `SASLMech` yourself to support additional
   mechanisms.)
-  - Message tags (and with this, things like `account-tag` on by default)
+  - Message tags (things like `account-tag` on by default)
   - `account-notify`, `away-notify`, `chghost`, `extended-join`, etc -- all handled seemlessly ([cap.go](https://github.com/lrstanley/girc/blob/master/cap.go) for more info).
 - Channel and user tracking. Easily find what users are in a channel, if a
   user is away, or if they are authenticated (if the server supports it!)
-- Client state/capability tracking. Easy methods to access capability data ([Lookup](https://godoc.org/github.com/lrstanley/girc#Client.Lookup), [Event.GetChannel](https://godoc.org/github.com/lrstanley/girc#Event.GetChannel), [GetServerOption (ISUPPORT)](https://godoc.org/github.com/lrstanley/girc#Client.GetServerOption), etc.)
+- Client state/capability tracking. Easy methods to access capability data ([LookupChannel](https://godoc.org/github.com/lrstanley/girc#Client.LookupChannel), [LookupUser](https://godoc.org/github.com/lrstanley/girc#Client.LookupUser), [GetServerOption (ISUPPORT)](https://godoc.org/github.com/lrstanley/girc#Client.GetServerOption), etc.)
 - Built-in support for things you would commonly have to implement yourself.
   - Nick collision detection and prevention (also see [Config.HandleNickCollide](https://godoc.org/github.com/lrstanley/girc#Config).)
   - Event/message rate limiting.
-  - Channel, nick, and user validation on connection methods ([IsValidChannel](https://godoc.org/github.com/lrstanley/girc#IsValidChannel), [IsValidNick](https://godoc.org/github.com/lrstanley/girc#IsValidNick), etc.)
-  - CTCP handling and auto-responses ([CTCP](https://godoc.org/github.com/lrstanley/girc#CTCP).)
+  - Channel, nick, and user validation methods ([IsValidChannel](https://godoc.org/github.com/lrstanley/girc#IsValidChannel), [IsValidNick](https://godoc.org/github.com/lrstanley/girc#IsValidNick), etc.)
+  - CTCP handling and auto-responses ([CTCP](https://godoc.org/github.com/lrstanley/girc#CTCP))
   - And more!
 
 ## Installing
@@ -48,13 +48,14 @@ usecases/examples/projects which utilize girc:
 
 | Project | Description |
 | --- | --- |
-| [nagios-check-ircd](github.com/lrstanley/nagios-check-ircd) | Nagios script for monitoring the health of an ircd |
+| [nagios-check-ircd](github.com/lrstanley/nagios-check-ircd) | Nagios utility for monitoring the health of an ircd |
+| [nagios-notify-irc](github.com/lrstanley/nagios-notify-irc) | Nagios utility for sending alerts to one or many channels/networks |
 
 Working on a project and want to add it to the list? Submit a pull request!
 
 ## Contributing
 
-Please review the [CONTRIBUTING](https://github.com/lrstanley/girc/blob/master/README.md)
+Please review the [CONTRIBUTING](https://github.com/lrstanley/girc/blob/master/CONTRIBUTING.md)
 doc for submitting issues/a guide on submitting pull requests and helping out.
 
 ## License
