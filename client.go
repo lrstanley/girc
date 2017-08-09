@@ -529,7 +529,7 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 func (c *Client) ServerName() (name string) {
 	c.panicIfNotTracking()
 
-	name, _ = c.GetServerOption("SERVER")
+	name, _ = c.GetServerOption("NETWORK")
 
 	return name
 }
