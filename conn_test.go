@@ -162,7 +162,7 @@ func TestConnect(t *testing.T) {
 	// CAP LS 302
 
 	if events[0].Command != "NICK" || events[0].Params[0] != c.Config.Nick {
-		t.Fatalf("TestConnect: invalud nick command: %#v", events[0])
+		t.Fatalf("TestConnect: invalid nick command: %#v", events[0])
 	}
 
 	if events[1].Command != "USER" || events[1].Params[0] != c.Config.User || events[1].Trailing != c.Config.Name {
