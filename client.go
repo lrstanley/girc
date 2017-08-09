@@ -523,17 +523,6 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	return result, ok
 }
 
-// ServerName returns the server host/name that the server itself identifies
-// as. May be empty if the server does not support RPL_MYINFO. Will panic if
-// used when tracking has been disabled.
-func (c *Client) ServerName() (name string) {
-	c.panicIfNotTracking()
-
-	name, _ = c.GetServerOption("NETWORK")
-
-	return name
-}
-
 // NetworkName returns the network identifier. E.g. "EsperNet", "ByteIRC".
 // May be empty if the server does not support RPL_ISUPPORT (or RPL_PROTOCTL).
 // Will panic if used when tracking has been disabled.
