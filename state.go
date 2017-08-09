@@ -69,9 +69,11 @@ type User struct {
 	// reasons.
 	Host string `json:"host"`
 
-	// Channels is a sorted list of all channels that we are currently tracking
-	// the user in. Each channel name is rfc1459 compliant.
-	Channels []string `json:"channels"`
+	// ChannelList is a sorted list of all channels that we are currently
+	// tracking the user in. Each channel name is rfc1459 compliant. See
+	// User.Channels() for a shorthand if you're looking for the *Channel
+	// version of the channel list.
+	ChannelList []string `json:"channels"`
 
 	// FirstSeen represents the first time that the user was seen by the
 	// client for the given channel. Only usable if from state, not in past.
@@ -105,6 +107,28 @@ type User struct {
 	} `json:"extras"`
 }
 
+// Channels returns a reference of *Channels that the client knows the user
+// is in. If you're just looking for the namme of the channels, use
+// User.ChannelList.
+func (u User) Channels(c *Client) []*Channel {
+	if c == nil {
+		panic("nil Client provided")
+	}
+
+	channels := []*Channel{}
+
+	c.state.RLock()
+	for i := 0; i < len(u.ChannelList); i++ {
+		ch := c.state.lookupChannel(u.ChannelList[i])
+		if ch != nil {
+			channels = append(channels, ch)
+		}
+	}
+	c.state.RUnlock()
+
+	return channels
+}
+
 // Copy returns a deep copy of the user which can be modified without making
 // changes to the actual state.
 func (u *User) Copy() *User {
@@ -112,15 +136,15 @@ func (u *User) Copy() *User {
 	*nu = *u
 
 	nu.Perms = u.Perms.Copy()
-	_ = copy(nu.Channels, u.Channels)
+	_ = copy(nu.ChannelList, u.ChannelList)
 
 	return nu
 }
 
 // addChannel adds the channel to the users channel list.
 func (u *User) addChannel(name string) {
-	u.Channels = append(u.Channels, ToRFC1459(name))
-	sort.StringsAreSorted(u.Channels)
+	u.ChannelList = append(u.ChannelList, ToRFC1459(name))
+	sort.StringsAreSorted(u.ChannelList)
 
 	u.Perms.set(name, Perms{})
 }
@@ -130,15 +154,15 @@ func (u *User) deleteChannel(name string) {
 	name = ToRFC1459(name)
 
 	j := -1
-	for i := 0; i < len(u.Channels); i++ {
-		if u.Channels[i] == name {
+	for i := 0; i < len(u.ChannelList); i++ {
+		if u.ChannelList[i] == name {
 			j = i
 			break
 		}
 	}
 
 	if j != -1 {
-		u.Channels = append(u.Channels[:j], u.Channels[j+1:]...)
+		u.ChannelList = append(u.ChannelList[:j], u.ChannelList[j+1:]...)
 	}
 
 	u.Perms.remove(name)
@@ -148,8 +172,8 @@ func (u *User) deleteChannel(name string) {
 func (u *User) InChannel(name string) bool {
 	name = ToRFC1459(name)
 
-	for i := 0; i < len(u.Channels); i++ {
-		if u.Channels[i] == name {
+	for i := 0; i < len(u.ChannelList); i++ {
+		if u.ChannelList[i] == name {
 			return true
 		}
 	}
@@ -181,19 +205,93 @@ type Channel struct {
 	// Topic of the channel.
 	Topic string `json:"topic"`
 
-	// Users is a sorted list of all users we are currently tracking within
+	// UserList is a sorted list of all users we are currently tracking within
 	// the channel. Each is the nickname, and is rfc1459 compliant.
-	Users []string `json:"users"`
+	UserList []string `json:"user_list"`
 	// Joined represents the first time that the client joined the channel.
 	Joined time.Time `json:"joined"`
 	// Modes are the known channel modes that the bot has captured.
 	Modes CModes `json:"modes"`
 }
 
+// Users returns a reference of *Users that the client knows the channel has
+// If you're just looking for just the name of the users, use Channnel.UserList.
+func (ch Channel) Users(c *Client) []*User {
+	if c == nil {
+		panic("nil Client provided")
+	}
+
+	users := []*User{}
+
+	c.state.RLock()
+	for i := 0; i < len(ch.UserList); i++ {
+		user := c.state.lookupUser(ch.UserList[i])
+		if user != nil {
+			users = append(users, user)
+		}
+	}
+	c.state.RUnlock()
+
+	return users
+}
+
+// Trusted returns a list of users which have voice or greater in the given
+// channel. See Perms.IsTrusted() for more information.
+func (ch Channel) Trusted(c *Client) []*User {
+	if c == nil {
+		panic("nil Client provided")
+	}
+
+	users := []*User{}
+
+	c.state.RLock()
+	for i := 0; i < len(ch.UserList); i++ {
+		user := c.state.lookupUser(ch.UserList[i])
+		if user == nil {
+			continue
+		}
+
+		perms, ok := user.Perms.Lookup(ch.Name)
+		if ok && perms.IsTrusted() {
+			users = append(users, user)
+		}
+	}
+	c.state.RUnlock()
+
+	return users
+}
+
+// Admins returns a list of users which have half-op (if supported), or
+// greater permissions (op, admin, owner, etc) in the given channel. See
+// Perms.IsAdmin() for more information.
+func (ch Channel) Admins(c *Client) []*User {
+	if c == nil {
+		panic("nil Client provided")
+	}
+
+	users := []*User{}
+
+	c.state.RLock()
+	for i := 0; i < len(ch.UserList); i++ {
+		user := c.state.lookupUser(ch.UserList[i])
+		if user == nil {
+			continue
+		}
+
+		perms, ok := user.Perms.Lookup(ch.Name)
+		if ok && perms.IsAdmin() {
+			users = append(users, user)
+		}
+	}
+	c.state.RUnlock()
+
+	return users
+}
+
 // addUser adds a user to the users list.
 func (c *Channel) addUser(nick string) {
-	c.Users = append(c.Users, ToRFC1459(nick))
-	sort.Strings(c.Users)
+	c.UserList = append(c.UserList, ToRFC1459(nick))
+	sort.Strings(c.UserList)
 }
 
 // deleteUser removes an existing user from the users list.
@@ -201,15 +299,15 @@ func (c *Channel) deleteUser(nick string) {
 	nick = ToRFC1459(nick)
 
 	j := -1
-	for i := 0; i < len(c.Users); i++ {
-		if c.Users[i] == nick {
+	for i := 0; i < len(c.UserList); i++ {
+		if c.UserList[i] == nick {
 			j = i
 			break
 		}
 	}
 
 	if j != -1 {
-		c.Users = append(c.Users[:j], c.Users[j+1:]...)
+		c.UserList = append(c.UserList[:j], c.UserList[j+1:]...)
 	}
 }
 
@@ -218,7 +316,7 @@ func (c *Channel) Copy() *Channel {
 	nc := &Channel{}
 	*nc = *c
 
-	_ = copy(nc.Users, c.Users)
+	_ = copy(nc.UserList, c.UserList)
 
 	// And modes.
 	nc.Modes = c.Modes.Copy()
@@ -228,15 +326,15 @@ func (c *Channel) Copy() *Channel {
 
 // Len returns the count of users in a given channel.
 func (c *Channel) Len() int {
-	return len(c.Users)
+	return len(c.UserList)
 }
 
 // UserIn checks to see if a given user is in a channel.
 func (c *Channel) UserIn(name string) bool {
 	name = ToRFC1459(name)
 
-	for i := 0; i < len(c.Users); i++ {
-		if c.Users[i] == name {
+	for i := 0; i < len(c.UserList); i++ {
+		if c.UserList[i] == name {
 			return true
 		}
 	}
@@ -260,10 +358,10 @@ func (s *state) createChannel(name string) (ok bool) {
 	}
 
 	s.channels[ToRFC1459(name)] = &Channel{
-		Name:   name,
-		Users:  []string{},
-		Joined: time.Now(),
-		Modes:  NewCModes(supported, prefixes),
+		Name:     name,
+		UserList: []string{},
+		Joined:   time.Now(),
+		Modes:    NewCModes(supported, prefixes),
 	}
 
 	return true
@@ -278,10 +376,10 @@ func (s *state) deleteChannel(name string) {
 		return
 	}
 
-	for _, user := range s.channels[name].Users {
+	for _, user := range s.channels[name].UserList {
 		s.users[user].deleteChannel(name)
 
-		if len(s.users[user].Channels) == 0 {
+		if len(s.users[user].ChannelList) == 0 {
 			// Assume we were only tracking them in this channel, and they
 			// should be removed from state.
 
@@ -329,8 +427,8 @@ func (s *state) deleteUser(channelName, nick string) {
 	}
 
 	if channelName == "" {
-		for i := 0; i < len(user.Channels); i++ {
-			s.channels[user.Channels[i]].deleteUser(nick)
+		for i := 0; i < len(user.ChannelList); i++ {
+			s.channels[user.ChannelList[i]].deleteUser(nick)
 		}
 
 		delete(s.users, ToRFC1459(nick))
@@ -345,7 +443,7 @@ func (s *state) deleteUser(channelName, nick string) {
 	user.deleteChannel(channelName)
 	channel.deleteUser(nick)
 
-	if len(user.Channels) == 0 {
+	if len(user.ChannelList) == 0 {
 		// This means they are no longer in any channels we track, delete
 		// them from state.
 
@@ -373,10 +471,10 @@ func (s *state) renameUser(from, to string) {
 	user.LastActive = time.Now()
 	s.users[ToRFC1459(to)] = user
 
-	for i := 0; i < len(user.Channels); i++ {
-		for j := 0; j < len(s.channels[user.Channels[i]].Users); j++ {
-			if s.channels[user.Channels[i]].Users[j] == from {
-				s.channels[user.Channels[i]].Users[j] = ToRFC1459(to)
+	for i := 0; i < len(user.ChannelList); i++ {
+		for j := 0; j < len(s.channels[user.ChannelList[i]].UserList); j++ {
+			if s.channels[user.ChannelList[i]].UserList[j] == from {
+				s.channels[user.ChannelList[i]].UserList[j] = ToRFC1459(to)
 			}
 		}
 	}
