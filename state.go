@@ -143,6 +143,10 @@ func (u *User) Copy() *User {
 
 // addChannel adds the channel to the users channel list.
 func (u *User) addChannel(name string) {
+	if u.InChannel(name) {
+		return
+	}
+
 	u.ChannelList = append(u.ChannelList, ToRFC1459(name))
 	sort.StringsAreSorted(u.ChannelList)
 
@@ -290,6 +294,10 @@ func (ch Channel) Admins(c *Client) []*User {
 
 // addUser adds a user to the users list.
 func (c *Channel) addUser(nick string) {
+	if c.UserIn(nick) {
+		return
+	}
+
 	c.UserList = append(c.UserList, ToRFC1459(nick))
 	sort.Strings(c.UserList)
 }
