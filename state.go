@@ -293,56 +293,56 @@ func (ch Channel) Admins(c *Client) []*User {
 }
 
 // addUser adds a user to the users list.
-func (c *Channel) addUser(nick string) {
-	if c.UserIn(nick) {
+func (ch *Channel) addUser(nick string) {
+	if ch.UserIn(nick) {
 		return
 	}
 
-	c.UserList = append(c.UserList, ToRFC1459(nick))
-	sort.Strings(c.UserList)
+	ch.UserList = append(ch.UserList, ToRFC1459(nick))
+	sort.Strings(ch.UserList)
 }
 
 // deleteUser removes an existing user from the users list.
-func (c *Channel) deleteUser(nick string) {
+func (ch *Channel) deleteUser(nick string) {
 	nick = ToRFC1459(nick)
 
 	j := -1
-	for i := 0; i < len(c.UserList); i++ {
-		if c.UserList[i] == nick {
+	for i := 0; i < len(ch.UserList); i++ {
+		if ch.UserList[i] == nick {
 			j = i
 			break
 		}
 	}
 
 	if j != -1 {
-		c.UserList = append(c.UserList[:j], c.UserList[j+1:]...)
+		ch.UserList = append(ch.UserList[:j], ch.UserList[j+1:]...)
 	}
 }
 
 // Copy returns a deep copy of a given channel.
-func (c *Channel) Copy() *Channel {
+func (ch *Channel) Copy() *Channel {
 	nc := &Channel{}
-	*nc = *c
+	*nc = *ch
 
-	_ = copy(nc.UserList, c.UserList)
+	_ = copy(nc.UserList, ch.UserList)
 
 	// And modes.
-	nc.Modes = c.Modes.Copy()
+	nc.Modes = ch.Modes.Copy()
 
 	return nc
 }
 
 // Len returns the count of users in a given channel.
-func (c *Channel) Len() int {
-	return len(c.UserList)
+func (ch *Channel) Len() int {
+	return len(ch.UserList)
 }
 
 // UserIn checks to see if a given user is in a channel.
-func (c *Channel) UserIn(name string) bool {
+func (ch *Channel) UserIn(name string) bool {
 	name = ToRFC1459(name)
 
-	for i := 0; i < len(c.UserList); i++ {
-		if c.UserList[i] == name {
+	for i := 0; i < len(ch.UserList); i++ {
+		if ch.UserList[i] == name {
 			return true
 		}
 	}
@@ -352,8 +352,8 @@ func (c *Channel) UserIn(name string) bool {
 
 // Lifetime represents the amount of time that has passed since we have first
 // joined the channel.
-func (c *Channel) Lifetime() time.Duration {
-	return time.Since(c.Joined)
+func (ch *Channel) Lifetime() time.Duration {
+	return time.Since(ch.Joined)
 }
 
 // createChannel creates the channel in state, if not already done.
