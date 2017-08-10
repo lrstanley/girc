@@ -131,23 +131,25 @@ func handleJOIN(c *Client, e Event) {
 		channelName = e.Trailing
 	}
 
-	if e.Source.Name == c.GetNick() {
-		if ok := c.state.createChannel(channelName); !ok {
-			return
-		}
-	}
-
 	c.state.Lock()
-	if ok := c.state.createUser(e.Source.Name); !ok {
-		c.state.Unlock()
-		return
-	}
 
 	channel := c.state.lookupChannel(channelName)
-	user := c.state.lookupUser(e.Source.Name)
+	if channel == nil {
+		if ok := c.state.createChannel(channelName); !ok {
+			c.state.Unlock()
+			return
+		}
 
-	if channel == nil || user == nil {
-		return
+		channel = c.state.lookupChannel(channelName)
+	}
+
+	user := c.state.lookupUser(e.Source.Name)
+	if user == nil {
+		if ok := c.state.createUser(e.Source.Name); !ok {
+			c.state.Unlock()
+			return
+		}
+		user = c.state.lookupUser(e.Source.Name)
 	}
 
 	defer c.state.notify(c, UPDATE_STATE)
