@@ -430,7 +430,7 @@ func (c *Client) Channels() []string {
 	channels := make([]string, len(c.state.channels))
 	var i int
 	for channel := range c.state.channels {
-		channels[i] = channel
+		channels[i] = c.state.channels[channel].Name
 		i++
 	}
 	c.state.RUnlock()
@@ -448,7 +448,7 @@ func (c *Client) Users() []string {
 	users := make([]string, len(c.state.users))
 	var i int
 	for user := range c.state.users {
-		users[i] = user
+		users[i] = c.state.users[user].Nick
 		i++
 	}
 	c.state.RUnlock()
