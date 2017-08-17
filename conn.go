@@ -50,15 +50,6 @@ type ircConn struct {
 	pingDelay time.Duration
 }
 
-// ErrInvalidConfig is returned when the configuration passed to the client
-// is invalid.
-type ErrInvalidConfig struct {
-	Conf Config // Conf is the configuration that was not valid.
-	err  error
-}
-
-func (e ErrInvalidConfig) Error() string { return "invalid configuration: " + e.err.Error() }
-
 // ErrProxy is returned when an attempt to use the supplied proxy resulted
 // in error, with implementation or connection.
 type ErrProxy struct {
@@ -72,7 +63,7 @@ func (e ErrProxy) Error() string { return fmt.Sprintf("proxy error: %q: %s", e.B
 // setting up things like proxies, ssl/tls, and other misc. things.
 func newConn(conf Config, addr string) (*ircConn, error) {
 	if err := conf.isValid(); err != nil {
-		return nil, ErrInvalidConfig{conf, err}
+		return nil, err
 	}
 
 	var conn net.Conn

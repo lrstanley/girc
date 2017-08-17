@@ -169,10 +169,19 @@ type Config struct {
 	HandleNickCollide func(oldNick string) (newNick string)
 }
 
+// ErrInvalidConfig is returned when the configuration passed to the client
+// is invalid.
+type ErrInvalidConfig struct {
+	Conf Config // Conf is the configuration that was not valid.
+	err  error
+}
+
+func (e ErrInvalidConfig) Error() string { return "invalid configuration: " + e.err.Error() }
+
 // isValid checks some basic settings to ensure the config is valid.
 func (conf *Config) isValid() error {
 	if conf.Server == "" {
-		return errors.New("invalid server specified")
+		return &ErrInvalidConfig{Conf: *conf, err: errors.New("empty server")}
 	}
 
 	// Default port to 6667 (the standard IRC port).
@@ -181,11 +190,14 @@ func (conf *Config) isValid() error {
 	}
 
 	if conf.Port < 21 || conf.Port > 65535 {
-		return errors.New("invalid port (21-65535)")
+		return &ErrInvalidConfig{Conf: *conf, err: errors.New("port outside valid range (21-65535)")}
 	}
 
-	if !IsValidNick(conf.Nick) || !IsValidUser(conf.User) {
-		return errors.New("invalid nickname or user")
+	if !IsValidNick(conf.Nick) {
+		return &ErrInvalidConfig{Conf: *conf, err: errors.New("bad nickname specified")}
+	}
+	if !IsValidUser(conf.User) {
+		return &ErrInvalidConfig{Conf: *conf, err: errors.New("bad user/ident specified")}
 	}
 
 	return nil
