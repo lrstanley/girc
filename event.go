@@ -280,6 +280,10 @@ func (e *Event) Pretty() (out string, ok bool) {
 		return "", false
 	}
 
+	if e.Command == ERROR {
+		return fmt.Sprintf("[*] an error occurred: %s", e.Trailing), true
+	}
+
 	if e.Source == nil {
 		if e.Command != PRIVMSG && e.Command != NOTICE {
 			return "", false
@@ -327,10 +331,6 @@ func (e *Event) Pretty() (out string, ok bool) {
 
 	if e.Command == PART && len(e.Params) > 0 {
 		return fmt.Sprintf("[*] %s (%s) has left %s (%s)", e.Source.Name, e.Source.Host, e.Params[0], e.Trailing), true
-	}
-
-	if e.Command == ERROR {
-		return fmt.Sprintf("[*] an error occurred: %s", e.Trailing), true
 	}
 
 	if e.Command == QUIT {
