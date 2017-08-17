@@ -187,9 +187,6 @@ func TestClientClose(t *testing.T) {
 	})
 	c.Handlers.AddBg(INITIALIZED, func(c *Client, e Event) {
 		c.Close()
-		// Speed up the disconnect process.
-		server.Close()
-		conn.Close()
 	})
 
 	go func() {

@@ -313,6 +313,7 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	select {
 	case <-ctx.Done():
 		c.debug.Print("received request to close, beginning clean up")
+		c.RunHandlers(&Event{Command: STOPPED, Trailing: c.Server()})
 	case err := <-errs:
 		c.debug.Print("received error, beginning clean up")
 		result = err
@@ -320,6 +321,9 @@ func (c *Client) internalConnect(mock net.Conn) error {
 
 	// Make sure that the connection is closed if not already.
 	c.mu.RLock()
+	if c.stop != nil {
+		c.stop()
+	}
 	c.conn.mu.Lock()
 	c.conn.connected = false
 	_ = c.conn.Close()

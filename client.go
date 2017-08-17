@@ -274,8 +274,6 @@ func (c *Client) String() string {
 // safe to call multiple times. See Connect()'s documentation on how
 // handlers and goroutines are handled when disconnected from the server.
 func (c *Client) Close() {
-	c.RunHandlers(&Event{Command: STOPPED, Trailing: c.Server()})
-
 	c.mu.RLock()
 	if c.stop != nil {
 		c.debug.Print("requesting client to stop")
