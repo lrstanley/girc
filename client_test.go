@@ -5,8 +5,6 @@
 package girc
 
 import (
-	"context"
-	"io"
 	"strings"
 	"testing"
 	"time"
@@ -100,17 +98,16 @@ func TestClientUptime(t *testing.T) {
 	c, conn, server := genMockConn()
 	defer conn.Close()
 	defer server.Close()
+	go mockReadBuffer(conn)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	c.Handlers.Add(INITIALIZED, func(c *Client, e Event) {
-		cancel()
-	})
+	done := make(chan struct{}, 1)
+	c.Handlers.Add(INITIALIZED, func(c *Client, e Event) { close(done) })
 
 	go c.MockConnect(server)
 	defer c.Close()
 
 	select {
-	case <-ctx.Done():
+	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("Client.Uptime() timed out")
 	}
@@ -146,17 +143,16 @@ func TestClientGet(t *testing.T) {
 	c, conn, server := genMockConn()
 	defer conn.Close()
 	defer server.Close()
+	go mockReadBuffer(conn)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	c.Handlers.Add(INITIALIZED, func(c *Client, e Event) {
-		cancel()
-	})
+	done := make(chan struct{}, 1)
+	c.Handlers.Add(INITIALIZED, func(c *Client, e Event) { close(done) })
 
 	go c.MockConnect(server)
 	defer c.Close()
 
 	select {
-	case <-ctx.Done():
+	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out during connect")
 	}
@@ -178,37 +174,27 @@ func TestClientClose(t *testing.T) {
 	c, conn, server := genMockConn()
 	defer server.Close()
 	defer conn.Close()
+	go mockReadBuffer(conn)
 
 	errchan := make(chan error, 1)
-	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{}, 1)
 
-	c.Handlers.AddBg(STOPPED, func(c *Client, e Event) {
-		cancel()
-	})
-	c.Handlers.AddBg(INITIALIZED, func(c *Client, e Event) {
-		c.Close()
-	})
+	c.Handlers.AddBg(STOPPED, func(c *Client, e Event) { close(done) })
+	c.Handlers.AddBg(INITIALIZED, func(c *Client, e Event) { c.Close() })
 
-	go func() {
-		errchan <- c.MockConnect(server)
-	}()
+	go func() { errchan <- c.MockConnect(server) }()
+
 	defer c.Close()
 
 	select {
+	case err := <-errchan:
+		if err == nil {
+			break
+		}
+
+		t.Fatalf("connect returned with error when close was invoked: %s", err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("Client.Close() timed out")
-		cancel()
-	case <-ctx.Done():
+	case <-done:
 	}
-
-	select {
-	case err := <-errchan:
-		if err != nil && err != io.ErrClosedPipe {
-			t.Fatalf("connect returned with error when close was invoked: %s", err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("timed out while waiting for connect to return")
-	}
-
-	close(errchan)
 }

@@ -5,7 +5,6 @@
 package girc
 
 import (
-	"bufio"
 	"reflect"
 	"testing"
 	"time"
@@ -59,18 +58,7 @@ const dummyEndState = `:nick2!nick2@other.int QUIT :example reason
 func TestState(t *testing.T) {
 	c, conn, server := genMockConn()
 	defer c.Close()
-
-	go func() {
-		// Accept all outgoing writes from the client.
-		b := bufio.NewReader(conn)
-		for {
-			conn.SetReadDeadline(time.Now().Add(300 * time.Second))
-			_, err := b.ReadString(byte('\n'))
-			if err != nil {
-				return
-			}
-		}
-	}()
+	go mockReadBuffer(conn)
 
 	go func() {
 		err := c.MockConnect(server)

@@ -122,3 +122,15 @@ func genMockConn() (client *Client, clientConn net.Conn, serverConn net.Conn) {
 
 	return client, conn1, conn2
 }
+
+func mockReadBuffer(conn net.Conn) {
+	// Accept all outgoing writes from the client.
+	b := bufio.NewReader(conn)
+	for {
+		conn.SetReadDeadline(time.Now().Add(300 * time.Second))
+		_, err := b.ReadString(byte('\n'))
+		if err != nil {
+			return
+		}
+	}
+}
