@@ -10,11 +10,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"net/url"
 	"sync"
 	"time"
-
-	"golang.org/x/net/proxy"
 )
 
 // Messages are delimited with CR and LF line endings, we're using the last
@@ -50,18 +47,18 @@ type ircConn struct {
 	pingDelay time.Duration
 }
 
-// ErrProxy is returned when an attempt to use the supplied proxy resulted
-// in error, with implementation or connection.
-type ErrProxy struct {
-	Bind string // Bind is the query string address that was supplied.
-	err  error
+// Dialer is an interface implementation of net.Dialer. Use this if you would
+// like to implement your own dialer which the client will use when connecting.
+type Dialer interface {
+	// Dial takes two arguments. Network, which should be similar to "tcp",
+	// "tdp6", "udp", etc -- as well as address, which is the hostname or ip
+	// of the network. Note that network can be ignored if your transport
+	// doesn't take advantage of network types.
+	Dial(network, address string) (net.Conn, error)
 }
 
-func (e ErrProxy) Error() string { return fmt.Sprintf("proxy error: %q: %s", e.Bind, e.err) }
-
-// newConn sets up and returns a new connection to the server. This includes
-// setting up things like proxies, ssl/tls, and other misc. things.
-func newConn(conf Config, addr string) (*ircConn, error) {
+// newConn sets up and returns a new connection to the server.
+func newConn(conf Config, dialer Dialer, addr string) (*ircConn, error) {
 	if err := conf.isValid(); err != nil {
 		return nil, err
 	}
@@ -69,37 +66,24 @@ func newConn(conf Config, addr string) (*ircConn, error) {
 	var conn net.Conn
 	var err error
 
-	dialer := &net.Dialer{Timeout: 5 * time.Second}
+	if dialer == nil {
+		netDialer := &net.Dialer{Timeout: 5 * time.Second}
 
-	if conf.Bind != "" {
-		var local *net.TCPAddr
-		local, err = net.ResolveTCPAddr("tcp", conf.Bind+":0")
-		if err != nil {
-			return nil, err
+		if conf.Bind != "" {
+			var local *net.TCPAddr
+			local, err = net.ResolveTCPAddr("tcp", conf.Bind+":0")
+			if err != nil {
+				return nil, err
+			}
+
+			netDialer.LocalAddr = local
 		}
 
-		dialer.LocalAddr = local
+		dialer = netDialer
 	}
 
-	if conf.Proxy != "" {
-		var proxyURI *url.URL
-		var proxyDialer proxy.Dialer
-
-		if proxyURI, err = url.Parse(conf.Proxy); err != nil {
-			return nil, ErrProxy{conf.Proxy, err}
-		}
-
-		if proxyDialer, err = proxy.FromURL(proxyURI, dialer); err != nil {
-			return nil, ErrProxy{conf.Proxy, err}
-		}
-
-		if conn, err = proxyDialer.Dial("tcp", addr); err != nil {
-			return nil, ErrProxy{conf.Proxy, err}
-		}
-	} else {
-		if conn, err = dialer.Dial("tcp", addr); err != nil {
-			return nil, err
-		}
+	if conn, err = dialer.Dial("tcp", addr); err != nil {
+		return nil, err
 	}
 
 	if conf.SSL {
@@ -191,13 +175,26 @@ func (c *ircConn) Close() error {
 // ensure there are no long-running routines becoming backed up.
 //
 // Connect will wait for all non-goroutine handlers to complete on error/quit,
-// however it will not wait for goroutine handlers.
+// however it will not wait for goroutine-based handlers.
 //
 // If this returns nil, this means that the client requested to be closed
 // (e.g. Client.Close()). Connect will panic if called when the last call has
 // not completed.
 func (c *Client) Connect() error {
-	return c.internalConnect(nil)
+	return c.internalConnect(nil, nil)
+}
+
+// DialerConnect allows you to specify your own custom dialer which implements
+// the Dialer interface.
+//
+// An example of using this library would be to take advantage of the
+// golang.org/x/net/proxy library:
+//
+//	proxyUrl, _ := proxyURI, err = url.Parse("socks5://1.2.3.4:8888")
+//	dialer, _ := proxy.FromURL(proxyURI, &net.Dialer{Timeout: 5 * time.Second})
+//	_ := girc.DialerConnect(dialer)
+func (c *Client) DialerConnect(dialer Dialer) error {
+	return c.internalConnect(nil, dialer)
 }
 
 // MockConnect is used to implement mocking with an IRC server. Supply a net.Conn
@@ -244,10 +241,10 @@ func (c *Client) Connect() error {
 //	 	// Do stuff with event here.
 //	 }
 func (c *Client) MockConnect(conn net.Conn) error {
-	return c.internalConnect(conn)
+	return c.internalConnect(conn, nil)
 }
 
-func (c *Client) internalConnect(mock net.Conn) error {
+func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 	// We want to be the only one handling connects/disconnects right now.
 	c.mu.Lock()
 
@@ -261,7 +258,7 @@ func (c *Client) internalConnect(mock net.Conn) error {
 	if mock == nil {
 		// Validate info, and actually make the connection.
 		c.debug.Printf("connecting to %s...", c.Server())
-		conn, err := newConn(c.Config, c.Server())
+		conn, err := newConn(c.Config, dialer, c.Server())
 		if err != nil {
 			c.mu.Unlock()
 			return err

@@ -12,23 +12,6 @@ import (
 	"time"
 )
 
-func TestNewConn(t *testing.T) {
-	conf := Config{Server: "", Port: 6667, Nick: "nick", User: "user", Name: "realname"}
-	conn, err := newConn(conf, conf.Server+":6667")
-	if err == nil {
-		t.Fatal("invalid server but no error")
-	}
-	conf.Server = "irc.byteirc.org"
-	conn, err = newConn(conf, conf.Server+":6667")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !conn.connected {
-		t.Fatal("conn provided but not connected")
-	}
-	conn.Close()
-}
-
 func mockBuffers() (in *bytes.Buffer, out *bytes.Buffer, irc *ircConn) {
 	in = &bytes.Buffer{}
 	out = &bytes.Buffer{}

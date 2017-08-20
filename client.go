@@ -21,40 +21,36 @@ import (
 // Client contains all of the information necessary to run a single IRC
 // client.
 type Client struct {
-	// Config represents the configuration
+	// Config represents the configuration. Please take extra caution in that
+	// entries in this are not edited while the client is connected, to prevent
+	// data races. This is NOT concurrent safe to update.
 	Config Config
 	// rx is a buffer of events waiting to be processed.
 	rx chan *Event
 	// tx is a buffer of events waiting to be sent.
 	tx chan *Event
-
 	// state represents the throw-away state for the irc session.
 	state *state
 	// initTime represents the creation time of the client.
 	initTime time.Time
-
 	// Handlers is a handler which manages internal and external handlers.
 	Handlers *Caller
 	// CTCP is a handler which manages internal and external CTCP handlers.
 	CTCP *CTCP
 	// Cmd contains various helper methods to interact with the server.
 	Cmd *Commands
-
 	// mu is the mux used for connections/disconnections from the server,
 	// so multiple threads aren't trying to connect at the same time, and
 	// vice versa.
 	mu sync.RWMutex
-
 	// stop is used to communicate with Connect(), letting it know that the
 	// client wishes to cancel/close.
 	stop context.CancelFunc
-
 	// conn is a net.Conn reference to the IRC server. If this is nil, it is
 	// safe to assume that we're not connected. If this is not nil, this
 	// means we're either connected, connecting, or cleaning up. This should
 	// be guarded with Client.mu.
 	conn *ircConn
-
 	// debug is used if a writer is supplied for Client.Config.Debugger.
 	debug *log.Logger
 }
@@ -84,23 +80,11 @@ type Config struct {
 	// supported. Capability tracking must be enabled for this to work, as
 	// this requires IRCv3 CAP handling.
 	SASL SASLMech
-	// Proxy is a proxy based address, used during the dial process when
-	// connecting to the server. This only has an affect during the dial
-	// process. Currently, x/net/proxy only supports socks5, however you can
-	// add your own proxy functionality using:
-	//    proxy.RegisterDialerType
-	//
-	// Examples of how Proxy may be used:
-	//    socks5://localhost:8080
-	//    socks5://1.2.3.4:8888
-	//    customProxy://example.com:8000
-	//
-	Proxy string
 	// Bind is used to bind to a specific host or ip during the dial process
 	// when connecting to the server. This can be a hostname, however it must
 	// resolve to an IPv4/IPv6 address bindable on your system. Otherwise,
 	// you can simply use a IPv4/IPv6 address directly. This only has an
-	// affect during the dial process.
+	// affect during the dial process and will not work with DialerConnect().
 	Bind string
 	// SSL allows dialing via TLS. See TLSConfig to set your own TLS
 	// configuration (e.g. to not force hostname checking). This only has an
