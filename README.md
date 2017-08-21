@@ -1,4 +1,4 @@
-<p align="center"><a href="https://godoc.org/github.com/lrstanley/girc"><img width="200" src="http://i.imgur.com/7nKzi6L.png"></a></p>
+<p align="center"><a href="https://godoc.org/github.com/lrstanley/girc"><img width="270" src="http://i.imgur.com/DEnyrdB.png"></a></p>
 <p align="center">girc, a flexible IRC library for Go</p>
 <p align="center">
   <a href="https://travis-ci.org/lrstanley/girc"><img src="https://travis-ci.org/lrstanley/girc.svg?branch=master" alt="Build Status"></a>
