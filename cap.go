@@ -254,14 +254,15 @@ func handleSASL(c *Client, e Event) {
 	auth := c.Config.SASL.Encode(e.Params)
 
 	if auth == "" {
-		// Assume the SASL authentication method doesn't want to respond
-		// for some reason. Unfortunately, the SALS spec and IRCv3 spec do
-		// not define a clear way to abort a SASL exchange, other than
-		// disconnecting or sending a "CAP END".
-		//
-		// One can avoid disconnecting by handling this error using a
-		// Config.RecoverFunc.
-		panic(ErrAuthSASL{Method: c.Config.SASL.Method(), Cmd: e.Command, Text: e.Trailing})
+		// Assume the SASL authentication method doesn't want to respond for
+		// some reason. The SASL spec and IRCv3 spec do not define a clear
+		// way to abort a SASL exchange, other than to disconnect, or proceed
+		// with CAP END.
+		c.rx <- &Event{Command: ERROR, Trailing: fmt.Sprintf(
+			"closing connection: invalid %s SASL configuration provided: %s",
+			c.Config.SASL.Method(), e.Trailing,
+		)}
+		return
 	}
 
 	// Send in "saslChunkSize"-length byte chunks. If the last chuck is
@@ -286,29 +287,16 @@ func handleSASL(c *Client, e Event) {
 	return
 }
 
-// ErrAuthSASL is returned when the client is unable to successfully auth
-// via the provided SASL mechanisms.
-type ErrAuthSASL struct {
-	Method string // Method is the mechanism.
-	Cmd    string // Cmd is the SASL command.
-	Text   string // Text is the trailing text that followed the command if any.
-}
-
-// Error returns a stringified version of ErrAuthSASL.
-func (e *ErrAuthSASL) Error() string {
-	return fmt.Sprintf("unable to use SASL %s authentication: %s (%s)", e.Method, e.Cmd, e.Text)
-}
-
 func handleSASLError(c *Client, e Event) {
 	if c.Config.SASL == nil {
 		c.write(&Event{Command: CAP, Params: []string{CAP_END}})
 		return
 	}
 
-	// This is supposed to panic. Per the IRCv3 spec, one must disconnect upon
-	// authentication error. One can avoid disconnecting by handling this
-	// error using a Config.RecoverFunc.
-	panic(ErrAuthSASL{Method: c.Config.SASL.Method(), Cmd: e.Command, Text: e.Trailing})
+	// Authentication failed. The SASL spec and IRCv3 spec do not define a
+	// clear way to abort a SASL exchange, other than to disconnect, or
+	// proceed with CAP END.
+	c.rx <- &Event{Command: ERROR, Trailing: "closing connection: " + e.Trailing}
 }
 
 // handleCHGHOST handles incoming IRCv3 hostname change events. CHGHOST is
