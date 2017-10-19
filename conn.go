@@ -273,12 +273,12 @@ func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 	ctx, c.stop = context.WithCancel(context.Background())
 	c.mu.Unlock()
 
-	errs := make(chan error, 3)
+	errs := make(chan error, 4)
 	var wg sync.WaitGroup
 	// 4 being the number of goroutines we need to finish when this function
 	// returns.
 	wg.Add(4)
-	go c.execLoop(ctx, &wg)
+	go c.execLoop(ctx, errs, &wg)
 	go c.readLoop(ctx, errs, &wg)
 	go c.sendLoop(ctx, errs, &wg)
 	go c.pingLoop(ctx, errs, &wg)

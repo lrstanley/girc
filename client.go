@@ -266,7 +266,22 @@ func (c *Client) Close() {
 	c.mu.RUnlock()
 }
 
-func (c *Client) execLoop(ctx context.Context, wg *sync.WaitGroup) {
+// ErrEvent is an error returned when the server (or library) sends an ERROR
+// message response. The string returned contains the trailing text from the
+// message.
+type ErrEvent struct {
+	Event *Event
+}
+
+func (e *ErrEvent) Error() string {
+	if e.Event == nil {
+		return "unknown error occurred"
+	}
+
+	return e.Event.Trailing
+}
+
+func (c *Client) execLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
 	c.debug.Print("starting execLoop")
 	defer c.debug.Print("closing execLoop")
 
@@ -292,6 +307,21 @@ func (c *Client) execLoop(ctx context.Context, wg *sync.WaitGroup) {
 			wg.Done()
 			return
 		case event = <-c.rx:
+			if event != nil && event.Command == ERROR {
+				// Handles incoming ERROR responses. These are only ever sent
+				// by the server (with the exception that this library may use
+				// them as a lower level way of signalling to disconnect due
+				// to some other client-choosen error), and should always be
+				// followed up by the server disconnecting the client. If for
+				// some reason the server doesn't disconnect the client, or
+				// if this library is the source of the error, this should
+				// signal back up to the main connect loop, to disconnect.
+				errs <- &ErrEvent{Event: event}
+
+				// Make sure to not actually exit, so we can let any handlers
+				// actually handle the ERROR event.
+			}
+
 			c.RunHandlers(event)
 		}
 	}
