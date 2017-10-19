@@ -2,7 +2,7 @@
 <p align="center">girc, a flexible IRC library for Go</p>
 <p align="center">
   <a href="https://travis-ci.org/lrstanley/girc"><img src="https://travis-ci.org/lrstanley/girc.svg?branch=master" alt="Build Status"></a>
-  <a href="http://gocover.io/github.com/lrstanley/girc"><img src="http://gocover.io/_badge/github.com/lrstanley/girc" alt="Coverage Status"></a>
+  <a href="https://codecov.io/gh/lrstanley/girc"><img src="https://codecov.io/gh/lrstanley/girc/branch/master/graph/badge.svg" alt="Coverage Status"></a>
   <a href="https://godoc.org/github.com/lrstanley/girc"><img src="https://godoc.org/github.com/lrstanley/girc?status.png" alt="GoDoc"></a>
   <a href="https://goreportcard.com/report/github.com/lrstanley/girc"><img src="https://goreportcard.com/badge/github.com/lrstanley/girc" alt="Go Report Card"></a>
   <a href="https://byteirc.org/channel/L"><img src="https://img.shields.io/badge/ByteIRC-%23L-blue.svg" alt="IRC Chat"></a>
@@ -18,9 +18,9 @@ you're using won't have breaking changes**
 
 - Focuses on simplicity, yet tries to still be flexible.
 - Only requires [standard library packages](https://godoc.org/github.com/lrstanley/girc?imports)
-- Event based triggering/responses ([example](https://godoc.org/github.com/lrstanley/girc#ex-package--Commands), and [CTCP too](https://godoc.org/github.com/lrstanley/girc#Commands.SendCTCP)!).
+- Event based triggering/responses ([example](https://godoc.org/github.com/lrstanley/girc#ex-package--Commands), and [CTCP too](https://godoc.org/github.com/lrstanley/girc#Commands.SendCTCP)!)
 - [Documentation](https://godoc.org/github.com/lrstanley/girc) is _mostly_ complete.
-- Support for almost all of the IRCv3 spec.
+- Support for almost all of the [IRCv3 spec](http://ircv3.net/software/libraries.html).
   - SASL Auth (currently only `PLAIN` and `EXTERNAL` is support by default,
   however you can simply implement `SASLMech` yourself to support additional
   mechanisms.)
