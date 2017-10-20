@@ -288,6 +288,14 @@ func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 		c.write(&Event{Command: PASS, Params: []string{c.Config.ServerPass}, Sensitive: true})
 	}
 
+	// List the IRCv3 capabilities, specifically with the max protocol we
+	// support. The IRCv3 specification doesn't directly state if this should
+	// be called directly before registration, or if it should be called
+	// after NICK/USER requests. It looks like non-supporting networks
+	// should ignore this, and some IRCv3 capable networks require this to
+	// occur before NICK/USER registration.
+	c.listCAP()
+
 	// Then nickname.
 	c.write(&Event{Command: NICK, Params: []string{c.Config.Nick}})
 
@@ -297,10 +305,6 @@ func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 	}
 
 	c.write(&Event{Command: USER, Params: []string{c.Config.User, "*", "*"}, Trailing: c.Config.Name})
-
-	// List the IRCv3 capabilities, specifically with the max protocol we
-	// support.
-	c.listCAP()
 
 	// Send a virtual event allowing hooks for successful socket connection.
 	c.RunHandlers(&Event{Command: INITIALIZED, Trailing: c.Server()})
