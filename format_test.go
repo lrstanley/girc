@@ -77,7 +77,7 @@ func TestFormat(t *testing.T) {
 		{name: "inside", args: args{text: "{re{c}d}test{c}"}, want: "{re\x03d}test\x03"},
 		{name: "nothing", args: args{text: "this is a test."}, want: "this is a test."},
 		{name: "fg and bg", args: args{text: "{red,yellow}test{c}"}, want: "\x0304,08test\x03"},
-		{name: "just bg", args: args{text: "{,yellow}test{c}"}, want: "\x0399,08test\x03"},
+		{name: "just bg", args: args{text: "{,yellow}test{c}"}, want: "test\x03"},
 	}
 
 	for _, tt := range tests {
