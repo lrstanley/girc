@@ -6,63 +6,117 @@ package girc
 
 import (
 	"bytes"
+	"fmt"
+	"regexp"
 	"strings"
 )
 
-type ircFmtCode struct {
-	aliases []string
-	val     string
+const (
+	fmtOpenChar  = 0x7B // {
+	fmtCloseChar = 0x7D // }
+)
+
+var fmtColors = map[string]int{
+	"white":       0,
+	"black":       1,
+	"blue":        2,
+	"navy":        2,
+	"green":       3,
+	"red":         4,
+	"brown":       5,
+	"maroon":      5,
+	"purple":      6,
+	"gold":        7,
+	"olive":       7,
+	"orange":      7,
+	"yellow":      8,
+	"lightgreen":  9,
+	"lime":        9,
+	"teal":        10,
+	"cyan":        11,
+	"lightblue":   12,
+	"royal":       12,
+	"fuchsia":     13,
+	"lightpurple": 13,
+	"pink":        13,
+	"gray":        14,
+	"grey":        14,
+	"lightgrey":   15,
+	"silver":      15,
 }
 
-var codes = []*ircFmtCode{
-	{aliases: []string{"white"}, val: "\x0300"},
-	{aliases: []string{"black"}, val: "\x0301"},
-	{aliases: []string{"blue", "navy"}, val: "\x0302"},
-	{aliases: []string{"green"}, val: "\x0303"},
-	{aliases: []string{"red"}, val: "\x0304"},
-	{aliases: []string{"brown", "maroon"}, val: "\x0305"},
-	{aliases: []string{"purple"}, val: "\x0306"},
-	{aliases: []string{"orange", "olive", "gold"}, val: "\x0307"},
-	{aliases: []string{"yellow"}, val: "\x0308"},
-	{aliases: []string{"lightgreen", "lime"}, val: "\x0309"},
-	{aliases: []string{"teal"}, val: "\x0310"},
-	{aliases: []string{"cyan"}, val: "\x0311"},
-	{aliases: []string{"lightblue", "royal"}, val: "\x0312"},
-	{aliases: []string{"lightpurple", "pink", "fuchsia"}, val: "\x0313"},
-	{aliases: []string{"grey", "gray"}, val: "\x0314"},
-	{aliases: []string{"lightgrey", "silver"}, val: "\x0315"},
-	{aliases: []string{"bold", "b"}, val: "\x02"},
-	{aliases: []string{"italic", "i"}, val: "\x1d"},
-	{aliases: []string{"reset", "r"}, val: "\x0f"},
-	{aliases: []string{"clear", "c"}, val: "\x03"}, // Clears formatting.
-	{aliases: []string{"reverse"}, val: "\x16"},
-	{aliases: []string{"underline", "ul"}, val: "\x1f"},
-	{aliases: []string{"ctcp"}, val: "\x01"}, // CTCP/ACTION delimiter.
+var fmtCodes = map[string]string{
+	"bold":      "\x02",
+	"b":         "\x02",
+	"italic":    "\x1d",
+	"i":         "\x1d",
+	"reset":     "\x0f",
+	"r":         "\x0f",
+	"clear":     "\x03",
+	"c":         "\x03", // Clears formatting.
+	"reverse":   "\x16",
+	"underline": "\x1f",
+	"ul":        "\x1f",
+	"ctcp":      "\x01", // CTCP/ACTION delimiter.
 }
 
-// Fmt takes format strings like "{red}" and turns them into the resulting
-// ASCII format/color codes for IRC.
+// Fmt takes format strings like "{red}" or "{red,blue}" (for background
+// colors) and turns them into the resulting ASCII format/color codes for IRC.
+// See format.go for the list of supported format codes allowed.
 //
 // For example:
 //
-//   client.Message("#channel", Fmt("{red}{bold}Hello World{c}"))
+//   client.Message("#channel", Fmt("{red}{b}Hello {red,blue}World{c}"))
 func Fmt(text string) string {
-	for i := 0; i < len(codes); i++ {
-		for a := 0; a < len(codes[i].aliases); a++ {
-			text = strings.Replace(text, "{"+codes[i].aliases[a]+"}", codes[i].val, -1)
+	var last = -1
+	for i := 0; i < len(text); i++ {
+		if text[i] == fmtOpenChar {
+			last = i
+			continue
 		}
 
-		// makes parsing small strings slightly slower, but helps longer
-		// strings.
-		var more bool
-		for c := 0; c < len(text); c++ {
-			if text[c] == 0x7B {
-				more = true
-				break
+		if text[i] == fmtCloseChar && last > -1 {
+			code := strings.ToLower(text[last+1 : i])
+
+			// Check to see if they're passing in a second (background) color
+			// as {fgcolor,bgcolor}.
+			var secondary string
+			if com := strings.Index(code, ","); com > -1 {
+				secondary = code[com+1:]
+				code = code[:com]
 			}
+
+			var repl string
+
+			if color, ok := fmtColors[code]; ok {
+				repl = fmt.Sprintf("\x03%02d", color)
+			}
+
+			if repl != "" && secondary != "" {
+				if color, ok := fmtColors[secondary]; ok {
+					repl += fmt.Sprintf(",%02d", color)
+				}
+			}
+
+			if repl == "" {
+				if fmtCode, ok := fmtCodes[code]; ok {
+					repl = fmtCode
+				}
+			}
+
+			next := len(text[:last]+repl) - 1
+			text = text[:last] + repl + text[i+1:]
+			last = -1
+			i = next
+			continue
 		}
-		if !more {
-			return text
+
+		if last > -1 {
+			// A-Z, a-z, and ","
+			if text[i] != 0x2c && (text[i] <= 0x41 || text[i] >= 0x5a) && (text[i] <= 0x61 || text[i] >= 0x7a) {
+				last = -1
+				continue
+			}
 		}
 	}
 
@@ -72,32 +126,29 @@ func Fmt(text string) string {
 // TrimFmt strips all "{fmt}" formatting strings from the input text.
 // See Fmt() for more information.
 func TrimFmt(text string) string {
-	for i := 0; i < len(codes); i++ {
-		for a := 0; a < len(codes[i].aliases); a++ {
-			text = strings.Replace(text, "{"+codes[i].aliases[a]+"}", "", -1)
-		}
-
-		// makes parsing small strings slightly slower, but helps longer
-		// strings.
-		var more bool
-		for c := 0; c < len(text); c++ {
-			if text[c] == 0x7B {
-				more = true
-				break
-			}
-		}
-		if !more {
-			return text
-		}
+	for color := range fmtColors {
+		text = strings.Replace(text, "{"+color+"}", "", -1)
+	}
+	for code := range fmtCodes {
+		text = strings.Replace(text, "{"+code+"}", "", -1)
 	}
 
 	return text
 }
 
+// This is really the only fastest way of doing this (marginably better than
+// actually trying to parse it manually.)
+var reStripColor = regexp.MustCompile(`\x03([019]?[0-9](,[019]?[0-9])?)?`)
+
 // StripRaw tries to strip all ASCII format codes that are used for IRC.
+// Primarily, foreground/background colors, and other control bytes like
+// reset, bold, italic, reverse, etc. This also is done in a specific way
+// in order to ensure no truncation of other non-irc formatting.
 func StripRaw(text string) string {
-	for i := 0; i < len(codes); i++ {
-		text = strings.Replace(text, codes[i].val, "", -1)
+	text = reStripColor.ReplaceAllString(text, "")
+
+	for _, code := range fmtCodes {
+		text = strings.Replace(text, code, "", -1)
 	}
 
 	return text
