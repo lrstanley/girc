@@ -69,16 +69,20 @@ func TestFormat(t *testing.T) {
 		args args
 		want string
 	}{
+		{name: "middle", args: args{text: "test{red}test{c}test"}, want: "test\x0304test\x03test"},
+		{name: "middle with bold", args: args{text: "test{red}{b}test{c}test"}, want: "test\x0304\x02test\x03test"},
 		{name: "start, end", args: args{text: "{red}test{c}"}, want: "\x0304test\x03"},
 		{name: "start, middle, end", args: args{text: "{red}te{red}st{c}"}, want: "\x0304te\x0304st\x03"},
 		{name: "partial", args: args{text: "{redtest{c}"}, want: "{redtest\x03"},
 		{name: "inside", args: args{text: "{re{c}d}test{c}"}, want: "{re\x03d}test\x03"},
 		{name: "nothing", args: args{text: "this is a test."}, want: "this is a test."},
+		{name: "fg and bg", args: args{text: "{red,yellow}test{c}"}, want: "\x0304,08test\x03"},
+		{name: "just bg", args: args{text: "{,yellow}test{c}"}, want: "\x0399,08test\x03"},
 	}
 
 	for _, tt := range tests {
 		if got := Fmt(tt.args.text); got != tt.want {
-			t.Errorf("%s: Format() = %v, want %v", tt.name, got, tt.want)
+			t.Errorf("%s: Format(%q) = %q, want %q", tt.name, tt.args.text, got, tt.want)
 		}
 	}
 }
@@ -102,7 +106,7 @@ func TestStripFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		if got := TrimFmt(tt.args.text); got != tt.want {
-			t.Errorf("%s: StripFormat() = %v, want %v", tt.name, got, tt.want)
+			t.Errorf("%s: StripFormat(%q) = %q, want %q", tt.name, tt.args.text, got, tt.want)
 		}
 	}
 }
@@ -117,16 +121,22 @@ func TestStripRaw(t *testing.T) {
 		args args // gets passed to Format() before sent
 		want string
 	}{
-		{name: "start, end", args: args{text: "{red}test{c}"}, want: "test"},
+		{name: "start, end", args: args{text: "{red}{b}test{c}"}, want: "test"},
+		{name: "start, end in numbers", args: args{text: "{red}1234{c}"}, want: "1234"},
 		{name: "start, middle, end", args: args{text: "{red}te{red}st{c}"}, want: "test"},
 		{name: "partial", args: args{text: "{redtest{c}"}, want: "{redtest"},
+		{name: "inside", args: args{text: "{re{c}d}test{c}"}, want: "{red}test"},
+		{name: "fg+bg colors start", args: args{text: "{red,yellow}test{c}"}, want: "test"},
+		{name: "fg+bg colors start in numbers", args: args{text: "{red,yellow}1234{c}"}, want: "1234"},
+		{name: "fg+bg colors end", args: args{text: "test{,yellow}"}, want: "test"},
+		{name: "bg colors start", args: args{text: "{,yellow}test{c}"}, want: "test"},
 		{name: "inside", args: args{text: "{re{c}d}test{c}"}, want: "{red}test"},
 		{name: "nothing", args: args{text: "this is a test."}, want: "this is a test."},
 	}
 
 	for _, tt := range tests {
 		if got := StripRaw(Fmt(tt.args.text)); got != tt.want {
-			t.Errorf("%s: StripRaw() = %v, want %v", tt.name, got, tt.want)
+			t.Fatalf("%s: StripRaw(%q) = %q, want %q", tt.name, tt.args.text, got, tt.want)
 		}
 	}
 }
@@ -154,7 +164,7 @@ func TestIsValidNick(t *testing.T) {
 	}
 	for _, tt := range tests {
 		if got := IsValidNick(tt.args.nick); got != tt.want {
-			t.Errorf("%s: IsValidNick() = %v, want %v", tt.name, got, tt.want)
+			t.Errorf("%s: IsValidNick(%q) = %v, want %v", tt.name, tt.args.nick, got, tt.want)
 		}
 	}
 }
@@ -185,7 +195,7 @@ func TestIsValidChannel(t *testing.T) {
 	}
 	for _, tt := range tests {
 		if got := IsValidChannel(tt.args.channel); got != tt.want {
-			t.Errorf("%s: IsValidChannel() = %v, want %v", tt.name, got, tt.want)
+			t.Errorf("%s: IsValidChannel(%q) = %v, want %v", tt.name, tt.args.channel, got, tt.want)
 		}
 	}
 }
@@ -212,7 +222,7 @@ func TestIsValidUser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		if got := IsValidUser(tt.args.name); got != tt.want {
-			t.Errorf("%s: IsValidUser() = %v, want %v", tt.name, got, tt.want)
+			t.Errorf("%s: IsValidUser(%q) = %v, want %v", tt.name, tt.args.name, got, tt.want)
 		}
 	}
 }
