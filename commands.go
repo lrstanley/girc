@@ -86,7 +86,7 @@ func (cmd *Commands) PartMessage(channel, message string) error {
 		return &ErrInvalidTarget{Target: channel}
 	}
 
-	cmd.c.Send(&Event{Command: PART, Params: []string{channel}, Trailing: message})
+	cmd.c.Send(&Event{Command: PART, Params: []string{channel}, Trailing: message, EmptyTrailing: true})
 	return nil
 }
 
@@ -130,7 +130,7 @@ func (cmd *Commands) Message(target, message string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
-	cmd.c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: message})
+	cmd.c.Send(&Event{Command: PRIVMSG, Params: []string{target}, Trailing: message, EmptyTrailing: true})
 	return nil
 }
 
@@ -215,7 +215,7 @@ func (cmd *Commands) Notice(target, message string) error {
 		return &ErrInvalidTarget{Target: target}
 	}
 
-	cmd.c.Send(&Event{Command: NOTICE, Params: []string{target}, Trailing: message})
+	cmd.c.Send(&Event{Command: NOTICE, Params: []string{target}, Trailing: message, EmptyTrailing: true})
 	return nil
 }
 
@@ -246,7 +246,7 @@ func (cmd *Commands) SendRawf(format string, a ...interface{}) error {
 // Topic sets the topic of channel to message. Does not verify the length
 // of the topic.
 func (cmd *Commands) Topic(channel, message string) {
-	cmd.c.Send(&Event{Command: TOPIC, Params: []string{channel}, Trailing: message})
+	cmd.c.Send(&Event{Command: TOPIC, Params: []string{channel}, Trailing: message, EmptyTrailing: true})
 }
 
 // Who sends a WHO query to the server, which will attempt WHOX by default.
@@ -304,7 +304,7 @@ func (cmd *Commands) Kick(channel, nick, reason string) error {
 	}
 
 	if reason != "" {
-		cmd.c.Send(&Event{Command: KICK, Params: []string{channel, nick}, Trailing: reason})
+		cmd.c.Send(&Event{Command: KICK, Params: []string{channel, nick}, Trailing: reason, EmptyTrailing: true})
 		return nil
 	}
 
