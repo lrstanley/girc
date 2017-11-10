@@ -582,10 +582,10 @@ func (c *Client) ServerMOTD() string {
 	return motd
 }
 
-// Lag is the latency between the server and the client. This is measured by
-// determining the difference in time between when we ping the server, and
+// Latency is the latency between the server and the client. This is measured
+// by determining the difference in time between when we ping the server, and
 // when we receive a pong.
-func (c *Client) Lag() time.Duration {
+func (c *Client) Latency() time.Duration {
 	c.mu.RLock()
 	c.conn.mu.RLock()
 	delta := c.conn.lastPong.Sub(c.conn.lastPing)
