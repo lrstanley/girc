@@ -76,7 +76,7 @@ func (cmd *Commands) Part(channel, message string) error {
 		return &ErrInvalidTarget{Target: channel}
 	}
 
-	cmd.c.Send(&Event{Command: JOIN, Params: []string{channel}})
+	cmd.c.Send(&Event{Command: PART, Params: []string{channel}})
 	return nil
 }
 
@@ -86,7 +86,7 @@ func (cmd *Commands) PartMessage(channel, message string) error {
 		return &ErrInvalidTarget{Target: channel}
 	}
 
-	cmd.c.Send(&Event{Command: JOIN, Params: []string{channel}, Trailing: message})
+	cmd.c.Send(&Event{Command: PART, Params: []string{channel}, Trailing: message})
 	return nil
 }
 
