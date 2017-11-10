@@ -387,7 +387,7 @@ func (c *Client) ConnSince() (since *time.Duration, err error) {
 }
 
 // IsConnected returns true if the client is connected to the server.
-func (c *Client) IsConnected() (connected bool) {
+func (c *Client) IsConnected() bool {
 	c.mu.RLock()
 	if c.conn == nil {
 		c.mu.RUnlock()
@@ -395,7 +395,7 @@ func (c *Client) IsConnected() (connected bool) {
 	}
 
 	c.conn.mu.RLock()
-	connected = c.conn.connected
+	connected := c.conn.connected
 	c.conn.mu.RUnlock()
 	c.mu.RUnlock()
 
@@ -562,21 +562,21 @@ func (c *Client) NetworkName() (name string) {
 // supplied this information during connection. May be empty if the server
 // does not support RPL_MYINFO. Will panic if used when tracking has been
 // disabled.
-func (c *Client) ServerVersion() (version string) {
+func (c *Client) ServerVersion() string {
 	c.panicIfNotTracking()
 
-	version, _ = c.GetServerOption("VERSION")
+	version, _ := c.GetServerOption("VERSION")
 
 	return version
 }
 
 // ServerMOTD returns the servers message of the day, if the server has sent
 // it upon connect. Will panic if used when tracking has been disabled.
-func (c *Client) ServerMOTD() (motd string) {
+func (c *Client) ServerMOTD() string {
 	c.panicIfNotTracking()
 
 	c.state.RLock()
-	motd = c.state.motd
+	motd := c.state.motd
 	c.state.RUnlock()
 
 	return motd
