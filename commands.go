@@ -55,8 +55,10 @@ func (cmd *Commands) JoinKey(channel, password string) {
 }
 
 // Part leaves an IRC channel.
-func (cmd *Commands) Part(channel string) {
-	cmd.c.Send(&Event{Command: PART, Params: []string{channel}})
+func (cmd *Commands) Part(channels ...string) {
+	for i := 0; i < len(channels); i++ {
+		cmd.c.Send(&Event{Command: PART, Params: []string{channels[i]}})
+	}
 }
 
 // PartMessage leaves an IRC channel with a specified leave message.
@@ -192,15 +194,21 @@ func (cmd *Commands) Noticef(target, format string, a ...interface{}) {
 	cmd.Notice(target, fmt.Sprintf(format, a...))
 }
 
-// SendRaw sends a raw string back to the server, without carriage returns
-// or newlines.
-func (cmd *Commands) SendRaw(raw string) error {
-	e := ParseEvent(raw)
-	if e == nil {
-		return errors.New("invalid event: " + raw)
+// SendRaw sends a raw string (or multiple) to the server, without carriage
+// returns or newlines. Returns an error if one of the raw strings cannot be
+// properly parsed.
+func (cmd *Commands) SendRaw(raw ...string) error {
+	var event *Event
+
+	for i := 0; i < len(raw); i++ {
+		event = ParseEvent(raw[i])
+		if event == nil {
+			return errors.New("invalid event: " + raw[i])
+		}
+
+		cmd.c.Send(event)
 	}
 
-	cmd.c.Send(e)
 	return nil
 }
 
@@ -220,14 +228,19 @@ func (cmd *Commands) Topic(channel, message string) {
 // See http://faerion.sourceforge.net/doc/irc/whox.var for more details. This
 // sends "%tcuhnr,2" per default. Do not use "1" as this will conflict with
 // girc's builtin tracking functionality.
-func (cmd *Commands) Who(target string) {
-	cmd.c.Send(&Event{Command: WHO, Params: []string{target, "%tcuhnr,2"}})
+func (cmd *Commands) Who(users ...string) {
+	for i := 0; i < len(users); i++ {
+		cmd.c.Send(&Event{Command: WHO, Params: []string{users[i], "%tcuhnr,2"}})
+	}
 }
 
-// Whois sends a WHOIS query to the server, targeted at a specific user.
-// as WHOIS is a bit slower, you may want to use WHO for brief user info.
-func (cmd *Commands) Whois(nick string) {
-	cmd.c.Send(&Event{Command: WHOIS, Params: []string{nick}})
+// Whois sends a WHOIS query to the server, targeted at a specific user (or
+// set of users). As WHOIS is a bit slower, you may want to use WHO for brief
+// user info.
+func (cmd *Commands) Whois(users ...string) {
+	for i := 0; i < len(users); i++ {
+		cmd.c.Send(&Event{Command: WHOIS, Params: []string{users[i]}})
+	}
 }
 
 // Ping sends a PING query to the server, with a specific identifier that
@@ -251,17 +264,19 @@ func (cmd *Commands) Oper(user, pass string) {
 // Kick sends a KICK query to the server, attempting to kick nick from
 // channel, with reason. If reason is blank, one will not be sent to the
 // server.
-func (cmd *Commands) Kick(channel, nick, reason string) {
+func (cmd *Commands) Kick(channel, user, reason string) {
 	if reason != "" {
-		cmd.c.Send(&Event{Command: KICK, Params: []string{channel, nick}, Trailing: reason, EmptyTrailing: true})
+		cmd.c.Send(&Event{Command: KICK, Params: []string{channel, user}, Trailing: reason, EmptyTrailing: true})
 	}
 
-	cmd.c.Send(&Event{Command: KICK, Params: []string{channel, nick}})
+	cmd.c.Send(&Event{Command: KICK, Params: []string{channel, user}})
 }
 
 // Invite sends a INVITE query to the server, to invite nick to channel.
-func (cmd *Commands) Invite(channel, nick string) {
-	cmd.c.Send(&Event{Command: INVITE, Params: []string{nick, channel}})
+func (cmd *Commands) Invite(channel string, users ...string) {
+	for i := 0; i < len(users); i++ {
+		cmd.c.Send(&Event{Command: INVITE, Params: []string{users[i], channel}})
+	}
 }
 
 // Away sends a AWAY query to the server, suggesting that the client is no
@@ -320,6 +335,6 @@ func (cmd *Commands) List(channels ...string) {
 
 // Whowas sends a WHOWAS query to the server. amount is the amount of results
 // you want back.
-func (cmd *Commands) Whowas(nick string, amount int) {
-	cmd.c.Send(&Event{Command: WHOWAS, Params: []string{nick, string(amount)}})
+func (cmd *Commands) Whowas(user string, amount int) {
+	cmd.c.Send(&Event{Command: WHOWAS, Params: []string{user, string(amount)}})
 }
