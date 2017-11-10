@@ -71,7 +71,7 @@ func (cmd *Commands) JoinKey(channel, password string) error {
 }
 
 // Part leaves an IRC channel.
-func (cmd *Commands) Part(channel, message string) error {
+func (cmd *Commands) Part(channel string) error {
 	if !IsValidChannel(channel) {
 		return &ErrInvalidTarget{Target: channel}
 	}
