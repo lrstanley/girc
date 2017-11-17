@@ -241,6 +241,37 @@ func (c *Client) String() string {
 	)
 }
 
+// TLSConnectionState returns the TLS connection state from tls.Conn{}, which
+// is useful to return needed TLS fingerprint info, certificates, verify cert
+// expiration dates, etc. Will only return an error if the underlying
+// connection wasn't established using TLS (see ErrConnNotTLS), or if the
+// client isn't connected.
+func (c *Client) TLSConnectionState() (*tls.ConnectionState, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.conn == nil {
+		return nil, ErrNotConnected
+	}
+
+	c.conn.mu.RLock()
+	defer c.conn.mu.RUnlock()
+
+	if !c.conn.connected {
+		return nil, ErrNotConnected
+	}
+
+	if tlsConn, ok := c.conn.sock.(*tls.Conn); ok {
+		cs := tlsConn.ConnectionState()
+		return &cs, nil
+	}
+
+	return nil, ErrConnNotTLS
+}
+
+// ErrConnNotTLS is returned when Client.TLSConnectionState() is called, and
+// the connection to the server wasn't made with TLS.
+var ErrConnNotTLS = errors.New("underlying connection is not tls")
+
 // Close closes the network connection to the server, and sends a STOPPED
 // event. This should cause Connect() to return with nil. This should be
 // safe to call multiple times. See Connect()'s documentation on how
