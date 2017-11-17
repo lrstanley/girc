@@ -191,18 +191,6 @@ func (conf *Config) isValid() error {
 // connected.
 var ErrNotConnected = errors.New("client is not connected to server")
 
-// ErrDisconnected is called when Config.Retries is less than 1, and we
-// non-intentionally disconnected from the server.
-var ErrDisconnected = errors.New("unexpectedly disconnected")
-
-// ErrInvalidTarget should be returned if the target which you are
-// attempting to send an event to is invalid or doesn't match RFC spec.
-type ErrInvalidTarget struct {
-	Target string
-}
-
-func (e *ErrInvalidTarget) Error() string { return "invalid target: " + e.Target }
-
 // New creates a new IRC client with the specified server, name and config.
 func New(config Config) *Client {
 	c := &Client{
