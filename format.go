@@ -222,8 +222,6 @@ func IsValidNick(nick string) bool {
 		return false
 	}
 
-	nick = ToRFC1459(nick)
-
 	// Check the first index. Some characters aren't allowed for the first
 	// index of an IRC nickname.
 	if nick[0] < 'A' || nick[0] > '}' {
@@ -260,8 +258,6 @@ func IsValidUser(name string) bool {
 	if len(name) <= 0 {
 		return false
 	}
-
-	name = ToRFC1459(name)
 
 	// "~" is prepended (commonly) if there was no ident server response.
 	if name[0] == '~' {
