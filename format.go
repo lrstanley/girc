@@ -175,9 +175,10 @@ func IsValidChannel(channel string) bool {
 		return false
 	}
 
-	// #, +, !<channelid>, or &
-	// Including "*" in the prefix list, as this is commonly used (e.g. ZNC)
-	if bytes.IndexByte([]byte{'!', '#', '&', '*', '+'}, channel[0]) == -1 {
+	// #, +, !<channelid>, ~, or &
+	// Including "*" and "~" in the prefix list, as these are commonly used
+	// (e.g. ZNC.)
+	if bytes.IndexByte([]byte{'!', '#', '&', '*', '~', '+'}, channel[0]) == -1 {
 		return false
 	}
 
@@ -224,8 +225,8 @@ func IsValidNick(nick string) bool {
 
 	// Check the first index. Some characters aren't allowed for the first
 	// index of an IRC nickname.
-	if nick[0] < 'A' || nick[0] > '}' {
-		// a-z, A-Z, and _\[]{}^|
+	if (nick[0] < 'A' || nick[0] > '}') && nick[0] != '?' {
+		// a-z, A-Z, '_\[]{}^|', and '?' in the case of znc.
 		return false
 	}
 
