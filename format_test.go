@@ -161,6 +161,8 @@ func TestIsValidNick(t *testing.T) {
 		{name: "long", args: args{nick: "test123456789AZBKASDLASMDLKM"}, want: true},
 		{name: "index 0 dash", args: args{nick: "-test"}, want: false},
 		{name: "index 0 numeric", args: args{nick: "0test"}, want: false},
+		{name: "RFC1459 non-lowercase-converted", args: args{nick: "test^"}, want: true},
+		{name: "RFC1459 non-lowercase-converted", args: args{nick: "test~"}, want: false},
 	}
 	for _, tt := range tests {
 		if got := IsValidNick(tt.args.nick); got != tt.want {
