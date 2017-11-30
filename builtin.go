@@ -389,7 +389,7 @@ func handleISUPPORT(c *Client, e Event) {
 	c.state.Lock()
 	// Skip the first parameter, as it's our nickname.
 	for i := 1; i < len(e.Params); i++ {
-		j := strings.IndexByte(e.Params[i], 0x3D) // =
+		j := strings.IndexByte(e.Params[i], '=')
 
 		if j < 1 || (j+1) == len(e.Params[i]) {
 			c.state.serverOptions[e.Params[i]] = ""

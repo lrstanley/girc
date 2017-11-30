@@ -144,7 +144,7 @@ func (c *Caller) cuid(cmd string, n int) (cuid, uid string) {
 // cuidToID allows easy mapping between a generated cuid and the caller
 // external/internal handler maps.
 func (c *Caller) cuidToID(input string) (cmd, uid string) {
-	i := strings.IndexByte(input, 0x3A)
+	i := strings.IndexByte(input, ':')
 	if i < 0 {
 		return "", ""
 	}
