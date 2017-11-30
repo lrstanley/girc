@@ -82,8 +82,8 @@ func TestState(t *testing.T) {
 			t.Fatalf("Client.GetServerOptions returned invalid ISUPPORT variable")
 		}
 
-		users := c.Users()
-		channels := c.Channels()
+		users := c.UserList()
+		channels := c.ChannelList()
 
 		if !reflect.DeepEqual(users, []string{"nick", "nick2"}) {
 			// This could fail too, if sorting isn't occurring.
@@ -199,12 +199,12 @@ func TestState(t *testing.T) {
 	bounceEnd := make(chan bool, 1)
 	finishEnd := make(chan bool, 1)
 	go debounce(250*time.Millisecond, bounceEnd, func() {
-		if !reflect.DeepEqual(c.Channels(), []string{"#channel"}) {
-			t.Fatalf("Client.Channels() == %#v, wanted %#v", c.Channels(), []string{"#channel"})
+		if !reflect.DeepEqual(c.ChannelList(), []string{"#channel"}) {
+			t.Fatalf("Client.ChannelList() == %#v, wanted %#v", c.ChannelList(), []string{"#channel"})
 		}
 
-		if !reflect.DeepEqual(c.Users(), []string{"newnick"}) {
-			t.Fatalf("Client.Users() == %#v, wanted %#v", c.Users(), []string{"newnick"})
+		if !reflect.DeepEqual(c.UserList(), []string{"newnick"}) {
+			t.Fatalf("Client.UserList() == %#v, wanted %#v", c.UserList(), []string{"newnick"})
 		}
 
 		user := c.LookupUser("newnick")
