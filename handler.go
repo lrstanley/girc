@@ -209,7 +209,7 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 					}
 
 					stack[index].Execute(client, *event)
-					c.debug.Printf("[%d/%d] done %s == %s", index+1, len(stack), stack[index].cuid, time.Since(start).Truncate(time.Nanosecond))
+					c.debug.Printf("[%d/%d] done %s == %s", index+1, len(stack), stack[index].cuid, time.Since(start))
 				}()
 
 				return
@@ -220,7 +220,7 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 			}
 
 			stack[index].Execute(client, *event)
-			c.debug.Printf("[%d/%d] done %s == %s", index+1, len(stack), stack[index].cuid, time.Since(start).Truncate(time.Nanosecond))
+			c.debug.Printf("[%d/%d] done %s == %s", index+1, len(stack), stack[index].cuid, time.Since(start))
 		}(i)
 	}
 
