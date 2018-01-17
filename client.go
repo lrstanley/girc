@@ -173,8 +173,8 @@ func (conf *Config) isValid() error {
 		conf.Port = 6667
 	}
 
-	if conf.Port < 21 || conf.Port > 65535 {
-		return &ErrInvalidConfig{Conf: *conf, err: errors.New("port outside valid range (21-65535)")}
+	if conf.Port < 1 || conf.Port > 65535 {
+		return &ErrInvalidConfig{Conf: *conf, err: errors.New("port outside valid range (1-65535)")}
 	}
 
 	if !IsValidNick(conf.Nick) {
