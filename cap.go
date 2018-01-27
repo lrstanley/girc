@@ -441,6 +441,28 @@ func (t Tags) Len() (length int) {
 	return len(t.Bytes())
 }
 
+// Equals compares two Tags for equality.
+func (t Tags) Equals(tt Tags) bool {
+	if t.Count() != tt.Count() {
+		return false
+	}
+	for k, v := range t {
+		if vv, ok := tt[k]; !ok || v != vv {
+			return false
+		}
+	}
+	return true
+}
+
+// Keys returns a slice of (unsorted) tag keys.
+func (t Tags) Keys() (keys []string) {
+	keys = make([]string, 0, t.Count())
+	for key := range t {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
 // Count finds how many total tags that there are.
 func (t Tags) Count() int {
 	if t == nil {
