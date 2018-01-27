@@ -21,20 +21,28 @@ func (c *Client) RunHandlers(event *Event) {
 		return
 	}
 
+	// Check if it's an echo-message.
+	isEcho := event.Source != nil && event.Source.Name == c.GetNick() && (event.Command == PRIVMSG || event.Command == NOTICE)
+
 	// Log the event.
 	c.debug.Print("< " + StripRaw(event.String()))
-	if c.Config.Out != nil {
+	if c.Config.Out != nil && !isEcho {
 		if pretty, ok := event.Pretty(); ok {
 			fmt.Fprintln(c.Config.Out, StripRaw(pretty))
 		}
 	}
 
-	// Background handlers first.
+	// Background handlers first. If the event is an echo-message, then only
+	// send the echo version to ALL_EVENTS.
 	c.Handlers.exec(ALL_EVENTS, true, c, event.Copy())
-	c.Handlers.exec(event.Command, true, c, event.Copy())
+	if !isEcho {
+		c.Handlers.exec(event.Command, true, c, event.Copy())
+	}
 
 	c.Handlers.exec(ALL_EVENTS, false, c, event.Copy())
-	c.Handlers.exec(event.Command, false, c, event.Copy())
+	if !isEcho {
+		c.Handlers.exec(event.Command, false, c, event.Copy())
+	}
 
 	// Check if it's a CTCP.
 	if ctcp := decodeCTCP(event.Copy()); ctcp != nil {

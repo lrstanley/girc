@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+// Something not in the list? Depending on the type of capability, you can
+// enable it using Config.SupportedCaps.
 var possibleCap = map[string][]string{
 	"account-notify":    nil,
 	"account-tag":       nil,
@@ -25,6 +27,13 @@ var possibleCap = map[string][]string{
 	"message-tags":      nil,
 	"multi-prefix":      nil,
 	"userhost-in-names": nil,
+
+	// "echo-message" is supported, but it's not enabled by default. This is
+	// to prevent unwanted confusion and utilize less traffic if it's not needed.
+	// echo messages aren't sent to girc.PRIVMSG and girc.NOTICE handlers,
+	// rather they are only sent to girc.ALL_EVENTS handlers (this is to prevent
+	// each handler to have to check these types of things for each message).
+	// You can compare events using Event.Equals() to see if they are the same.
 }
 
 func (c *Client) listCAP() {
