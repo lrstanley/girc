@@ -189,3 +189,57 @@ func TestEventIs(t *testing.T) {
 		t.Fatalf("Event.IsFromUser: returned false on %#v", event)
 	}
 }
+
+func TestEventSourceTagEquals(t *testing.T) {
+	// This should test events themselves, as well as tags and sources.
+	cases := []struct {
+		before, after string
+		equals        bool
+	}{
+		{
+			before: ":nick!user@host PRIVMSG #test :This is a test",
+			after:  ":nick!user@host PRIVMSG #test :This is a test",
+			equals: true,
+		},
+		{
+			before: ":nick!user@host PRIVMSG #test :This is a test",
+			after:  ":nick!user@host1 PRIVMSG #test :This is a test",
+			equals: false,
+		},
+		{
+			before: ":nick!user@host PRIVMSG #test :This is a test",
+			after:  ":nick!user@host PRIVMSG #tes :This is a test",
+			equals: false,
+		},
+		{
+			before: "@aaa=bbb;ccc;example.com/ddd=eee :nick!user@host PRIVMSG #test :This is a test",
+			after:  "@aaa=bbb;ccc;example.com/ddd=eee :nick!user@host PRIVMSG #test :This is a test",
+			equals: true,
+		},
+		{
+			before: "@aaa=bbb;ccc;example.com/ddd=eee :nick!user@host PRIVMSG #test :This is a test",
+			after:  "@aaa=bbb;ccc :nick!user@host PRIVMSG #test :This is a test",
+			equals: false,
+		},
+		{
+			before: ":nick!user@host PRIVMSG #test :This is a test",
+			after:  "@aaa=bbb;ccc :nick!user@host PRIVMSG #test :This is a test",
+			equals: false,
+		},
+	}
+
+	for _, tt := range cases {
+		before := ParseEvent(tt.before)
+		after := ParseEvent(tt.after)
+		equals := before.Equals(after)
+
+		// It should be equal the opposite direction too.
+		if op := after.Equals(before); equals != op {
+			t.Fatalf("Event.Equals reverse order doesn't match forward order. before: %#v, after: %#v", before, after)
+		}
+
+		if equals != tt.equals {
+			t.Fatalf("Event.Equals: returned %t (wanted %t) on copied event. before: %#v, after: %#v", equals, tt.equals, before, after)
+		}
+	}
+}

@@ -179,6 +179,25 @@ func (e *Event) Copy() *Event {
 	return newEvent
 }
 
+// Equals compares two Events for equality.
+func (e *Event) Equals(ev *Event) bool {
+	if e.Command != ev.Command || e.Trailing != ev.Trailing || len(e.Params) != len(ev.Params) {
+		return false
+	}
+
+	for i := 0; i < len(e.Params); i++ {
+		if e.Params[i] != ev.Params[i] {
+			return false
+		}
+	}
+
+	if !e.Source.Equals(ev.Source) || !e.Tags.Equals(ev.Tags) {
+		return false
+	}
+
+	return true
+}
+
 // Len calculates the length of the string representation of event. Note that
 // this will return the true length (even if longer than what IRC supports),
 // which may be useful if you are trying to check and see if a message is
