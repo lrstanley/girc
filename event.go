@@ -449,6 +449,20 @@ type Source struct {
 	Host string `json:"host"`
 }
 
+// Equals compares two Sources for equality.
+func (s *Source) Equals(ss *Source) bool {
+	if s == nil && ss == nil {
+		return true
+	}
+	if s != nil && ss == nil || s == nil && ss != nil {
+		return false
+	}
+	if s.Name != ss.Name || s.Ident != ss.Ident || s.Host != ss.Host {
+		return false
+	}
+	return true
+}
+
 // Copy returns a deep copy of Source.
 func (s *Source) Copy() *Source {
 	if s == nil {
