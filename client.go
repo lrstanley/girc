@@ -652,6 +652,30 @@ func (c *Client) Latency() time.Duration {
 	return delta
 }
 
+// HasCapability checks if the client connection has the given capability. If
+// you want the full list of capabilities, listen for the girc.CAP_ACK event.
+// Will panic if used when tracking has been disabled.
+func (c *Client) HasCapability(name string) (has bool) {
+	c.panicIfNotTracking()
+
+	if !c.IsConnected() {
+		return false
+	}
+
+	name = strings.ToLower(name)
+
+	c.state.RLock()
+	for i := 0; i < len(c.state.enabledCap); i++ {
+		if strings.ToLower(c.state.enabledCap[i]) == name {
+			has = true
+			break
+		}
+	}
+	c.state.RUnlock()
+
+	return has
+}
+
 // panicIfNotTracking will throw a panic when it's called, and tracking is
 // disabled. Adds useful info like what function specifically, and where it
 // was called from.
