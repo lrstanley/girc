@@ -25,7 +25,11 @@ func (c *Client) RunHandlers(event *Event) {
 	isEcho := event.Source != nil && event.Source.Name == c.GetNick() && (event.Command == PRIVMSG || event.Command == NOTICE)
 
 	// Log the event.
-	c.debug.Print("< " + StripRaw(event.String()))
+	prefix := "< "
+	if isEcho {
+		prefix += "[echo-message] "
+	}
+	c.debug.Print(prefix + StripRaw(event.String()))
 	if c.Config.Out != nil && !isEcho {
 		if pretty, ok := event.Pretty(); ok {
 			fmt.Fprintln(c.Config.Out, StripRaw(pretty))
