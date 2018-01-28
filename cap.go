@@ -16,17 +16,19 @@ import (
 // Something not in the list? Depending on the type of capability, you can
 // enable it using Config.SupportedCaps.
 var possibleCap = map[string][]string{
-	"account-notify":         nil,
-	"account-tag":            nil,
-	"away-notify":            nil,
-	"batch":                  nil,
-	"cap-notify":             nil,
-	"chghost":                nil,
-	"extended-join":          nil,
-	"invite-notify":          nil,
+	"account-notify":    nil,
+	"account-tag":       nil,
+	"away-notify":       nil,
+	"batch":             nil,
+	"cap-notify":        nil,
+	"chghost":           nil,
+	"extended-join":     nil,
+	"invite-notify":     nil,
+	"multi-prefix":      nil,
+	"userhost-in-names": nil,
+
 	"draft/message-tags-0.2": nil,
-	"multi-prefix":           nil,
-	"userhost-in-names":      nil,
+	"draft/msgid":            nil,
 
 	// "echo-message" is supported, but it's not enabled by default. This is
 	// to prevent unwanted confusion and utilize less traffic if it's not needed.
@@ -450,17 +452,15 @@ func (t Tags) Len() (length int) {
 	return len(t.Bytes())
 }
 
-// Equals compares two Tags for equality.
+// Equals compares two Tags for equality. With the msgid IRCv3 spec +\
+// echo-message (amongst others), we may receive events that have msgid's,
+// whereas our local events will not have the msgid. As such, don't compare
+// all tags, only the necessary/important tags.
 func (t Tags) Equals(tt Tags) bool {
-	if t.Count() != tt.Count() {
-		return false
-	}
-	for k, v := range t {
-		if vv, ok := tt[k]; !ok || v != vv {
-			return false
-		}
-	}
-	return true
+	// The only tag which is important at this time.
+	taccount, _ := t.Get("account")
+	ttaccount, _ := tt.Get("account")
+	return taccount == ttaccount
 }
 
 // Keys returns a slice of (unsorted) tag keys.

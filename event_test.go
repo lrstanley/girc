@@ -219,10 +219,15 @@ func TestEventSourceTagEquals(t *testing.T) {
 		{
 			before: "@aaa=bbb;ccc;example.com/ddd=eee :nick!user@host PRIVMSG #test :This is a test",
 			after:  "@aaa=bbb;ccc :nick!user@host PRIVMSG #test :This is a test",
-			equals: false,
+			equals: true,
 		},
 		{
 			before: ":nick!user@host PRIVMSG #test :This is a test",
+			after:  "@aaa=bbb;ccc :nick!user@host PRIVMSG #test :This is a test",
+			equals: true,
+		},
+		{
+			before: "@account=bbb;ccc :nick!user@host PRIVMSG #test :This is a test",
 			after:  "@aaa=bbb;ccc :nick!user@host PRIVMSG #test :This is a test",
 			equals: false,
 		},
