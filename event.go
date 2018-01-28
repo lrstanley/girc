@@ -35,11 +35,12 @@ func cutCRFunc(r rune) bool {
 type Event struct {
 	Source        *Source  `json:"source"`         // The source of the event.
 	Tags          Tags     `json:"tags"`           // IRCv3 style message tags. Only use if network supported.
-	Command       string   `json:"command"`        // the IRC command, e.g. JOIN, PRIVMSG, KILL.
-	Params        []string `json:"params"`         // parameters to the command. Commonly nickname, channel, etc.
-	Trailing      string   `json:"trailing"`       // any trailing data. e.g. with a PRIVMSG, this is the message text.
-	EmptyTrailing bool     `json:"empty_trailing"` // if true, trailing prefix (:) will be added even if Event.Trailing is empty.
-	Sensitive     bool     `json:"sensitive"`      // if the message is sensitive (e.g. and should not be logged).
+	Command       string   `json:"command"`        // The IRC command, e.g. JOIN, PRIVMSG, KILL.
+	Params        []string `json:"params"`         // Parameters to the command. Commonly nickname, channel, etc.
+	Trailing      string   `json:"trailing"`       // Any trailing data. e.g. with a PRIVMSG, this is the message text.
+	EmptyTrailing bool     `json:"empty_trailing"` // If true, trailing prefix (:) will be added even if Event.Trailing is empty.
+	Sensitive     bool     `json:"sensitive"`      // If the message is sensitive (e.g. and should not be logged).
+	Echo          bool     `json:"echo"`           // If the event is an echo-message response.
 }
 
 // ParseEvent takes a string and attempts to create a Event struct.
@@ -155,6 +156,7 @@ func (e *Event) Copy() *Event {
 		Trailing:      e.Trailing,
 		EmptyTrailing: e.EmptyTrailing,
 		Sensitive:     e.Sensitive,
+		Echo:          e.Echo,
 	}
 
 	// Copy Source field, as it's a pointer and needs to be dereferenced.
@@ -295,7 +297,7 @@ func (e *Event) String() string {
 // an event prettier, but also to filter out events that most don't visually
 // see in normal IRC clients. e.g. most clients don't show WHO queries.
 func (e *Event) Pretty() (out string, ok bool) {
-	if e.Sensitive {
+	if e.Sensitive || e.Echo {
 		return "", false
 	}
 

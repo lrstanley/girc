@@ -21,16 +21,13 @@ func (c *Client) RunHandlers(event *Event) {
 		return
 	}
 
-	// Check if it's an echo-message.
-	isEcho := event.Source != nil && event.Source.Name == c.GetNick() && (event.Command == PRIVMSG || event.Command == NOTICE)
-
 	// Log the event.
 	prefix := "< "
-	if isEcho {
+	if event.Echo {
 		prefix += "[echo-message] "
 	}
 	c.debug.Print(prefix + StripRaw(event.String()))
-	if c.Config.Out != nil && !isEcho {
+	if c.Config.Out != nil {
 		if pretty, ok := event.Pretty(); ok {
 			fmt.Fprintln(c.Config.Out, StripRaw(pretty))
 		}
@@ -39,12 +36,12 @@ func (c *Client) RunHandlers(event *Event) {
 	// Background handlers first. If the event is an echo-message, then only
 	// send the echo version to ALL_EVENTS.
 	c.Handlers.exec(ALL_EVENTS, true, c, event.Copy())
-	if !isEcho {
+	if !event.Echo {
 		c.Handlers.exec(event.Command, true, c, event.Copy())
 	}
 
 	c.Handlers.exec(ALL_EVENTS, false, c, event.Copy())
-	if !isEcho {
+	if !event.Echo {
 		c.Handlers.exec(event.Command, false, c, event.Copy())
 	}
 
