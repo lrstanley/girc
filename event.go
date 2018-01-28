@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"time"
 )
 
 const (
@@ -38,6 +39,11 @@ type Event struct {
 	// Tags are the IRCv3 style message tags for the given event. Only use
 	// if network supported.
 	Tags Tags `json:"tags"`
+	// Timestamp is the time the event was received. This could optionally be
+	// used for client-stored sent messages too. If the server supports the
+	// "server-time" capability, this is synced to the UTC time that the server
+	// specifies.
+	Timestamp time.Time `json:"timestamp"`
 	// Command that represents the event, e.g. JOIN, PRIVMSG, KILL.
 	Command string `json:"command"`
 	// Params (parameters/args) to the command. Commonly nickname, channel, etc.
@@ -64,7 +70,7 @@ func ParseEvent(raw string) (e *Event) {
 	}
 
 	var i, j int
-	e = &Event{}
+	e = &Event{Timestamp: time.Now()}
 
 	if raw[0] == prefixTag {
 		// Tags end with a space.
@@ -75,6 +81,13 @@ func ParseEvent(raw string) (e *Event) {
 		}
 
 		e.Tags = ParseTags(raw[1:i])
+		if rawServerTime, ok := e.Tags.Get("time"); ok {
+			// Attempt to parse server-time. If we can't parse it, we just
+			// fall back to the time we received the message (locally.)
+			if stime, err := time.Parse(capServerTimeFormat, rawServerTime); err == nil {
+				e.Timestamp = stime.Local()
+			}
+		}
 		raw = raw[i+1:]
 	}
 
@@ -163,6 +176,7 @@ func (e *Event) Copy() *Event {
 	}
 
 	newEvent := &Event{
+		Timestamp:     e.Timestamp,
 		Command:       e.Command,
 		Trailing:      e.Trailing,
 		EmptyTrailing: e.EmptyTrailing,

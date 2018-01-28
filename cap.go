@@ -25,6 +25,7 @@ var possibleCap = map[string][]string{
 	"extended-join":     nil,
 	"invite-notify":     nil,
 	"multi-prefix":      nil,
+	"server-time":       nil,
 	"userhost-in-names": nil,
 
 	"draft/message-tags-0.2": nil,
@@ -37,6 +38,10 @@ var possibleCap = map[string][]string{
 	// each handler to have to check these types of things for each message).
 	// You can compare events using Event.Equals() to see if they are the same.
 }
+
+// https://ircv3.net/specs/extensions/server-time-3.2.html
+// <value> ::= YYYY-MM-DDThh:mm:ss.sssZ
+const capServerTimeFormat = "2006-01-02T15:04:05.999Z"
 
 func (c *Client) listCAP() {
 	if !c.Config.disableTracking {
