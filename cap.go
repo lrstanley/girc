@@ -16,17 +16,17 @@ import (
 // Something not in the list? Depending on the type of capability, you can
 // enable it using Config.SupportedCaps.
 var possibleCap = map[string][]string{
-	"account-notify":    nil,
-	"account-tag":       nil,
-	"away-notify":       nil,
-	"batch":             nil,
-	"cap-notify":        nil,
-	"chghost":           nil,
-	"extended-join":     nil,
-	"invite-notify":     nil,
-	"message-tags":      nil,
-	"multi-prefix":      nil,
-	"userhost-in-names": nil,
+	"account-notify":         nil,
+	"account-tag":            nil,
+	"away-notify":            nil,
+	"batch":                  nil,
+	"cap-notify":             nil,
+	"chghost":                nil,
+	"extended-join":          nil,
+	"invite-notify":          nil,
+	"draft/message-tags-0.2": nil,
+	"multi-prefix":           nil,
+	"userhost-in-names":      nil,
 
 	// "echo-message" is supported, but it's not enabled by default. This is
 	// to prevent unwanted confusion and utilize less traffic if it's not needed.
