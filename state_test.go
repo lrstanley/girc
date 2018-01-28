@@ -95,6 +95,20 @@ func TestState(t *testing.T) {
 			t.Fatalf("got state channels %#v, wanted: %#v", channels, []string{"#channel", "#channel2"})
 		}
 
+		fullChannels := c.Channels()
+		for i := 0; i < len(fullChannels); i++ {
+			if fullChannels[i].Name != channels[i] {
+				t.Fatalf("fullChannels name doesn't map to same name in ChannelsList: %q :: %#v", fullChannels[i].Name, channels)
+			}
+		}
+
+		fullUsers := c.Users()
+		for i := 0; i < len(fullUsers); i++ {
+			if fullUsers[i].Nick != users[i] {
+				t.Fatalf("fullUsers nick doesn't map to same nick in UsersList: %q :: %#v", fullUsers[i].Nick, users)
+			}
+		}
+
 		ch := c.LookupChannel("#channel")
 		if ch == nil {
 			t.Fatal("Client.LookupChannel returned nil on existing channel")
