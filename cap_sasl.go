@@ -96,7 +96,7 @@ func handleSASL(c *Client, e Event) {
 		// way to abort a SASL exchange, other than to disconnect, or proceed
 		// with CAP END.
 		c.rx <- &Event{Command: ERROR, Trailing: fmt.Sprintf(
-			"closing connection: invalid %s SASL configuration provided: %s",
+			"closing connection: SASL %s failed: %s",
 			c.Config.SASL.Method(), e.Trailing,
 		)}
 		return
