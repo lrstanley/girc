@@ -423,6 +423,10 @@ func (e *Event) Pretty() (out string, ok bool) {
 		return fmt.Sprintf("[*] topic for %s is: %s", e.Params[len(e.Params)-1], e.Trailing), true
 	}
 
+	if e.Command == CAP && len(e.Params) == 2 && len(e.Trailing) > 1 && e.Params[1] == CAP_ACK {
+		return "[*] enabling capabilities: " + e.Trailing, true
+	}
+
 	return "", false
 }
 
