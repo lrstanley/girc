@@ -56,8 +56,8 @@ Working on a project and want to add it to the list? Submit a pull request!
 
 ## Contributing
 
-Please review the [CONTRIBUTING](https://github.com/lrstanley/girc/blob/master/CONTRIBUTING.md)
-doc for submitting issues/a guide on submitting pull requests and helping out.
+Please review the [CONTRIBUTING](CONTRIBUTING.md) doc for submitting issues/a guide
+on submitting pull requests and helping out.
 
 ## License
 
