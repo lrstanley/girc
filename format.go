@@ -136,7 +136,7 @@ func TrimFmt(text string) string {
 	return text
 }
 
-// This is really the only fastest way of doing this (marginably better than
+// This is really the only fastest way of doing this (marginally better than
 // actually trying to parse it manually.)
 var reStripColor = regexp.MustCompile(`\x03([019]?[0-9](,[019]?[0-9])?)?`)
 
@@ -154,7 +154,7 @@ func StripRaw(text string) string {
 	return text
 }
 
-// IsValidChannel validates if channel is an RFC complaint channel or not.
+// IsValidChannel validates if channel is an RFC compliant channel or not.
 //
 // NOTE: If you are using this to validate a channel that contains a channel
 // ID, (!<channelid>NAME), this only supports the standard 5 character length.
