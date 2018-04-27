@@ -271,7 +271,7 @@ func IsValidUser(name string) bool {
 	}
 
 	// Check to see if the first index is alphanumeric.
-	if (name[0] < 'A' || name[0] > 'J') && (name[0] < 'a' || name[0] > 'z') && (name[0] < '0' || name[0] > '9') {
+	if (name[0] < 'A' || name[0] > 'Z') && (name[0] < 'a' || name[0] > 'z') && (name[0] < '0' || name[0] > '9') {
 		return false
 	}
 
