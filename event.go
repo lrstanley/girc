@@ -51,7 +51,7 @@ type Event struct {
 	// Trailing text. e.g. with a PRIVMSG, this is the message text (part
 	// after the colon.)
 	Trailing string `json:"trailing"`
-	// EmptyTrailign, if true, the text prefix (:) will be added even if
+	// EmptyTrailing, if true, the text prefix (:) will be added even if
 	// Event.Trailing is empty.
 	EmptyTrailing bool `json:"empty_trailing"`
 	// Sensitive should be true if the message is sensitive (e.g. and should
