@@ -387,7 +387,11 @@ func (e *Event) Pretty() (out string, ok bool) {
 		return fmt.Sprintf("[*] %s invited to %s by %s", e.Params[0], e.Trailing, e.Source.Name), true
 	}
 
-	if e.Command == KICK && len(e.Params) == 2 {
+	if e.Command == KICK && len(e.Params) >= 2 {
+		if e.Trailing == "" && len(e.Params) == 3 {
+			e.Trailing = e.Params[2]
+		}
+
 		return fmt.Sprintf("[%s] *** %s has kicked %s: %s", e.Params[0], e.Source.Name, e.Params[1], e.Trailing), true
 	}
 
