@@ -361,7 +361,7 @@ func (e *Event) Pretty() (out string, ok bool) {
 	}
 
 	if (e.Command == PRIVMSG || e.Command == NOTICE) && len(e.Params) > 0 {
-		if ctcp := decodeCTCP(e); ctcp != nil {
+		if ctcp := e.CTCP(); ctcp != nil {
 			if ctcp.Reply {
 				return
 			}
