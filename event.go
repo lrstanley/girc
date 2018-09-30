@@ -206,6 +206,12 @@ func (e *Event) Copy() *Event {
 	return newEvent
 }
 
+// CTCP returns a CTCPEvent for the given event or nil if the given
+// event is not a CTCP.
+func (e *Event) CTCP() *CTCPEvent {
+	return decodeCTCP(e)
+}
+
 // Equals compares two Events for equality.
 func (e *Event) Equals(ev *Event) bool {
 	if e.Command != ev.Command || e.Trailing != ev.Trailing || len(e.Params) != len(ev.Params) {
@@ -355,7 +361,7 @@ func (e *Event) Pretty() (out string, ok bool) {
 	}
 
 	if (e.Command == PRIVMSG || e.Command == NOTICE) && len(e.Params) > 0 {
-		if ctcp := decodeCTCP(e); ctcp != nil {
+		if ctcp := e.CTCP(); ctcp != nil {
 			if ctcp.Reply {
 				return
 			}
