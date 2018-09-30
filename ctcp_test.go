@@ -28,7 +28,7 @@ func TestEncodeCTCP(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := encodeCTCP(tt.args.ctcp); got != tt.want {
+		if got := EncodeCTCP(tt.args.ctcp); got != tt.want {
 			t.Errorf("%s: encodeCTCP() = %q, want %q", tt.name, got, tt.want)
 		}
 	}
@@ -94,7 +94,7 @@ func TestDecodeCTCP(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := decodeCTCP(tt.args.event)
+		got := DecodeCTCP(tt.args.event)
 		if got != nil {
 			got.Origin = tt.want.Origin
 		}
