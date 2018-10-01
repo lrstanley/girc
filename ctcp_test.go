@@ -73,9 +73,6 @@ func TestDecodeCTCP(t *testing.T) {
 		{name: "invalid command", args: args{event: &Event{
 			Command: "PRIVMSG", Params: []string{"user1"}, Trailing: "\001TEST-1\001"},
 		}, want: nil},
-		{name: "invalid nick param", args: args{event: &Event{
-			Command: "PRIVMSG", Params: []string{"!user1"}, Trailing: "\001TEST this is a test\001"},
-		}, want: nil},
 		{name: "is reply", args: args{event: &Event{
 			Command: "NOTICE", Params: []string{"user1"}, Trailing: "\001TEST this is a test\001"},
 		}, want: &CTCPEvent{Command: "TEST", Text: "this is a test", Reply: true}},
