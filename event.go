@@ -472,7 +472,7 @@ func (e *Event) IsCTCP() (ok bool, ctcp *CTCPEvent) {
 // IsFromChannel checks to see if a message was from a channel (rather than
 // a private message).
 func (e *Event) IsFromChannel() bool {
-	if e.Source == nil || e.Command != PRIVMSG || len(e.Params) < 1 {
+	if e.Source == nil || (e.Command != PRIVMSG && e.Command != NOTICE) || len(e.Params) < 1 {
 		return false
 	}
 
@@ -486,7 +486,7 @@ func (e *Event) IsFromChannel() bool {
 // IsFromUser checks to see if a message was from a user (rather than a
 // channel).
 func (e *Event) IsFromUser() bool {
-	if e.Source == nil || e.Command != PRIVMSG || len(e.Params) < 1 {
+	if e.Source == nil || (e.Command != PRIVMSG && e.Command != NOTICE) || len(e.Params) < 1 {
 		return false
 	}
 
