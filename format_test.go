@@ -78,6 +78,8 @@ func TestFormat(t *testing.T) {
 		{name: "nothing", args: args{text: "this is a test."}, want: "this is a test."},
 		{name: "fg and bg", args: args{text: "{red,yellow}test{c}"}, want: "\x0304,08test\x03"},
 		{name: "just bg", args: args{text: "{,yellow}test{c}"}, want: "test\x03"},
+		{name: "just red", args: args{text: "{red}test"}, want: "\x0304test"},
+		{name: "just cyan", args: args{text: "{cyan}test"}, want: "\x0311test"},
 	}
 
 	for _, tt := range tests {
