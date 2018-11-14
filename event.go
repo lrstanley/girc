@@ -516,7 +516,11 @@ const (
 // Source represents the sender of an IRC event, see RFC1459 section 2.3.1.
 // <servername> | <nick> [ '!' <user> ] [ '@' <host> ]
 type Source struct {
-	// Name is the nickname, server name, or service name.
+	// ID is the nickname, server name, or service name, in it's converted
+	// and comparable) form.
+	ID string `json:"id"`
+	// Name is the nickname, server name, or service name, in its original
+	// non-rfc1459 form.
 	Name string `json:"name"`
 	// Ident is commonly known as the "user".
 	Ident string `json:"ident"`
@@ -533,7 +537,7 @@ func (s *Source) Equals(ss *Source) bool {
 	if s != nil && ss == nil || s == nil && ss != nil {
 		return false
 	}
-	if s.Name != ss.Name || s.Ident != ss.Ident || s.Host != ss.Host {
+	if s.ID != ss.ID || s.Ident != ss.Ident || s.Host != ss.Host {
 		return false
 	}
 	return true
@@ -546,6 +550,7 @@ func (s *Source) Copy() *Source {
 	}
 
 	newSource := &Source{
+		ID:    s.ID,
 		Name:  s.Name,
 		Ident: s.Ident,
 		Host:  s.Host,
@@ -575,6 +580,8 @@ func ParseSource(raw string) (src *Source) {
 	default:
 		src.Name = raw
 	}
+
+	src.ID = ToRFC1459(src.Name)
 
 	return src
 }

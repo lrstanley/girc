@@ -11,7 +11,7 @@ import (
 
 func mockEvent() *Event {
 	return &Event{
-		Source:   &Source{Name: "nick", Ident: "user", Host: "host.com"},
+		Source:   &Source{ID: "nick", Name: "nick", Ident: "user", Host: "host.com"},
 		Command:  "PRIVMSG",
 		Params:   []string{"#channel"},
 		Trailing: "1 2 3",
@@ -47,6 +47,7 @@ func TestParseSource(t *testing.T) {
 		}},
 	}
 	for _, tt := range tests {
+		tt.wantSrc.ID = ToRFC1459(tt.wantSrc.Name)
 		gotSrc := ParseSource(tt.args.raw)
 
 		if !reflect.DeepEqual(gotSrc, tt.wantSrc) {
