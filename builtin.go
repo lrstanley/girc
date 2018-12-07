@@ -87,6 +87,7 @@ func handleConnect(c *Client, e Event) {
 	if len(e.Params) > 0 {
 		c.state.Lock()
 		c.state.nick = e.Params[0]
+		c.state.createUser(c.state.nick)
 		c.state.Unlock()
 
 		c.state.notify(c, UPDATE_GENERAL)
