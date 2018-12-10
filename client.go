@@ -436,6 +436,12 @@ func (c *Client) GetNick() string {
 	return c.state.nick
 }
 
+// Returns an RFC1459 compliant version of the current nickname. Panics if
+// tracking is disabled.
+func (c *Client) GetID() string {
+	return ToRFC1459(c.GetNick())
+}
+
 // GetIdent returns the current ident of the active connection. Panics if
 // tracking is disabled. May be empty, as this is obtained from when we join
 // a channel, as there is no other more efficient method to return this info.
