@@ -27,7 +27,7 @@ const (
 	CONNECTED      = "CLIENT_CONNECTED"       // when it's safe to send arbitrary commands (joins, list, who, etc), trailing is host:port
 	INITIALIZED    = "CLIENT_INIT"            // verifies successful socket connection, trailing is host:port
 	DISCONNECTED   = "CLIENT_DISCONNECTED"    // occurs when we're disconnected from the server (user-requested or not)
-	STOPPED        = "CLIENT_STOPPED"         // occurs when Client.Stop() has been called
+	CLOSED         = "CLIENT_CLOSED"          // occurs when Client.Close() has been called
 )
 
 // User/channel prefixes :: RFC1459.

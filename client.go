@@ -273,7 +273,7 @@ func (c *Client) TLSConnectionState() (*tls.ConnectionState, error) {
 // the connection to the server wasn't made with TLS.
 var ErrConnNotTLS = errors.New("underlying connection is not tls")
 
-// Close closes the network connection to the server, and sends a STOPPED
+// Close closes the network connection to the server, and sends a CLOSED
 // event. This should cause Connect() to return with nil. This should be
 // safe to call multiple times. See Connect()'s documentation on how
 // handlers and goroutines are handled when disconnected from the server.

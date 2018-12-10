@@ -314,7 +314,7 @@ func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 	select {
 	case <-ctx.Done():
 		c.debug.Print("received request to close, beginning clean up")
-		c.RunHandlers(&Event{Command: STOPPED, Trailing: c.Server()})
+		c.RunHandlers(&Event{Command: CLOSED, Trailing: c.Server()})
 	case err := <-errs:
 		c.debug.Print("received error, beginning clean up")
 		result = err
@@ -330,6 +330,8 @@ func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 	_ = c.conn.Close()
 	c.conn.mu.Unlock()
 	c.mu.RUnlock()
+
+	c.RunHandlers(&Event{Command: DISCONNECTED, Trailing: c.Server()})
 
 	// Once we have our error/result, let all other functions know we're done.
 	c.debug.Print("waiting for all routines to finish")
