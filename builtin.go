@@ -169,7 +169,7 @@ func handleJOIN(c *Client, e Event) {
 	}
 	c.state.Unlock()
 
-	if e.Source.ID() == ToRFC1459(c.GetNick()) {
+	if e.Source.ID() == c.GetID() {
 		// If it's us, don't just add our user to the list. Run a WHO which
 		// will tell us who exactly is in the entire channel.
 		c.Send(&Event{Command: WHO, Params: []string{channelName, "%tacuhnr,1"}})
@@ -209,7 +209,7 @@ func handlePART(c *Client, e Event) {
 
 	defer c.state.notify(c, UPDATE_STATE)
 
-	if e.Source.ID() == ToRFC1459(c.GetNick()) {
+	if e.Source.ID() == c.GetID() {
 		c.state.Lock()
 		c.state.deleteChannel(channel)
 		c.state.Unlock()
@@ -341,7 +341,7 @@ func handleQUIT(c *Client, e Event) {
 		return
 	}
 
-	if e.Source.ID() == ToRFC1459(c.GetNick()) {
+	if e.Source.ID() == c.GetID() {
 		return
 	}
 
