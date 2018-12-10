@@ -374,7 +374,7 @@ func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 			// Check if it's an echo-message.
 			if !c.Config.disableTracking {
 				event.Echo = (event.Command == PRIVMSG || event.Command == NOTICE) &&
-					event.Source != nil && event.Source.Name == c.GetNick()
+					event.Source != nil && event.Source.ID() == ToRFC1459(c.GetNick())
 			}
 
 			c.rx <- event
