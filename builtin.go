@@ -143,13 +143,13 @@ func handleJOIN(c *Client, e Event) {
 		channel = c.state.lookupChannel(channelName)
 	}
 
-	user := c.state.lookupUser(e.Source.ID)
+	user := c.state.lookupUser(e.Source.ID())
 	if user == nil {
 		if ok := c.state.createUser(e.Source); !ok {
 			c.state.Unlock()
 			return
 		}
-		user = c.state.lookupUser(e.Source.ID)
+		user = c.state.lookupUser(e.Source.ID())
 	}
 
 	defer c.state.notify(c, UPDATE_STATE)
@@ -169,7 +169,7 @@ func handleJOIN(c *Client, e Event) {
 	}
 	c.state.Unlock()
 
-	if e.Source.ID == ToRFC1459(c.GetNick()) {
+	if e.Source.ID() == ToRFC1459(c.GetNick()) {
 		// If it's us, don't just add our user to the list. Run a WHO which
 		// will tell us who exactly is in the entire channel.
 		c.Send(&Event{Command: WHO, Params: []string{channelName, "%tacuhnr,1"}})
@@ -209,7 +209,7 @@ func handlePART(c *Client, e Event) {
 
 	defer c.state.notify(c, UPDATE_STATE)
 
-	if e.Source.ID == ToRFC1459(c.GetNick()) {
+	if e.Source.ID() == ToRFC1459(c.GetNick()) {
 		c.state.Lock()
 		c.state.deleteChannel(channel)
 		c.state.Unlock()
@@ -217,7 +217,7 @@ func handlePART(c *Client, e Event) {
 	}
 
 	c.state.Lock()
-	c.state.deleteUser(channel, e.Source.ID)
+	c.state.deleteUser(channel, e.Source.ID())
 	c.state.Unlock()
 }
 
@@ -327,9 +327,9 @@ func handleNICK(c *Client, e Event) {
 	c.state.Lock()
 	// renameUser updates the LastActive time automatically.
 	if len(e.Params) == 1 {
-		c.state.renameUser(e.Source.ID, e.Params[0])
+		c.state.renameUser(e.Source.ID(), e.Params[0])
 	} else if len(e.Trailing) > 0 {
-		c.state.renameUser(e.Source.ID, e.Trailing)
+		c.state.renameUser(e.Source.ID(), e.Trailing)
 	}
 	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)
@@ -341,12 +341,12 @@ func handleQUIT(c *Client, e Event) {
 		return
 	}
 
-	if e.Source.ID == ToRFC1459(c.GetNick()) {
+	if e.Source.ID() == ToRFC1459(c.GetNick()) {
 		return
 	}
 
 	c.state.Lock()
-	c.state.deleteUser("", e.Source.ID)
+	c.state.deleteUser("", e.Source.ID())
 	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)
 }
@@ -464,22 +464,21 @@ func handleNAMES(c *Client, e Event) {
 		} else {
 			s = &Source{
 				Name: nick,
-				ID:   ToRFC1459(nick),
 			}
 
-			if !IsValidNick(s.ID) {
+			if !IsValidNick(s.Name) {
 				continue
 			}
 		}
 
 		c.state.createUser(s)
-		user := c.state.lookupUser(s.ID)
+		user := c.state.lookupUser(s.ID())
 		if user == nil {
 			continue
 		}
 
 		user.addChannel(channel.Name)
-		channel.addUser(s.ID)
+		channel.addUser(s.ID())
 
 		// Don't append modes, overwrite them.
 		perms, _ := user.Perms.Lookup(channel.Name)
@@ -502,7 +501,7 @@ func updateLastActive(c *Client, e Event) {
 	c.state.Lock()
 
 	// Update the users last active time, if they exist.
-	user := c.state.lookupUser(e.Source.ID)
+	user := c.state.lookupUser(e.Source.ID())
 	if user == nil {
 		c.state.Unlock()
 		return

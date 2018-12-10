@@ -420,12 +420,12 @@ func (s *state) lookupUser(name string) *User {
 
 // createUser creates the user in state, if not already done.
 func (s *state) createUser(src *Source) (ok bool) {
-	if _, ok := s.users[src.ID]; ok {
+	if _, ok := s.users[src.ID()]; ok {
 		// User already exists.
 		return false
 	}
 
-	s.users[src.ID] = &User{
+	s.users[src.ID()] = &User{
 		Nick:       src.Name,
 		Host:       src.Host,
 		Ident:      src.Ident,

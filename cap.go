@@ -193,7 +193,7 @@ func handleCHGHOST(c *Client, e Event) {
 	}
 
 	c.state.Lock()
-	user := c.state.lookupUser(e.Source.ID)
+	user := c.state.lookupUser(e.Source.ID())
 	if user != nil {
 		user.Ident = e.Params[0]
 		user.Host = e.Params[1]
@@ -206,7 +206,7 @@ func handleCHGHOST(c *Client, e Event) {
 // when users are no longer away, or when they are away.
 func handleAWAY(c *Client, e Event) {
 	c.state.Lock()
-	user := c.state.lookupUser(e.Source.ID)
+	user := c.state.lookupUser(e.Source.ID())
 	if user != nil {
 		user.Extras.Away = e.Trailing
 	}
@@ -229,7 +229,7 @@ func handleACCOUNT(c *Client, e Event) {
 	}
 
 	c.state.Lock()
-	user := c.state.lookupUser(e.Source.ID)
+	user := c.state.lookupUser(e.Source.ID())
 	if user != nil {
 		user.Extras.Account = account
 	}
