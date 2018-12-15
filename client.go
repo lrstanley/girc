@@ -436,8 +436,8 @@ func (c *Client) GetNick() string {
 	return c.state.nick
 }
 
-// Returns an RFC1459 compliant version of the current nickname. Panics if
-// tracking is disabled.
+// GetID returns an RFC1459 compliant version of the current nickname. Panics
+// if tracking is disabled.
 func (c *Client) GetID() string {
 	return ToRFC1459(c.GetNick())
 }
