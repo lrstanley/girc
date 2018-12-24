@@ -143,13 +143,13 @@ func handleJOIN(c *Client, e Event) {
 		channel = c.state.lookupChannel(channelName)
 	}
 
-	user := c.state.lookupUser(e.Source.ID())
+	user := c.state.lookupUser(e.Source.Name)
 	if user == nil {
 		if ok := c.state.createUser(e.Source); !ok {
 			c.state.Unlock()
 			return
 		}
-		user = c.state.lookupUser(e.Source.ID())
+		user = c.state.lookupUser(e.Source.Name)
 	}
 
 	defer c.state.notify(c, UPDATE_STATE)
@@ -472,7 +472,7 @@ func handleNAMES(c *Client, e Event) {
 		}
 
 		c.state.createUser(s)
-		user := c.state.lookupUser(s.ID())
+		user := c.state.lookupUser(s.Name)
 		if user == nil {
 			continue
 		}
@@ -501,7 +501,7 @@ func updateLastActive(c *Client, e Event) {
 	c.state.Lock()
 
 	// Update the users last active time, if they exist.
-	user := c.state.lookupUser(e.Source.ID())
+	user := c.state.lookupUser(e.Source.Name)
 	if user == nil {
 		c.state.Unlock()
 		return
