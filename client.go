@@ -61,6 +61,9 @@ type Config struct {
 	// Server is a host/ip of the server you want to connect to. This only
 	// has an affect during the dial process
 	Server string
+	// WebIRC is for spoofing the user, hostname and IP of a connection.
+	// Provide these three fields separated by a space.
+	WebIRC string
 	// ServerPass is the server password used to authenticate. This only has
 	// an affect during the dial process.
 	ServerPass string
