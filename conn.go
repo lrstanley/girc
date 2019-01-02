@@ -284,6 +284,11 @@ func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 	go c.pingLoop(ctx, errs, &wg)
 
 	// Passwords first.
+
+	if c.Config.WebIRC.Password != "" {
+		c.write(&Event{Command: WEBIRC, Params: c.Config.WebIRC.Params(), Sensitive: true})
+	}
+
 	if c.Config.ServerPass != "" {
 		c.write(&Event{Command: PASS, Params: []string{c.Config.ServerPass}, Sensitive: true})
 	}

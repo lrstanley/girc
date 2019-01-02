@@ -81,6 +81,10 @@ type Config struct {
 	// supported. Capability tracking must be enabled for this to work, as
 	// this requires IRCv3 CAP handling.
 	SASL SASLMech
+	// WebIRC allows forwarding source user hostname/ip information to the server
+	// (if supported by the server) to ensure the source machine doesn't show as
+	// the source. See the WebIRC type for more information.
+	WebIRC WebIRC
 	// Bind is used to bind to a specific host or ip during the dial process
 	// when connecting to the server. This can be a hostname, however it must
 	// resolve to an IPv4/IPv6 address bindable on your system. Otherwise,
@@ -152,6 +156,39 @@ type Config struct {
 	// blocked by the network/a service, the client will try and use "test_",
 	// then it will attempt "test__", "test___", and so on.
 	HandleNickCollide func(oldNick string) (newNick string)
+}
+
+// WebIRC is useful when a user connects through an indirect method, such web
+// clients, the indirect client sends its own IP address instead of sending the
+// user's IP address unless WebIRC is implemented by both the client and the
+// server.
+//
+// Client expectations:
+//  - Perform any proxy resolution.
+//  - Check the reverse DNS and forward DNS match.
+//  - Check the IP against suitable access controls (ipaccess, dnsbl, etc).
+//
+// More information:
+//  - https://ircv3.net/specs/extensions/webirc.html
+//  - https://kiwiirc.com/docs/webirc
+type WebIRC struct {
+	// Password that authenticates the WEBIRC command from this client.
+	Password string
+	// Gateway or client type requesting spoof (cgiirc defaults to cgiirc, as an
+	// example).
+	Gateway string
+	// Hostname of user.
+	Hostname string
+	// Address either in IPv4 dotted quad notation (e.g. 192.0.0.2) or IPv6
+	// notation (e.g. 1234:5678:9abc::def). IPv4-in-IPv6 addresses
+	// (e.g. ::ffff:192.0.0.2) should not be sent.
+	Address string
+}
+
+// Params returns the arguments for the WEBIRC command that can be passed to the
+// server.
+func (w WebIRC) Params() []string {
+	return []string{w.Password, w.Gateway, w.Hostname, w.Address}
 }
 
 // ErrInvalidConfig is returned when the configuration passed to the client

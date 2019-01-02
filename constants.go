@@ -118,6 +118,7 @@ const (
 	USERS    = "USERS"
 	VERSION  = "VERSION"
 	WALLOPS  = "WALLOPS"
+	WEBIRC   = "WEBIRC"
 	WHO      = "WHO"
 	WHOIS    = "WHOIS"
 	WHOWAS   = "WHOWAS"
