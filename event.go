@@ -148,6 +148,8 @@ type Event struct {
 	// Command that represents the event, e.g. JOIN, PRIVMSG, KILL.
 	Command string `json:"command"`
 	// Params (parameters/args) to the command. Commonly nickname, channel, etc.
+	// The last item in the slice could potentially contain spaces (commonly
+	// referred to as the "trailing" parameter).
 	Params []string `json:"params"`
 	// Sensitive should be true if the message is sensitive (e.g. and should
 	// not be logged/shown in debugging output).
