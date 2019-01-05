@@ -375,9 +375,6 @@ func handleISUPPORT(c *Client, e Event) {
 	c.state.Lock()
 	// Skip the first parameter, as it's our nickname, and the last, as it's the doc.
 	for i := 1; i < len(e.Params)-1; i++ {
-		if strings.Contains(e.Params[i], " ") {
-			continue
-		}
 		j := strings.IndexByte(e.Params[i], '=')
 
 		if j < 1 || (j+1) == len(e.Params[i]) {
