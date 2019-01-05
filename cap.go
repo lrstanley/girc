@@ -105,7 +105,7 @@ func handleCAP(c *Client, e Event) {
 	if len(e.Params) >= 3 && e.Params[1] == CAP_LS {
 		c.state.Lock()
 
-		caps := parseCap(e.Trailing())
+		caps := parseCap(e.Last())
 
 		for k := range caps {
 			if _, ok := possible[k]; !ok {
@@ -159,7 +159,7 @@ func handleCAP(c *Client, e Event) {
 
 	if len(e.Params) == 3 && e.Params[1] == CAP_ACK {
 		c.state.Lock()
-		c.state.enabledCap = strings.Split(e.Trailing(), " ")
+		c.state.enabledCap = strings.Split(e.Last(), " ")
 
 		// Do we need to do sasl auth?
 		wantsSASL := false
@@ -208,7 +208,7 @@ func handleAWAY(c *Client, e Event) {
 	c.state.Lock()
 	user := c.state.lookupUser(e.Source.Name)
 	if user != nil {
-		user.Extras.Away = e.Trailing()
+		user.Extras.Away = e.Last()
 	}
 	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)

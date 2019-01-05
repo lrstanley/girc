@@ -60,12 +60,12 @@ func Example_simple() {
 	})
 
 	client.Handlers.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
-		if strings.Contains(e.Trailing(), "hello") {
+		if strings.Contains(e.Last(), "hello") {
 			c.Cmd.ReplyTo(e, "hello world!")
 			return
 		}
 
-		if strings.Contains(e.Trailing(), "quit") {
+		if strings.Contains(e.Last(), "quit") {
 			c.Close()
 		}
 	})
@@ -100,12 +100,12 @@ func Example_commands() {
 	})
 
 	client.Handlers.Add(girc.PRIVMSG, func(c *girc.Client, e girc.Event) {
-		if strings.HasPrefix(e.Trailing(), "!hello") {
+		if strings.HasPrefix(e.Last(), "!hello") {
 			c.Cmd.ReplyTo(e, girc.Fmt("{b}hello{b} {blue}world{c}!"))
 			return
 		}
 
-		if strings.HasPrefix(e.Trailing(), "!stop") {
+		if strings.HasPrefix(e.Last(), "!stop") {
 			c.Close()
 			return
 		}

@@ -143,7 +143,7 @@ func (ch *CmdHandler) Execute(client *girc.Client, event girc.Event) {
 		return
 	}
 
-	parsed := ch.re.FindStringSubmatch(event.Trailing())
+	parsed := ch.re.FindStringSubmatch(event.Last())
 	if len(parsed) != 3 {
 		return
 	}

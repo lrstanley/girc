@@ -170,8 +170,8 @@ func TestEventIs(t *testing.T) {
 	event.Command = "PRIVMSG"
 
 	event.Params[len(event.Params)-1] = event.StripAction()
-	if event.IsAction() || event.Trailing() != "this is a test" {
-		t.Fatalf("Event.IsAction: returned true on %#v or trailing is not \"this is a test\": %q", event, event.Trailing())
+	if event.IsAction() || event.Last() != "this is a test" {
+		t.Fatalf("Event.IsAction: returned true on %#v or trailing is not \"this is a test\": %q", event, event.Last())
 	}
 
 	if !event.IsFromChannel() {

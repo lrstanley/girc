@@ -156,8 +156,8 @@ type Event struct {
 	Echo bool `json:"echo"`
 }
 
-// Trailing returns the last parameter in Event.Params if it exists.
-func (e *Event) Trailing() string {
+// Last returns the last parameter in Event.Params if it exists.
+func (e *Event) Last() string {
 	if len(e.Params) >= 1 {
 		return e.Params[len(e.Params)-1]
 	}
@@ -325,7 +325,7 @@ func (e *Event) Pretty() (out string, ok bool) {
 	}
 
 	if e.Command == ERROR {
-		return fmt.Sprintf("[*] an error occurred: %s", e.Trailing()), true
+		return fmt.Sprintf("[*] an error occurred: %s", e.Last()), true
 	}
 
 	if e.Source == nil {
@@ -341,11 +341,11 @@ func (e *Event) Pretty() (out string, ok bool) {
 	}
 
 	if e.Command == INITIALIZED {
-		return fmt.Sprintf("[*] connection to %s initialized", e.Trailing()), true
+		return fmt.Sprintf("[*] connection to %s initialized", e.Last()), true
 	}
 
 	if e.Command == CONNECTED {
-		return fmt.Sprintf("[*] successfully connected to %s", e.Trailing()), true
+		return fmt.Sprintf("[*] successfully connected to %s", e.Last()), true
 	}
 
 	if (e.Command == PRIVMSG || e.Command == NOTICE) && len(e.Params) > 0 {
@@ -360,13 +360,13 @@ func (e *Event) Pretty() (out string, ok bool) {
 
 			return fmt.Sprintf("[*] CTCP query from %s: %s%s", ctcp.Source.Name, ctcp.Command, " "+ctcp.Text), true
 		}
-		return fmt.Sprintf("[%s] (%s) %s", strings.Join(e.Params[0:len(e.Params)-1], ","), e.Source.Name, e.Trailing()), true
+		return fmt.Sprintf("[%s] (%s) %s", strings.Join(e.Params[0:len(e.Params)-1], ","), e.Source.Name, e.Last()), true
 	}
 
 	if e.Command == RPL_MOTD || e.Command == RPL_MOTDSTART ||
 		e.Command == RPL_WELCOME || e.Command == RPL_YOURHOST ||
 		e.Command == RPL_CREATED || e.Command == RPL_LUSERCLIENT {
-		return "[*] " + e.Trailing(), true
+		return "[*] " + e.Last(), true
 	}
 
 	if e.Command == JOIN && len(e.Params) > 0 {
@@ -374,27 +374,27 @@ func (e *Event) Pretty() (out string, ok bool) {
 	}
 
 	if e.Command == PART && len(e.Params) > 0 {
-		return fmt.Sprintf("[*] %s (%s) has left %s (%s)", e.Source.Name, e.Source.Host, e.Params[0], e.Trailing()), true
+		return fmt.Sprintf("[*] %s (%s) has left %s (%s)", e.Source.Name, e.Source.Host, e.Params[0], e.Last()), true
 	}
 
 	if e.Command == QUIT {
-		return fmt.Sprintf("[*] %s has quit (%s)", e.Source.Name, e.Trailing()), true
+		return fmt.Sprintf("[*] %s has quit (%s)", e.Source.Name, e.Last()), true
 	}
 
 	if e.Command == INVITE && len(e.Params) == 1 {
-		return fmt.Sprintf("[*] %s invited to %s by %s", e.Params[0], e.Trailing(), e.Source.Name), true
+		return fmt.Sprintf("[*] %s invited to %s by %s", e.Params[0], e.Last(), e.Source.Name), true
 	}
 
 	if e.Command == KICK && len(e.Params) >= 2 {
-		return fmt.Sprintf("[%s] *** %s has kicked %s: %s", e.Params[0], e.Source.Name, e.Params[1], e.Trailing()), true
+		return fmt.Sprintf("[%s] *** %s has kicked %s: %s", e.Params[0], e.Source.Name, e.Params[1], e.Last()), true
 	}
 
 	if e.Command == NICK {
-		return fmt.Sprintf("[*] %s is now known as %s", e.Source.Name, e.Trailing()), true
+		return fmt.Sprintf("[*] %s is now known as %s", e.Source.Name, e.Last()), true
 	}
 
 	if e.Command == TOPIC && len(e.Params) >= 2 {
-		return fmt.Sprintf("[%s] *** %s has set the topic to: %s", e.Params[0], e.Source.Name, e.Trailing()), true
+		return fmt.Sprintf("[%s] *** %s has set the topic to: %s", e.Params[0], e.Source.Name, e.Last()), true
 	}
 
 	if e.Command == MODE && len(e.Params) > 2 {
@@ -403,7 +403,7 @@ func (e *Event) Pretty() (out string, ok bool) {
 
 	if e.Command == CAP_AWAY {
 		if len(e.Params) > 0 {
-			return fmt.Sprintf("[*] %s is now away: %s", e.Source.Name, e.Trailing()), true
+			return fmt.Sprintf("[*] %s is now away: %s", e.Source.Name, e.Last()), true
 		}
 
 		return fmt.Sprintf("[*] %s is no longer away", e.Source.Name), true
@@ -422,11 +422,11 @@ func (e *Event) Pretty() (out string, ok bool) {
 	}
 
 	if e.Command == RPL_TOPIC && len(e.Params) > 0 {
-		return fmt.Sprintf("[*] topic for %s is: %s", e.Params[0], e.Trailing()), true
+		return fmt.Sprintf("[*] topic for %s is: %s", e.Params[0], e.Last()), true
 	}
 
 	if e.Command == CAP && len(e.Params) >= 2 && e.Params[1] == CAP_ACK {
-		return "[*] enabling capabilities: " + e.Trailing(), true
+		return "[*] enabling capabilities: " + e.Last(), true
 	}
 
 	return "", false
@@ -481,10 +481,10 @@ func (e *Event) IsFromUser() bool {
 // PRIVMSG ACTION (/me).
 func (e *Event) StripAction() string {
 	if !e.IsAction() {
-		return e.Trailing()
+		return e.Last()
 	}
 
-	msg := e.Trailing()
+	msg := e.Last()
 	return msg[8 : len(msg)-1]
 }
 

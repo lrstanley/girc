@@ -109,7 +109,7 @@ func nickCollisionHandler(c *Client, e Event) {
 
 // handlePING helps respond to ping requests from the server.
 func handlePING(c *Client, e Event) {
-	c.Cmd.Pong(e.Trailing())
+	c.Cmd.Pong(e.Last())
 }
 
 func handlePONG(c *Client, e Event) {
@@ -233,7 +233,7 @@ func handleTOPIC(c *Client, e Event) {
 		return
 	}
 
-	channel.Topic = e.Trailing()
+	channel.Topic = e.Last()
 	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)
 }
@@ -258,11 +258,11 @@ func handleWHO(c *Client, e Event) {
 		}
 
 		ident, host, nick, account = e.Params[3], e.Params[4], e.Params[5], e.Params[6]
-		realname = e.Trailing()
+		realname = e.Last()
 	} else {
 		// Assume RPL_WHOREPLY.
 		// format: "<client> <channel> <user> <host> <server> <nick> <H|G>[*][@|+] :<hopcount> <real_name>"
-		ident, host, nick, realname = e.Params[2], e.Params[3], e.Params[5], e.Trailing()[2:]
+		ident, host, nick, realname = e.Params[2], e.Params[3], e.Params[5], e.Last()[2:]
 	}
 
 	c.state.Lock()
@@ -317,7 +317,7 @@ func handleNICK(c *Client, e Event) {
 	c.state.Lock()
 	// renameUser updates the LastActive time automatically.
 	if len(e.Params) >= 1 {
-		c.state.renameUser(e.Source.ID(), e.Trailing())
+		c.state.renameUser(e.Source.ID(), e.Last())
 	}
 	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)
@@ -363,7 +363,7 @@ func handleISUPPORT(c *Client, e Event) {
 	// Must be a ISUPPORT-based message.
 
 	// Also known as RPL_PROTOCTL.
-	if !strings.HasSuffix(e.Trailing(), "this server") {
+	if !strings.HasSuffix(e.Last(), "this server") {
 		return
 	}
 
@@ -412,7 +412,7 @@ func handleMOTD(c *Client, e Event) {
 	if len(c.state.motd) != 0 {
 		c.state.motd += "\n"
 	}
-	c.state.motd += e.Trailing()
+	c.state.motd += e.Last()
 	c.state.Unlock()
 }
 
@@ -429,7 +429,7 @@ func handleNAMES(c *Client, e Event) {
 		return
 	}
 
-	parts := strings.Split(e.Trailing(), " ")
+	parts := strings.Split(e.Last(), " ")
 
 	var modes, nick string
 	var ok bool
