@@ -355,7 +355,7 @@ func (e *Event) Pretty() (out string, ok bool) {
 			}
 
 			if ctcp.Command == CTCP_ACTION {
-				return fmt.Sprintf("[%s] **%s** %s", strings.Join(e.Params, ","), ctcp.Source.Name, ctcp.Text), true
+				return fmt.Sprintf("[%s] **%s** %s", strings.Join(e.Params[0:len(e.Params)-1], ","), ctcp.Source.Name, ctcp.Text), true
 			}
 
 			return fmt.Sprintf("[*] CTCP query from %s: %s%s", ctcp.Source.Name, ctcp.Command, " "+ctcp.Text), true
@@ -397,6 +397,13 @@ func (e *Event) Pretty() (out string, ok bool) {
 		return fmt.Sprintf("[%s] *** %s has set the topic to: %s", e.Params[0], e.Source.Name, e.Last()), true
 	}
 
+	if e.Command == RPL_TOPIC && len(e.Params) > 0 {
+		if len(e.Params) >= 2 {
+			return fmt.Sprintf("[*] topic for %s is: %s", e.Params[1], e.Last()), true
+		}
+		return fmt.Sprintf("[*] topic for %s is: %s", e.Params[0], e.Last()), true
+	}
+
 	if e.Command == MODE && len(e.Params) > 2 {
 		return fmt.Sprintf("[%s] *** %s set modes: %s", e.Params[0], e.Source.Name, strings.Join(e.Params[1:], " ")), true
 	}
@@ -419,10 +426,6 @@ func (e *Event) Pretty() (out string, ok bool) {
 		}
 
 		return fmt.Sprintf("[*] %s has authenticated for account: %s", e.Source.Name, e.Params[0]), true
-	}
-
-	if e.Command == RPL_TOPIC && len(e.Params) > 0 {
-		return fmt.Sprintf("[*] topic for %s is: %s", e.Params[0], e.Last()), true
 	}
 
 	if e.Command == CAP && len(e.Params) >= 2 && e.Params[1] == CAP_ACK {
