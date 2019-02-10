@@ -262,7 +262,21 @@ func handleWHO(c *Client, e Event) {
 	} else {
 		// Assume RPL_WHOREPLY.
 		// format: "<client> <channel> <user> <host> <server> <nick> <H|G>[*][@|+] :<hopcount> <real_name>"
-		ident, host, nick, realname = e.Params[2], e.Params[3], e.Params[5], e.Last()[2:]
+		ident, host, nick, realname = e.Params[2], e.Params[3], e.Params[5], e.Last()
+
+		// Strip the numbers from "<hopcount> <realname>"
+		for i := 0; i < len(realname); i++ {
+			// Check if it's not 0-9.
+			if realname[i] < 0x30 || i > 0x39 {
+				realname = strings.TrimLeft(realname[i+1:], " ")
+				break
+			}
+
+			if i == len(realname)-1 {
+				// Assume it's only numbers?
+				realname = ""
+			}
+		}
 	}
 
 	c.state.Lock()
