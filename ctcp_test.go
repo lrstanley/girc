@@ -53,40 +53,40 @@ func TestDecodeCTCP(t *testing.T) {
 		want *CTCPEvent
 	}{
 		{name: "non-ctcp", args: args{event: &Event{
-			Command: "PRIVMSG", Params: []string{"user1"}, Trailing: "this is a test"},
+			Command: "PRIVMSG", Params: []string{"user1", "this is a test"}},
 		}, want: nil},
 		{name: "empty trailing", args: args{event: &Event{
-			Command: "PRIVMSG", Params: []string{"user1"}, Trailing: ""},
+			Command: "PRIVMSG", Params: []string{"user1", ""}},
 		}, want: nil},
 		{name: "too many args", args: args{event: &Event{
-			Command: "PRIVMSG", Params: []string{"user1", "user2"}, Trailing: "this is a test"},
+			Command: "PRIVMSG", Params: []string{"user1", "user2", "this is a test"}},
 		}, want: nil},
 		{name: "missing delim", args: args{event: &Event{
-			Command: "PRIVMSG", Params: []string{"user1"}, Trailing: "\001TEST this is a test"},
+			Command: "PRIVMSG", Params: []string{"user1", "\001TEST this is a test"}},
 		}, want: nil},
 		{name: "missing delim", args: args{event: &Event{
-			Command: "PRIVMSG", Params: []string{"user1"}, Trailing: "TEST this is a test\001"},
+			Command: "PRIVMSG", Params: []string{"user1", "TEST this is a test\001"}},
 		}, want: nil},
 		{name: "invalid command", args: args{event: &Event{
-			Command: "PRIVMSG", Params: []string{"user1"}, Trailing: "\001TEST-1 this is a test\001"},
+			Command: "PRIVMSG", Params: []string{"user1", "\001TEST-1 this is a test\001"}},
 		}, want: nil},
 		{name: "invalid command", args: args{event: &Event{
-			Command: "PRIVMSG", Params: []string{"user1"}, Trailing: "\001TEST-1\001"},
+			Command: "PRIVMSG", Params: []string{"user1", "\001TEST-1\001"}},
 		}, want: nil},
 		{name: "is reply", args: args{event: &Event{
-			Command: "NOTICE", Params: []string{"user1"}, Trailing: "\001TEST this is a test\001"},
+			Command: "NOTICE", Params: []string{"user1", "\001TEST this is a test\001"}},
 		}, want: &CTCPEvent{Command: "TEST", Text: "this is a test", Reply: true}},
 		{name: "is reply, tag only", args: args{event: &Event{
-			Command: "NOTICE", Params: []string{"user1"}, Trailing: "\001TEST\001"},
+			Command: "NOTICE", Params: []string{"user1", "\001TEST\001"}},
 		}, want: &CTCPEvent{Command: "TEST", Text: "", Reply: true}},
 		{name: "is reply", args: args{event: &Event{
-			Command: "PRIVMSG", Params: []string{"user1"}, Trailing: "\001TEST\001"},
+			Command: "PRIVMSG", Params: []string{"user1", "\001TEST\001"}},
 		}, want: &CTCPEvent{Command: "TEST", Text: ""}},
 		{name: "has args", args: args{event: &Event{
-			Command: "PRIVMSG", Params: []string{"user1"}, Trailing: "\001TEST 1 2 3 4\001"},
+			Command: "PRIVMSG", Params: []string{"user1", "\001TEST 1 2 3 4\001"}},
 		}, want: &CTCPEvent{Command: "TEST", Text: "1 2 3 4"}},
 		{name: "has args", args: args{event: &Event{
-			Command: "PRIVMSG", Params: []string{"user1"}, Trailing: "\001TEST :1 2 3 4\001"},
+			Command: "PRIVMSG", Params: []string{"user1", "\001TEST :1 2 3 4\001"}},
 		}, want: &CTCPEvent{Command: "TEST", Text: ":1 2 3 4"}},
 	}
 
