@@ -12,8 +12,10 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -247,9 +249,19 @@ func New(config Config) *Client {
 		c.Config.PingDelay = 600 * time.Second
 	}
 
+	envDebug, _ := strconv.ParseBool(os.Getenv("GIRC_DEBUG"))
 	if c.Config.Debug == nil {
-		c.debug = log.New(ioutil.Discard, "", 0)
+		if envDebug {
+			c.debug = log.New(os.Stderr, "debug:", log.Ltime|log.Lshortfile)
+		} else {
+			c.debug = log.New(ioutil.Discard, "", 0)
+		}
 	} else {
+		if envDebug {
+			if c.Config.Debug != os.Stdout && c.Config.Debug != os.Stderr {
+				c.Config.Debug = io.MultiWriter(os.Stderr, c.Config.Debug)
+			}
+		}
 		c.debug = log.New(c.Config.Debug, "debug:", log.Ltime|log.Lshortfile)
 		c.debug.Print("initializing debugging")
 	}
