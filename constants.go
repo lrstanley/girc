@@ -225,6 +225,7 @@ const (
 	ERR_NOTOPLEVEL        = "413"
 	ERR_WILDTOPLEVEL      = "414"
 	ERR_BADMASK           = "415"
+	ERR_INPUTTOOLONG      = "417"
 	ERR_UNKNOWNCOMMAND    = "421"
 	ERR_NOMOTD            = "422"
 	ERR_NOADMININFO       = "423"
@@ -307,7 +308,6 @@ const (
 	RPL_MONLIST      = "732"
 	RPL_ENDOFMONLIST = "733"
 	ERR_MONLISTFULL  = "734"
-	ERR_INPUTTOOLONG = "417"
 )
 
 // Numeric IRC event mapping :: RFC2812; section 5.3.

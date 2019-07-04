@@ -19,11 +19,16 @@ var possibleCap = map[string][]string{
 	"chghost":           nil,
 	"extended-join":     nil,
 	"invite-notify":     nil,
+	"message-tags":      nil,
+	"msgid":             nil,
 	"multi-prefix":      nil,
 	"server-time":       nil,
 	"userhost-in-names": nil,
-	"message-tags":      nil,
-	"msgid":             nil,
+
+	// Supported draft versions, some may be duplicated above, this is for backwards
+	// compatibility.
+	"draft/message-tags-0.2": nil,
+	"draft/msgid":            nil,
 
 	// "echo-message" is supported, but it's not enabled by default. This is
 	// to prevent unwanted confusion and utilize less traffic if it's not needed.
@@ -146,6 +151,7 @@ func handleCAP(c *Client, e Event) {
 			}
 
 			// Let them know which ones we'd like to enable.
+			// TODO: remove dups, if any.
 			c.write(&Event{Command: CAP, Params: []string{CAP_REQ, strings.Join(c.state.tmpCap, " ")}})
 
 			// Re-initialize the tmpCap, so if we get multiple 'CAP LS' requests
