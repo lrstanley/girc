@@ -286,6 +286,7 @@ const (
 	CAP_CHGHOST = "CHGHOST"
 	CAP_AWAY    = "AWAY"
 	CAP_ACCOUNT = "ACCOUNT"
+	CAP_TAGMSG  = "TAGMSG"
 )
 
 // Numeric IRC reply mapping for ircv3 :: http://ircv3.net/irc/.
@@ -306,6 +307,7 @@ const (
 	RPL_MONLIST      = "732"
 	RPL_ENDOFMONLIST = "733"
 	ERR_MONLISTFULL  = "734"
+	ERR_INPUTTOOLONG = "417"
 )
 
 // Numeric IRC event mapping :: RFC2812; section 5.3.

@@ -23,8 +23,8 @@ var possibleCap = map[string][]string{
 	"server-time":       nil,
 	"userhost-in-names": nil,
 
-	"draft/message-tags-0.2": nil,
-	"draft/msgid":            nil,
+	"message-tags": nil,
+	"draft/msgid":  nil,
 
 	// "echo-message" is supported, but it's not enabled by default. This is
 	// to prevent unwanted confusion and utilize less traffic if it's not needed.

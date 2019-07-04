@@ -59,7 +59,7 @@ func TestParseCap(t *testing.T) {
 }
 
 func TestTagGetSetCount(t *testing.T) {
-	e := ParseEvent("@aaa=bbb :nick!user@host TEST :test1")
+	e := ParseEvent("@aaa=bbb :nick!user@host TAGMSG")
 	if e == nil || e.Tags == nil {
 		t.Fatal("event for get/set tests didn't parse successfully")
 	}
