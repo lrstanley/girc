@@ -445,7 +445,7 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 				c.state.RLock()
 				var in bool
 				for i := 0; i < len(c.state.enabledCap); i++ {
-					if c.state.enabledCap[i] == "message-tags" {
+					if _, ok := c.state.enabledCap["message-tags"]; ok {
 						in = true
 						break
 					}

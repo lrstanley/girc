@@ -23,6 +23,7 @@ var possibleCap = map[string][]string{
 	"msgid":             nil,
 	"multi-prefix":      nil,
 	"server-time":       nil,
+	"sts":               nil,
 	"userhost-in-names": nil,
 
 	// Supported draft versions, some may be duplicated above, this is for backwards
@@ -66,8 +67,8 @@ func possibleCapList(c *Client) map[string][]string {
 	return out
 }
 
-func parseCap(raw string) map[string][]string {
-	out := make(map[string][]string)
+func parseCap(raw string) map[string]map[string]string {
+	out := make(map[string]map[string]string)
 	parts := strings.Split(raw, " ")
 
 	var val int
@@ -82,7 +83,16 @@ func parseCap(raw string) map[string][]string {
 			continue
 		}
 
-		out[parts[i][:val]] = strings.Split(parts[i][val+1:], ",")
+		out[parts[i][:val]] = make(map[string]string)
+		for _, option := range strings.Split(parts[i][val+1:], ",") {
+			j := strings.Index(option, "=")
+
+			if j < 0 {
+				out[parts[i][:val]][option] = ""
+			} else {
+				out[parts[i][:val]][option[:j]] = option[j+1 : len(option)]
+			}
+		}
 	}
 
 	return out
@@ -92,8 +102,15 @@ func parseCap(raw string) map[string][]string {
 // This will lock further registration until we have acknowledged (or denied)
 // the capabilities.
 func handleCAP(c *Client, e Event) {
-	if len(e.Params) >= 2 && (e.Params[1] == CAP_NEW || e.Params[1] == CAP_DEL) {
-		c.listCAP()
+	c.state.Lock()
+	defer c.state.Unlock()
+
+	if len(e.Params) >= 2 && e.Params[1] == CAP_DEL {
+		caps := parseCap(e.Last())
+		for cap := range caps {
+			// TODO: test.
+			delete(c.state.enabledCap, cap)
+		}
 		return
 	}
 
@@ -105,27 +122,26 @@ func handleCAP(c *Client, e Event) {
 	}
 
 	possible := possibleCapList(c)
-
-	if len(e.Params) >= 3 && e.Params[1] == CAP_LS {
-		c.state.Lock()
-
+	// TODO: test new.
+	if len(e.Params) >= 3 && (e.Params[1] == CAP_LS || e.Params[1] == CAP_NEW) {
 		caps := parseCap(e.Last())
 
-		for k := range caps {
-			if _, ok := possible[k]; !ok {
+		for capName := range caps {
+			if _, ok := possible[capName]; !ok {
 				continue
 			}
 
-			if len(possible[k]) == 0 || len(caps[k]) == 0 {
-				c.state.tmpCap = append(c.state.tmpCap, k)
+			if len(possible[capName]) == 0 || len(caps[capName]) == 0 {
+				c.state.tmpCap[capName] = caps[capName]
 				continue
 			}
 
 			var contains bool
-			for i := 0; i < len(caps[k]); i++ {
-				for j := 0; j < len(possible[k]); j++ {
-					if caps[k][i] == possible[k][j] {
-						// Assume we have a matching split value.
+
+			for capAttr := range caps[capName] {
+				for i := 0; i < len(possible[capName]); i++ {
+					if _, ok := caps[capName][capAttr]; ok {
+						// Assuming we have a matching attribute for the capability.
 						contains = true
 						goto checkcontains
 					}
@@ -137,9 +153,8 @@ func handleCAP(c *Client, e Event) {
 				continue
 			}
 
-			c.state.tmpCap = append(c.state.tmpCap, k)
+			c.state.tmpCap[capName] = caps[capName]
 		}
-		c.state.Unlock()
 
 		// Indicates if this is a multi-line LS. (3 args means it's the
 		// last LS).
@@ -151,30 +166,32 @@ func handleCAP(c *Client, e Event) {
 			}
 
 			// Let them know which ones we'd like to enable.
-			// TODO: remove dups, if any.
-			c.write(&Event{Command: CAP, Params: []string{CAP_REQ, strings.Join(c.state.tmpCap, " ")}})
-
-			// Re-initialize the tmpCap, so if we get multiple 'CAP LS' requests
-			// due to cap-notify, we can re-evaluate what we can support.
-			c.state.Lock()
-			c.state.tmpCap = []string{}
-			c.state.Unlock()
+			reqKeys := make([]string, len(c.state.tmpCap))
+			i := 0
+			for k := range c.state.tmpCap {
+				reqKeys[i] = k
+				i++
+			}
+			c.write(&Event{Command: CAP, Params: []string{CAP_REQ, strings.Join(reqKeys, " ")}})
 		}
 	}
 
 	if len(e.Params) == 3 && e.Params[1] == CAP_ACK {
-		c.state.Lock()
-		c.state.enabledCap = strings.Split(e.Last(), " ")
-
-		// Do we need to do sasl auth?
-		wantsSASL := false
-		for i := 0; i < len(c.state.enabledCap); i++ {
-			if c.state.enabledCap[i] == "sasl" {
-				wantsSASL = true
-				break
+		enabled := strings.Split(e.Last(), " ")
+		for _, cap := range enabled {
+			if val, ok := c.state.tmpCap[cap]; ok {
+				c.state.enabledCap[cap] = val
+			} else {
+				c.state.enabledCap[cap] = nil
 			}
 		}
-		c.state.Unlock()
+
+		_, wantsSASL := c.state.enabledCap["sasl"]
+
+		// Re-initialize the tmpCap, so if we get multiple 'CAP LS' requests
+		// due to cap-notify, we can re-evaluate what we can support.
+		c.state.tmpCap = make(map[string]map[string]string)
+		// c.state.Unlock()
 
 		if wantsSASL {
 			c.write(&Event{Command: AUTHENTICATE, Params: []string{c.Config.SASL.Method()}})

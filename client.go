@@ -97,6 +97,12 @@ type Config struct {
 	// configuration (e.g. to not force hostname checking). This only has an
 	// affect during the dial process.
 	SSL bool
+	// DisableStrictTransport disables the use of automatic STS connection upgrades
+	// when the server supports STS. STS can also be disabled using the environment
+	// variable "GIRC_DISABLE_STS=true". As many clients may not propagate options
+	// like this back to the user, this allows to directly disable such automatic
+	// functionality.
+	DisableStrictTransport bool
 	// TLSConfig is an optional user-supplied tls configuration, used during
 	// socket creation to the server. SSL must be enabled for this to be used.
 	// This only has an affect during the dial process.
@@ -700,8 +706,9 @@ func (c *Client) HasCapability(name string) (has bool) {
 	name = strings.ToLower(name)
 
 	c.state.RLock()
-	for i := 0; i < len(c.state.enabledCap); i++ {
-		if strings.ToLower(c.state.enabledCap[i]) == name {
+	for key := range c.state.enabledCap {
+		key = strings.ToLower(key)
+		if key == name {
 			has = true
 			break
 		}

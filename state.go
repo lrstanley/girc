@@ -22,17 +22,25 @@ type state struct {
 	// users represents all of users that we're tracking.
 	users map[string]*User
 	// enabledCap are the capabilities which are enabled for this connection.
-	enabledCap []string
+	enabledCap map[string]map[string]string
 	// tmpCap are the capabilties which we share with the server during the
 	// last capability check. These will get sent once we have received the
 	// last capability list command from the server.
-	tmpCap []string
+	tmpCap map[string]map[string]string
 	// serverOptions are the standard capabilities and configurations
 	// supported by the server at connection time. This also includes
 	// RPL_ISUPPORT entries.
 	serverOptions map[string]string
 	// motd is the servers message of the day.
 	motd string
+
+	sts struct {
+		enabled             bool
+		upgradePort         int
+		persistenceDuration int
+		persistenceReceived *time.Time
+		preload             bool
+	}
 }
 
 // notify sends state change notifications so users can update their refs
@@ -50,7 +58,8 @@ func (s *state) reset() {
 	s.channels = make(map[string]*Channel)
 	s.users = make(map[string]*User)
 	s.serverOptions = make(map[string]string)
-	s.enabledCap = []string{}
+	s.enabledCap = make(map[string]map[string]string)
+	s.tmpCap = make(map[string]map[string]string)
 	s.motd = ""
 	s.Unlock()
 }

@@ -4,10 +4,69 @@
 
 package girc
 
-import "testing"
-import "reflect"
+import (
+	"bufio"
+	"reflect"
+	"regexp"
+	"testing"
+	"time"
+
+	"github.com/y0ssar1an/q"
+)
+
+func waitForText(r *bufio.Reader, regex string) bool {
+	re := regexp.MustCompile(regex)
+	for {
+		out, err := r.ReadString('\n')
+		q.Q(out)
+		if err != nil || out == "" {
+			return false
+		}
+		if re.MatchString(out) {
+			return true
+		}
+	}
+}
 
 func TestCapList(t *testing.T) {
+	c, conn, server := genMockConn()
+	sreader := bufio.NewReader(conn)
+	defer c.Close()
+
+	go func() {
+		err := c.MockConnect(server)
+		if err != nil {
+			panic(err)
+		}
+	}()
+
+	conn.SetDeadline(time.Now().Add(10 * time.Second))
+	server.SetDeadline(time.Now().Add(10 * time.Second))
+	go func() {
+		// Just in case the timeouts don't work...
+		time.Sleep(10 * time.Second)
+		c.Close()
+	}()
+
+	conn.Write([]byte(`:dummy.int 001 nick :Welcome to the DUMMY Internet Relay Chat Network nick
+:dummy.int 005 nick NETWORK=DummyIRC NICKLEN=20 :are supported by this server`))
+
+	// DO THINGS.
+	if !waitForText(sreader, ".*CAP LS 302.*") {
+		t.Error("timed out while waiting for cap request")
+	}
+
+	conn.Write([]byte(`:dummy.int CAP * LS :account-notify account-tag away-notify batch cap-notify chghost draft/labeled-response draft/languages=5,en,~tr-TR,~fr-FR,nb-NO,~pt-BR message-tags draft/rename draft/resume echo-message extended-join invite-notify multi-prefix server-time userhost-in-names`))
+
+	if !waitForText(sreader, ".*CAP LS 302.*") {
+		t.Error("timed out while waiting for cap request")
+	}
+	time.Sleep(3 * time.Second)
+
+	c.Close()
+}
+
+func TestCapSupported(t *testing.T) {
 	c := New(Config{
 		Server:        "irc.example.com",
 		Nick:          "test",
@@ -34,17 +93,18 @@ func TestCapList(t *testing.T) {
 func TestParseCap(t *testing.T) {
 	tests := []struct {
 		in   string
-		want map[string][]string
+		want map[string]map[string]string
 	}{
-		{in: "userhost-in-names", want: map[string][]string{"userhost-in-names": nil}},
-		{in: "userhost-in-names test2", want: map[string][]string{"userhost-in-names": nil, "test2": nil}},
-		{in: "example/name=test", want: map[string][]string{"example/name": {"test"}}},
+		{in: "sts=port=6697,duration=1234567890,preload", want: map[string]map[string]string{"sts": {"duration": "1234567890", "preload": "", "port": "6697"}}},
+		{in: "userhost-in-names", want: map[string]map[string]string{"userhost-in-names": nil}},
+		{in: "userhost-in-names test2", want: map[string]map[string]string{"userhost-in-names": nil, "test2": nil}},
+		{in: "example/name=test", want: map[string]map[string]string{"example/name": {"test": ""}}},
 		{
-			in: "userhost-in-names example/name example/name2=test,test2",
-			want: map[string][]string{
+			in: "userhost-in-names example/name example/name2=test=1,test2=true",
+			want: map[string]map[string]string{
 				"userhost-in-names": nil,
 				"example/name":      nil,
-				"example/name2":     {"test", "test2"},
+				"example/name2":     {"test": "1", "test2": "true"},
 			},
 		},
 	}
