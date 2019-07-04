@@ -22,9 +22,8 @@ var possibleCap = map[string][]string{
 	"multi-prefix":      nil,
 	"server-time":       nil,
 	"userhost-in-names": nil,
-
-	"message-tags": nil,
-	"draft/msgid":  nil,
+	"message-tags":      nil,
+	"msgid":             nil,
 
 	// "echo-message" is supported, but it's not enabled by default. This is
 	// to prevent unwanted confusion and utilize less traffic if it's not needed.
