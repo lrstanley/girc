@@ -4,10 +4,12 @@
 
 package girc
 
-import "testing"
-import "reflect"
+import (
+	"reflect"
+	"testing"
+)
 
-func TestCapList(t *testing.T) {
+func TestCapSupported(t *testing.T) {
 	c := New(Config{
 		Server:        "irc.example.com",
 		Nick:          "test",
@@ -34,17 +36,18 @@ func TestCapList(t *testing.T) {
 func TestParseCap(t *testing.T) {
 	tests := []struct {
 		in   string
-		want map[string][]string
+		want map[string]map[string]string
 	}{
-		{in: "userhost-in-names", want: map[string][]string{"userhost-in-names": nil}},
-		{in: "userhost-in-names test2", want: map[string][]string{"userhost-in-names": nil, "test2": nil}},
-		{in: "example/name=test", want: map[string][]string{"example/name": {"test"}}},
+		{in: "sts=port=6697,duration=1234567890,preload", want: map[string]map[string]string{"sts": {"duration": "1234567890", "preload": "", "port": "6697"}}},
+		{in: "userhost-in-names", want: map[string]map[string]string{"userhost-in-names": nil}},
+		{in: "userhost-in-names test2", want: map[string]map[string]string{"userhost-in-names": nil, "test2": nil}},
+		{in: "example/name=test", want: map[string]map[string]string{"example/name": {"test": ""}}},
 		{
-			in: "userhost-in-names example/name example/name2=test,test2",
-			want: map[string][]string{
+			in: "userhost-in-names example/name example/name2=test=1,test2=true",
+			want: map[string]map[string]string{
 				"userhost-in-names": nil,
 				"example/name":      nil,
-				"example/name2":     {"test", "test2"},
+				"example/name2":     {"test": "1", "test2": "true"},
 			},
 		},
 	}

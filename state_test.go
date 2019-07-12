@@ -25,7 +25,7 @@ func debounce(delay time.Duration, done chan bool, f func()) {
 	}
 }
 
-const dummyStartState = `:dummy.int NOTICE * :*** Looking up your hostname...
+const mockConnStartState = `:dummy.int NOTICE * :*** Looking up your hostname...
 :dummy.int NOTICE * :*** Checking Ident
 :dummy.int NOTICE * :*** Found your hostname
 :dummy.int NOTICE * :*** No Ident response
@@ -50,7 +50,7 @@ const dummyStartState = `:dummy.int NOTICE * :*** Looking up your hostname...
 :dummy.int 315 nick #channel2 :End of /WHO list.
 `
 
-const dummyEndState = `:nick2!nick2@other.int QUIT :example reason
+const mockConnEndState = `:nick2!nick2@other.int QUIT :example reason
 :nick!~user@local.int PART #channel2 :example reason
 :nick!~user@local.int NICK newnick
 `
@@ -198,7 +198,7 @@ func TestState(t *testing.T) {
 	})
 
 	conn.SetDeadline(time.Now().Add(5 * time.Second))
-	_, err := conn.Write([]byte(dummyStartState))
+	_, err := conn.Write([]byte(mockConnStartState))
 	if err != nil {
 		panic(err)
 	}
@@ -247,7 +247,7 @@ func TestState(t *testing.T) {
 	})
 
 	conn.SetDeadline(time.Now().Add(5 * time.Second))
-	_, err = conn.Write([]byte(dummyEndState))
+	_, err = conn.Write([]byte(mockConnEndState))
 	if err != nil {
 		panic(err)
 	}

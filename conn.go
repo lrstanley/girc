@@ -58,7 +58,7 @@ type Dialer interface {
 }
 
 // newConn sets up and returns a new connection to the server.
-func newConn(conf Config, dialer Dialer, addr string) (*ircConn, error) {
+func newConn(conf Config, dialer Dialer, addr string, sts *strictTransport) (*ircConn, error) {
 	if err := conf.isValid(); err != nil {
 		return nil, err
 	}
@@ -83,13 +83,29 @@ func newConn(conf Config, dialer Dialer, addr string) (*ircConn, error) {
 	}
 
 	if conn, err = dialer.Dial("tcp", addr); err != nil {
+		if sts.enabled() {
+			err = &ErrSTSUpgradeFailed{Err: err}
+		}
+
+		if sts.expired() && !conf.DisableSTSFallback {
+			sts.lastFailed = time.Now()
+			sts.reset()
+		}
 		return nil, err
 	}
 
-	if conf.SSL {
+	if conf.SSL || sts.enabled() {
 		var tlsConn net.Conn
 		tlsConn, err = tlsHandshake(conn, conf.TLSConfig, conf.Server, true)
 		if err != nil {
+			if sts.enabled() {
+				err = &ErrSTSUpgradeFailed{Err: err}
+			}
+
+			if sts.expired() && !conf.DisableSTSFallback {
+				sts.lastFailed = time.Now()
+				sts.reset()
+			}
 			return nil, err
 		}
 
@@ -245,6 +261,7 @@ func (c *Client) MockConnect(conn net.Conn) error {
 }
 
 func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
+startConn:
 	// We want to be the only one handling connects/disconnects right now.
 	c.mu.Lock()
 
@@ -253,13 +270,20 @@ func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 	}
 
 	// Reset the state.
-	c.state.reset()
+	c.state.reset(false)
+
+	addr := c.server()
 
 	if mock == nil {
 		// Validate info, and actually make the connection.
-		c.debug.Printf("connecting to %s...", c.Server())
-		conn, err := newConn(c.Config, dialer, c.Server())
+		c.debug.Printf("connecting to %s... (sts: %v, config-ssl: %v)", addr, c.state.sts.enabled(), c.Config.SSL)
+		conn, err := newConn(c.Config, dialer, addr, &c.state.sts)
 		if err != nil {
+			if _, ok := err.(*ErrSTSUpgradeFailed); ok {
+				if !c.state.sts.enabled() {
+					c.RunHandlers(&Event{Command: STS_ERR_FALLBACK})
+				}
+			}
 			c.mu.Unlock()
 			return err
 		}
@@ -312,16 +336,18 @@ func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 	c.write(&Event{Command: USER, Params: []string{c.Config.User, "*", "*", c.Config.Name}})
 
 	// Send a virtual event allowing hooks for successful socket connection.
-	c.RunHandlers(&Event{Command: INITIALIZED, Params: []string{c.Server()}})
+	c.RunHandlers(&Event{Command: INITIALIZED, Params: []string{addr}})
 
 	// Wait for the first error.
 	var result error
 	select {
 	case <-ctx.Done():
-		c.debug.Print("received request to close, beginning clean up")
-		c.RunHandlers(&Event{Command: CLOSED, Params: []string{c.Server()}})
+		if !c.state.sts.beginUpgrade {
+			c.debug.Print("received request to close, beginning clean up")
+		}
+		c.RunHandlers(&Event{Command: CLOSED, Params: []string{addr}})
 	case err := <-errs:
-		c.debug.Print("received error, beginning clean up")
+		c.debug.Printf("received error, beginning cleanup: %v", err)
 		result = err
 	}
 
@@ -336,7 +362,7 @@ func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 	c.conn.mu.Unlock()
 	c.mu.RUnlock()
 
-	c.RunHandlers(&Event{Command: DISCONNECTED, Params: []string{c.Server()}})
+	c.RunHandlers(&Event{Command: DISCONNECTED, Params: []string{addr}})
 
 	// Once we have our error/result, let all other functions know we're done.
 	c.debug.Print("waiting for all routines to finish")
@@ -350,6 +376,18 @@ func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 	// clients, not multiple instances of Connect().
 	c.mu.Lock()
 	c.conn = nil
+
+	if result == nil {
+		if c.state.sts.beginUpgrade {
+			c.state.sts.beginUpgrade = false
+			c.mu.Unlock()
+			goto startConn
+		}
+
+		if c.state.sts.enabled() {
+			c.state.sts.persistenceReceived = time.Now()
+		}
+	}
 	c.mu.Unlock()
 
 	return result
@@ -445,7 +483,7 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 				c.state.RLock()
 				var in bool
 				for i := 0; i < len(c.state.enabledCap); i++ {
-					if c.state.enabledCap[i] == "message-tags" {
+					if _, ok := c.state.enabledCap["message-tags"]; ok {
 						in = true
 						break
 					}

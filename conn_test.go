@@ -110,7 +110,7 @@ func mockReadBuffer(conn net.Conn) {
 	// Accept all outgoing writes from the client.
 	b := bufio.NewReader(conn)
 	for {
-		conn.SetReadDeadline(time.Now().Add(300 * time.Second))
+		conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 		_, err := b.ReadString(byte('\n'))
 		if err != nil {
 			return

@@ -97,6 +97,16 @@ type Config struct {
 	// configuration (e.g. to not force hostname checking). This only has an
 	// affect during the dial process.
 	SSL bool
+	// DisableSTS disables the use of automatic STS connection upgrades
+	// when the server supports STS. STS can also be disabled using the environment
+	// variable "GIRC_DISABLE_STS=true". As many clients may not propagate options
+	// like this back to the user, this allows to directly disable such automatic
+	// functionality.
+	DisableSTS bool
+	// DisableSTSFallback disables the "fallback" to a non-tls connection if the
+	// strict transport policy expires and the first attempt to reconnect back to
+	// the tls version fails.
+	DisableSTSFallback bool
 	// TLSConfig is an optional user-supplied tls configuration, used during
 	// socket creation to the server. SSL must be enabled for this to be used.
 	// This only has an affect during the dial process.
@@ -148,7 +158,7 @@ type Config struct {
 
 	// disableTracking disables all channel and user-level tracking. Useful
 	// for highly embedded scripts with single purposes. This has an exported
-	// method which enables this and ensures prop cleanup, see
+	// method which enables this and ensures proper cleanup, see
 	// Client.DisableTracking().
 	disableTracking bool
 	// HandleNickCollide when set, allows the client to handle nick collisions
@@ -266,12 +276,17 @@ func New(config Config) *Client {
 		c.debug.Print("initializing debugging")
 	}
 
+	envDisableSTS, _ := strconv.ParseBool((os.Getenv("GIRC_DISABLE_STS")))
+	if envDisableSTS {
+		c.Config.DisableSTS = envDisableSTS
+	}
+
 	// Setup the caller.
 	c.Handlers = newCaller(c.debug)
 
 	// Give ourselves a new state.
 	c.state = &state{}
-	c.state.reset()
+	c.state.reset(true)
 
 	// Register builtin handlers.
 	c.registerBuiltins()
@@ -412,8 +427,20 @@ func (c *Client) DisableTracking() {
 	c.registerBuiltins()
 }
 
-// Server returns the string representation of host+port pair for net.Conn.
+// Server returns the string representation of host+port pair for the connection.
 func (c *Client) Server() string {
+	c.state.Lock()
+	defer c.state.Lock()
+
+	return c.server()
+}
+
+// server returns the string representation of host+port pair for net.Conn, and
+// takes into consideration STS. Must lock state mu first!
+func (c *Client) server() string {
+	if c.state.sts.enabled() {
+		return fmt.Sprintf("%s:%d", c.Config.Server, c.state.sts.upgradePort)
+	}
 	return fmt.Sprintf("%s:%d", c.Config.Server, c.Config.Port)
 }
 
@@ -700,8 +727,9 @@ func (c *Client) HasCapability(name string) (has bool) {
 	name = strings.ToLower(name)
 
 	c.state.RLock()
-	for i := 0; i < len(c.state.enabledCap); i++ {
-		if strings.ToLower(c.state.enabledCap[i]) == name {
+	for key := range c.state.enabledCap {
+		key = strings.ToLower(key)
+		if key == name {
 			has = true
 			break
 		}
