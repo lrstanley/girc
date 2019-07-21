@@ -12,8 +12,10 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -402,7 +404,7 @@ func (c *Client) DisableTracking() {
 
 // Server returns the string representation of host+port pair for net.Conn.
 func (c *Client) Server() string {
-	return fmt.Sprintf("%s:%d", c.Config.Server, c.Config.Port)
+	return net.JoinHostPort(c.Config.Server, strconv.Itoa(c.Config.Port))
 }
 
 // Lifetime returns the amount of time that has passed since the client was
