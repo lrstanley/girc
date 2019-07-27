@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"runtime"
 	"sort"
@@ -439,9 +440,9 @@ func (c *Client) Server() string {
 // takes into consideration STS. Must lock state mu first!
 func (c *Client) server() string {
 	if c.state.sts.enabled() {
-		return fmt.Sprintf("%s:%d", c.Config.Server, c.state.sts.upgradePort)
+		return net.JoinHostPort(c.Config.Server, strconv.Itoa(c.state.sts.upgradePort))
 	}
-	return fmt.Sprintf("%s:%d", c.Config.Server, c.Config.Port)
+	return net.JoinHostPort(c.Config.Server, strconv.Itoa(c.Config.Port))
 }
 
 // Lifetime returns the amount of time that has passed since the client was
