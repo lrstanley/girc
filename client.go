@@ -754,3 +754,25 @@ func (c *Client) panicIfNotTracking() {
 
 	panic(fmt.Sprintf("%s used when tracking is disabled (caller %s:%d)", fn.Name(), file, line))
 }
+
+func (c *Client) debugLogEvent(e *Event, dropped bool) {
+	var prefix string
+
+	if dropped {
+		prefix = "dropping event (disconnected):"
+	} else {
+		prefix = ">"
+	}
+
+	if e.Sensitive {
+		c.debug.Printf(prefix, " %s ***redacted***", e.Command)
+	} else {
+		c.debug.Print(prefix, " ", StripRaw(e.String()))
+	}
+
+	if c.Config.Out != nil {
+		if pretty, ok := e.Pretty(); ok {
+			fmt.Fprintln(c.Config.Out, StripRaw(pretty))
+		}
+	}
+}

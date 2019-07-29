@@ -430,8 +430,23 @@ func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 // Send sends an event to the server. Use Client.RunHandlers() if you are
 // simply looking to trigger handlers with an event.
 func (c *Client) Send(event *Event) {
+	var delay time.Duration
+
 	if !c.Config.AllowFlood {
-		<-time.After(c.conn.rate(event.Len()))
+		c.mu.RLock()
+
+		// Drop the event early as we're disconnected, this way we don't have to wait
+		// the (potentially long) rate limit delay before dropping.
+		if c.conn == nil {
+			c.debugLogEvent(event, true)
+			c.mu.RUnlock()
+			return
+		}
+
+		c.conn.mu.Lock()
+		delay = c.conn.rate(event.Len())
+		c.conn.mu.Unlock()
+		c.mu.RUnlock()
 	}
 
 	if c.Config.GlobalFormat && len(event.Params) > 0 && event.Params[len(event.Params)-1] != "" &&
@@ -439,7 +454,18 @@ func (c *Client) Send(event *Event) {
 		event.Params[len(event.Params)-1] = Fmt(event.Params[len(event.Params)-1])
 	}
 
+	<-time.After(delay)
+
+	// Relock client again as there may be an extended delay.
+	c.mu.RLock()
+	if c.conn == nil {
+		// Drop the event if disconnected.
+		c.debugLogEvent(event, true)
+		c.mu.RUnlock()
+		return
+	}
 	c.write(event)
+	c.mu.RUnlock()
 }
 
 // write is the lower level function to write an event. It does not have a
@@ -453,14 +479,10 @@ func (c *Client) write(event *Event) {
 func (c *ircConn) rate(chars int) time.Duration {
 	_time := time.Second + ((time.Duration(chars) * time.Second) / 100)
 
-	c.mu.Lock()
 	if c.writeDelay += _time - time.Now().Sub(c.lastWrite); c.writeDelay < 0 {
 		c.writeDelay = 0
 	}
-	c.mu.Unlock()
 
-	c.mu.RLock()
-	defer c.mu.RUnlock()
 	if c.writeDelay > (8 * time.Second) {
 		return _time
 	}
@@ -495,17 +517,7 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 				}
 			}
 
-			// Log the event.
-			if event.Sensitive {
-				c.debug.Printf("> %s ***redacted***", event.Command)
-			} else {
-				c.debug.Print("> ", StripRaw(event.String()))
-			}
-			if c.Config.Out != nil {
-				if pretty, ok := event.Pretty(); ok {
-					fmt.Fprintln(c.Config.Out, StripRaw(pretty))
-				}
-			}
+			c.debugLogEvent(event, false)
 
 			c.conn.mu.Lock()
 			c.conn.lastWrite = time.Now()
