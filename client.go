@@ -351,6 +351,18 @@ func (c *Client) Close() {
 	c.mu.RUnlock()
 }
 
+// Quit sends a QUIT message to the server with a given reason to close the
+// connection. Underlying this event being sent, Client.Close() is called as well.
+// This is different than just calling Client.Close() in that it provides a reason
+// as to why the connection was closed (for bots to tell users the bot is restarting,
+// or shutting down, etc).
+//
+// NOTE: servers may delay showing of QUIT reasons, until you've been connected to
+// the server for a certain period of time (e.g. 5 minutes). Keep this in mind.
+func (c *Client) Quit(reason string) {
+	c.Send(&Event{Command: QUIT, Params: []string{reason}})
+}
+
 // ErrEvent is an error returned when the server (or library) sends an ERROR
 // message response. The string returned contains the trailing text from the
 // message.

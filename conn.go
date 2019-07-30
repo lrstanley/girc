@@ -455,22 +455,20 @@ func (c *Client) Send(event *Event) {
 	}
 
 	<-time.After(delay)
-
-	// Relock client again as there may be an extended delay.
-	c.mu.RLock()
-	if c.conn == nil {
-		// Drop the event if disconnected.
-		c.debugLogEvent(event, true)
-		c.mu.RUnlock()
-		return
-	}
 	c.write(event)
-	c.mu.RUnlock()
 }
 
 // write is the lower level function to write an event. It does not have a
 // write-delay when sending events.
 func (c *Client) write(event *Event) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	if c.conn == nil {
+		// Drop the event if disconnected.
+		c.debugLogEvent(event, true)
+		return
+	}
 	c.tx <- event
 }
 
@@ -536,6 +534,12 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 					// Lastly, flush everything to the socket.
 					err = c.conn.io.Flush()
 				}
+			}
+
+			if event.Command == QUIT {
+				c.Close()
+				wg.Done()
+				return
 			}
 
 			if err != nil {
