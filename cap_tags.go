@@ -82,11 +82,11 @@ func ParseTags(raw string) (t Tags) {
 		}
 
 		// Check if tag key or decoded value are invalid.
-		if !validTag(parts[i][:hasValue]) || !validTagValue(tagDecoder.Replace(parts[i][hasValue+1:])) {
-			continue
-		}
+		// if !validTag(parts[i][:hasValue]) || !validTagValue(tagDecoder.Replace(parts[i][hasValue+1:])) {
+		// 	continue
+		// }
 
-		t[parts[i][:hasValue]] = parts[i][hasValue+1:]
+		t[parts[i][:hasValue]] = tagDecoder.Replace(parts[i][hasValue+1:])
 	}
 
 	return t
