@@ -427,9 +427,19 @@ func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 	}
 }
 
-// Send sends an event to the server. Use Client.RunHandlers() if you are
-// simply looking to trigger handlers with an event.
+// Send sends an event to the server. The event is potentially split
+// into mulitple events if it exceeds the maximum message length. Use
+// Client.RunHandlers() if you are simply looking to trigger handlers
+// with an event.
 func (c *Client) Send(event *Event) {
+	for _, e := range splitEvent(c, event) {
+		c.sendSingle(e)
+	}
+}
+
+// sendSingle sends a single event to the server. The event is assumed
+// to not exceed the maximum message length.
+func (c *Client) sendSingle(event *Event) {
 	var delay time.Duration
 
 	if !c.Config.AllowFlood {
