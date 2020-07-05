@@ -83,6 +83,9 @@ func (c *Client) getMaxLen() int {
 	//   ":" <nickname> "!" <user> "@" <host> " "
 	//
 	maxPrefixLen = 1 + nicklen + 1 + userlen + 1 + hostlen + 1
+	if maxPrefixLen >= maxIRClen {
+		panic("maximum prefix length exceeds maximum IRC message length")
+	}
 
 	return maxIRClen - maxPrefixLen
 }
