@@ -18,7 +18,13 @@ var splitFuncs = map[string]splitFunc{
 // getIntOption returns the integer value for a given IRC server option
 // name. If the value is not a valid integer or not available, the
 // given default value is returned instead.
+//
+// If tracking is disabled, the default value is always returned.
 func getIntOption(client *Client, key string, def int) (val int) {
+	if client.Config.disableTracking {
+		return def
+	}
+
 	var err error
 	strval, success := client.GetServerOption(key)
 	if success {
