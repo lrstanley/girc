@@ -428,13 +428,17 @@ func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 }
 
 // Send sends an event to the server. The event is potentially split
-// into mulitple events if it exceeds the maximum message length. Use
+// into mulitple events if it exceeds the maximum message length. A list
+// of all events, actually send to the server, is returned to allow for
+// further processing of potentially splitted events. Use
 // Client.RunHandlers() if you are simply looking to trigger handlers
 // with an event.
-func (c *Client) Send(event *Event) {
-	for _, e := range splitEvent(c, event) {
+func (c *Client) Send(event *Event) []*Event {
+	events := splitEvent(c, event)
+	for _, e := range events {
 		c.sendSingle(e)
 	}
+	return events
 }
 
 // sendSingle sends a single event to the server. The event is assumed
