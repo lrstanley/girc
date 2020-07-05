@@ -52,12 +52,23 @@ func splitPRIVMSG(event *Event, maxLen int) (events []*Event) {
 	return events
 }
 
-// maxPrefixLen returns the maximum possible length of a server message
-// prefix as defined by the following ABNF in RFC 2812:
-//
-//   [ ":" ( servername / ( nickname [ [ "!" user ] "@" host ] ) ) SPACE ]
-//
-func (c *Client) maxPrefixLen() int {
+// getMaxLen returns the maximum possible length of an IRC message.
+// Messages exceeding this length (without taking the prefix length into
+// account) must be split into multiple separate messages.
+func (c *Client) getMaxLen() int {
+	// From RFC 2812:
+	//   IRC messages are always lines of characters terminated with a CR-LF
+	//   (Carriage Return - Line Feed) pair, and these messages SHALL NOT
+	//   exceed 512 characters in length, counting all characters including
+	//   the trailing CR-LF.
+	const maxIRClen int = 512 - len("\r\n")
+
+	// maxPrefixLen is the maximum possible length of a server
+	// message prefix as defined by the following ABNF in RFC 2812:
+	//
+	//   [ ":" ( servername / ( nickname [ [ "!" user ] "@" host ] ) ) SPACE ]
+	var maxPrefixLen int
+
 	// Default values taken from https://modern.ircdocs.horse/
 	// Most of these are not actually standardized.
 	nicklen := c.getServerOptionInt("NICKLEN", 10)
@@ -71,21 +82,9 @@ func (c *Client) maxPrefixLen() int {
 	//
 	//   ":" <nickname> "!" <user> "@" <host> " "
 	//
-	return 1 + nicklen + 1 + userlen + 1 + hostlen + 1
-}
+	maxPrefixLen = 1 + nicklen + 1 + userlen + 1 + hostlen + 1
 
-// getMaxLen returns the maximum possible length of an IRC message.
-// Messages exceeding this length (without taking the prefix length into
-// account) must be split into multiple separate messages.
-func (c *Client) getMaxLen() int {
-	// From RFC 2812:
-	//   IRC messages are always lines of characters terminated with a CR-LF
-	//   (Carriage Return - Line Feed) pair, and these messages SHALL NOT
-	//   exceed 512 characters in length, counting all characters including
-	//   the trailing CR-LF.
-	const maxIRClen int = 512 - len("\r\n")
-
-	return maxIRClen - c.maxPrefixLen()
+	return maxIRClen - maxPrefixLen
 }
 
 // splitEvent splits a given event into multiple events to satisfy the
