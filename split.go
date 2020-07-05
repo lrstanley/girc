@@ -2,7 +2,6 @@ package girc
 
 import (
 	"bytes"
-	"strconv"
 	"unicode/utf8"
 )
 
@@ -13,49 +12,6 @@ type splitFunc func(event *Event, maxLen int) []*Event
 
 var splitFuncs = map[string]splitFunc{
 	PRIVMSG: splitPRIVMSG,
-}
-
-// getIntOption returns the integer value for a given IRC server option
-// name. If the value is not a valid integer or not available, the
-// given default value is returned instead.
-//
-// If tracking is disabled, the default value is always returned.
-func getIntOption(client *Client, key string, def int) (val int) {
-	if client.Config.disableTracking {
-		return def
-	}
-
-	var err error
-	strval, success := client.GetServerOption(key)
-	if success {
-		val, err = strconv.Atoi(strval)
-	}
-	if !success || err != nil {
-		val = def
-	}
-	return val
-}
-
-// maxHostLen returns the maximum possible length of a server message
-// prefix as defined by the following ABNF in RFC 2812:
-//
-//   [ ":" ( servername / ( nickname [ [ "!" user ] "@" host ] ) ) SPACE ]
-//
-func maxPrefixLen(client *Client) int {
-	// Default values taken from https://modern.ircdocs.horse/
-	// Most of these are not actually standardized.
-	nicklen := getIntOption(client, "NICKLEN", 10)
-	userlen := getIntOption(client, "USERLEN", 18)
-	hostlen := getIntOption(client, "HOSTLEN", 63)
-
-	// The code here assumes that `servername` is never used in a
-	// prefix as this function is only concerned with messages send
-	// by ones own client. In accordance with the ABNF from above,
-	// the maximum length is therefore calculated as:
-	//
-	//   ":" <nickname> "!" <user> "@" <host> " "
-	//
-	return 1 + nicklen + 1 + userlen + 1 + hostlen + 1
 }
 
 func splitPRIVMSG(event *Event, maxLen int) (events []*Event) {
@@ -96,10 +52,32 @@ func splitPRIVMSG(event *Event, maxLen int) (events []*Event) {
 	return events
 }
 
-// splitEvent splits a given event into multiple events to satisfy the
-// maximum message length requirements imposed upon the given client by
-// the associated IRC server.
-func splitEvent(client *Client, event *Event) []*Event {
+// maxPrefixLen returns the maximum possible length of a server message
+// prefix as defined by the following ABNF in RFC 2812:
+//
+//   [ ":" ( servername / ( nickname [ [ "!" user ] "@" host ] ) ) SPACE ]
+//
+func (c *Client) maxPrefixLen() int {
+	// Default values taken from https://modern.ircdocs.horse/
+	// Most of these are not actually standardized.
+	nicklen := c.getServerOptionInt("NICKLEN", 10)
+	userlen := c.getServerOptionInt("USERLEN", 18)
+	hostlen := c.getServerOptionInt("HOSTLEN", 63)
+
+	// The code here assumes that `servername` is never used in a
+	// prefix as this function is only concerned with messages send
+	// by ones own client. In accordance with the ABNF from above,
+	// the maximum length is therefore calculated as:
+	//
+	//   ":" <nickname> "!" <user> "@" <host> " "
+	//
+	return 1 + nicklen + 1 + userlen + 1 + hostlen + 1
+}
+
+// getMaxLen returns the maximum possible length of an IRC message.
+// Messages exceeding this length (without taking the prefix length into
+// account) must be split into multiple separate messages.
+func (c *Client) getMaxLen() int {
 	// From RFC 2812:
 	//   IRC messages are always lines of characters terminated with a CR-LF
 	//   (Carriage Return - Line Feed) pair, and these messages SHALL NOT
@@ -107,17 +85,23 @@ func splitEvent(client *Client, event *Event) []*Event {
 	//   the trailing CR-LF.
 	const maxIRClen int = 512 - len("\r\n")
 
+	return maxIRClen - c.maxPrefixLen()
+}
+
+// splitEvent splits a given event into multiple events to satisfy the
+// maximum message length requirements imposed upon the given client by
+// the associated IRC server.
+func (c *Client) splitEvent(event *Event) []*Event {
 	// We cannot calculate the length of the source part actually
 	// used by the server. Assume the largest possible value and
 	// make sure source is unset for the event to ensure it is not
 	// take into account by `event.Len()`.
 	event.Source = nil // XXX: Operate on a copy instead?
 
-	maxLen := maxIRClen - maxPrefixLen(client)
-	if event.Len() > maxLen {
+	if event.Len() > c.maxMsgLen {
 		fn, ok := splitFuncs[event.Command]
 		if ok {
-			return fn(event, maxLen)
+			return fn(event, c.maxMsgLen)
 		}
 	}
 

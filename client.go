@@ -37,6 +37,8 @@ type Client struct {
 	state *state
 	// initTime represents the creation time of the client.
 	initTime time.Time
+	// Maximum length of an IRC message (excluding the prefix).
+	maxMsgLen int
 	// Handlers is a handler which manages internal and external handlers.
 	Handlers *Caller
 	// CTCP is a handler which manages internal and external CTCP handlers.
@@ -676,6 +678,27 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	result, ok = c.state.serverOptions[key]
 	c.state.RUnlock()
 	return result, ok
+}
+
+// getServerOptionInt returns the integer value for a given IRC server
+// option name. If the value is not a valid integer or not available,
+// the given fallback value is returned instead.
+//
+// If tracking is disabled, the fallback value is always returned.
+func (c *Client) getServerOptionInt(key string, fallback int) (val int) {
+	if c.Config.disableTracking {
+		return fallback
+	}
+
+	var err error
+	strval, success := c.GetServerOption(key)
+	if success {
+		val, err = strconv.Atoi(strval)
+	}
+	if !success || err != nil {
+		val = fallback
+	}
+	return val
 }
 
 // NetworkName returns the network identifier. E.g. "EsperNet", "ByteIRC".

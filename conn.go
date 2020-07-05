@@ -335,6 +335,9 @@ startConn:
 
 	c.write(&Event{Command: USER, Params: []string{c.Config.User, "*", "*", c.Config.Name}})
 
+	// Calculate maximum message length for message splitting algorithm
+	c.maxMsgLen = c.getMaxLen()
+
 	// Send a virtual event allowing hooks for successful socket connection.
 	c.RunHandlers(&Event{Command: INITIALIZED, Params: []string{addr}})
 
@@ -434,7 +437,7 @@ func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 // Client.RunHandlers() if you are simply looking to trigger handlers
 // with an event.
 func (c *Client) Send(event *Event) []*Event {
-	events := splitEvent(c, event)
+	events := c.splitEvent(event)
 	for _, e := range events {
 		c.sendSingle(e)
 	}
