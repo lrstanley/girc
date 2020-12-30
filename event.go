@@ -371,7 +371,7 @@ func (e *Event) Pretty() (out string, ok bool) {
 			source = fmt.Sprintf("--%s--", e.Source.Name)
 		}
 
-		return fmt.Sprintf("[%s] (%s) %s", strings.Join(e.Params[0:len(e.Params)-1], ","), source, e.Last()), true
+		return fmt.Sprintf("[%s] %s %s", strings.Join(e.Params[0:len(e.Params)-1], ","), source, e.Last()), true
 	}
 
 	if e.Command == RPL_MOTD || e.Command == RPL_MOTDSTART ||
