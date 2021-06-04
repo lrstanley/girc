@@ -286,7 +286,7 @@ func (e *Event) Bytes() []byte {
 		// buffer.WriteByte(eventSpace)
 
 		for i := 0; i < len(e.Params); i++ {
-			if i == len(e.Params)-1 && (strings.Contains(e.Params[i], " ") || e.Params[i] == "") {
+			if i == len(e.Params)-1 && (strings.ContainsAny(e.Params[i], " :") || e.Params[i] == "") {
 				buffer.WriteString(string(eventSpace) + string(messagePrefix) + e.Params[i])
 				continue
 			}
