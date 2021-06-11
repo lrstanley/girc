@@ -248,7 +248,7 @@ func (e *Event) Len() (length int) {
 
 			// If param contains a space or it's empty, it's trailing, so it should be
 			// prefixed with a colon (:).
-			if i == len(e.Params)-1 && (strings.Contains(e.Params[i], " ") || e.Params[i] == "") {
+			if i == len(e.Params)-1 && (strings.ContainsAny(e.Params[i], " :") || e.Params[i] == "") {
 				length++
 			}
 		}
