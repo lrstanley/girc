@@ -87,7 +87,7 @@ func TestParseEvent(t *testing.T) {
 		{in: ":host.domain.com TEST ::", want: ":host.domain.com TEST ::"},
 		{in: ":host.domain.com TEST :test1", want: ":host.domain.com TEST test1"},
 		{in: ":host.domain.com TEST :test:test", want: ":host.domain.com TEST test:test"},
-		{in: ":host.domain.com TEST :test1 :test", want: ":host.domain.com TEST test1 :test"},
+		{in: ":host.domain.com TEST :test1 :test", want: ":host.domain.com TEST :test1 :test"},
 		{in: ":host.domain.com TEST :test1 test2", want: ":host.domain.com TEST :test1 test2"},
 		{in: ":host.domain.com TEST arg1 arg2 :test1", want: ":host.domain.com TEST arg1 arg2 test1"},
 		{in: ":host.domain.com TEST arg1 arg=:10 :test1", want: ":host.domain.com TEST arg1 arg=:10 test1"},
