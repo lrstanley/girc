@@ -106,7 +106,7 @@ func parseCap(raw string) map[string]map[string]string {
 			if j < 0 {
 				out[parts[i][:val]][option] = ""
 			} else {
-				out[parts[i][:val]][option[:j]] = option[j+1 : len(option)]
+				out[parts[i][:val]][option[:j]] = option[j+1:]
 			}
 		}
 	}
@@ -316,6 +316,7 @@ func handleCHGHOST(c *Client, e Event) {
 		user.Host = e.Params[1]
 	}
 	c.state.Unlock()
+
 	c.state.notify(c, UPDATE_STATE)
 }
 

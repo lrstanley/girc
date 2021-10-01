@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -17,7 +18,7 @@ import (
 type state struct {
 	sync.RWMutex
 	// nick, ident, and host are the internal trackers for our user.
-	nick, ident, host string
+	nick, ident, host atomic.Value
 	// channels represents all channels we're active in.
 	channels map[string]*Channel
 	// users represents all of users that we're tracking.
@@ -46,9 +47,9 @@ type state struct {
 // reset resets the state back to it's original form.
 func (s *state) reset(initial bool) {
 	s.Lock()
-	s.nick = ""
-	s.ident = ""
-	s.host = ""
+	s.nick.Store("")
+	s.ident.Store("")
+	s.host.Store("")
 	s.channels = make(map[string]*Channel)
 	s.users = make(map[string]*User)
 	s.serverOptions = make(map[string]string)
@@ -481,8 +482,8 @@ func (s *state) renameUser(from, to string) {
 	from = ToRFC1459(from)
 
 	// Update our nickname.
-	if from == ToRFC1459(s.nick) {
-		s.nick = to
+	if from == ToRFC1459(s.nick.Load().(string)) {
+		s.nick.Store(to)
 	}
 
 	user := s.lookupUser(from)

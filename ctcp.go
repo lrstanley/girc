@@ -193,10 +193,10 @@ func (c *CTCP) Set(cmd string, handler func(client *Client, ctcp CTCPEvent)) {
 	if cmd = c.parseCMD(cmd); cmd == "" {
 		return
 	}
-
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.handlers[cmd] = CTCPHandler(handler)
-	c.mu.Unlock()
 }
 
 // SetBg is much like Set, however the handler is executed in the background,
@@ -270,14 +270,14 @@ func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
 
 	client.Cmd.SendCTCPReplyf(
 		ctcp.Source.ID(), CTCP_VERSION,
-		"girc (github.com/lrstanley/girc) using %s (%s, %s)",
+		"girc (git.tcp.direct/kayos/girc-atomic) using %s (%s, %s)",
 		runtime.Version(), runtime.GOOS, runtime.GOARCH,
 	)
 }
 
 // handleCTCPSource replies with the public git location of this library.
 func handleCTCPSource(client *Client, ctcp CTCPEvent) {
-	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_SOURCE, "https://github.com/lrstanley/girc")
+	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_SOURCE, "https://git.tcp.direct/kayos/girc-atomic")
 }
 
 // handleCTCPTime replies with a RFC 1123 (Z) formatted version of Go's
@@ -289,9 +289,6 @@ func handleCTCPTime(client *Client, ctcp CTCPEvent) {
 // handleCTCPFinger replies with the realname and idle time of the user. This
 // is obsoleted by improvements to the IRC protocol, however still supported.
 func handleCTCPFinger(client *Client, ctcp CTCPEvent) {
-	client.conn.mu.RLock()
-	active := client.conn.lastActive
-	client.conn.mu.RUnlock()
-
+	active := client.conn.lastActive.Load().(time.Time)
 	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_FINGER, fmt.Sprintf("%s -- idle %s", client.Config.Name, time.Since(active)))
 }

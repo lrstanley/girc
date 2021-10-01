@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -26,25 +27,24 @@ type ircConn struct {
 	io   *bufio.ReadWriter
 	sock net.Conn
 
-	mu sync.RWMutex
 	// lastWrite is used to keep track of when we last wrote to the server.
-	lastWrite time.Time
+	lastWrite atomic.Value
 	// lastActive is the last time the client was interacting with the server,
 	// excluding a few background commands (PING, PONG, WHO, etc).
-	lastActive time.Time
+	lastActive atomic.Value
 	// writeDelay is used to keep track of rate limiting of events sent to
 	// the server.
-	writeDelay time.Duration
+	writeDelay atomic.Value
 	// connected is true if we're actively connected to a server.
-	connected bool
+	connected atomic.Value
 	// connTime is the time at which the client has connected to a server.
-	connTime *time.Time
+	connTime atomic.Value
 	// lastPing is the last time that we pinged the server.
-	lastPing time.Time
+	lastPing atomic.Value
 	// lastPong is the last successful time that we pinged the server and
 	// received a successful pong back.
-	lastPong  time.Time
-	pingDelay time.Duration
+	lastPong atomic.Value
+	// pingDelay time.Duration
 }
 
 // Dialer is an interface implementation of net.Dialer. Use this if you would
@@ -112,25 +112,27 @@ func newConn(conf Config, dialer Dialer, addr string, sts *strictTransport) (*ir
 		conn = tlsConn
 	}
 
-	ctime := time.Now()
-
 	c := &ircConn{
 		sock:      conn,
-		connTime:  &ctime,
-		connected: true,
+		connTime:  atomic.Value{},
+		connected: atomic.Value{},
 	}
+	c.connTime.Store(time.Now())
+	c.connected.Store(true)
+
 	c.newReadWriter()
 
 	return c, nil
 }
 
 func newMockConn(conn net.Conn) *ircConn {
-	ctime := time.Now()
 	c := &ircConn{
 		sock:      conn,
-		connTime:  &ctime,
-		connected: true,
+		connTime:  atomic.Value{},
+		connected: atomic.Value{},
 	}
+	c.connTime.Store(time.Now())
+	c.connected.Store(true)
 	c.newReadWriter()
 
 	return c
@@ -156,6 +158,7 @@ func (c *ircConn) decode() (event *Event, err error) {
 	return event, nil
 }
 
+/*
 func (c *ircConn) encode(event *Event) error {
 	if _, err := c.io.Write(event.Bytes()); err != nil {
 		return err
@@ -166,7 +169,7 @@ func (c *ircConn) encode(event *Event) error {
 
 	return c.io.Flush()
 }
-
+*/
 func (c *ircConn) newReadWriter() {
 	c.io = bufio.NewReadWriter(bufio.NewReader(c.sock), bufio.NewWriter(c.sock))
 }
@@ -262,8 +265,6 @@ func (c *Client) MockConnect(conn net.Conn) error {
 
 func (c *Client) internalConnect(mock net.Conn, dialer Dialer) error {
 startConn:
-	// We want to be the only one handling connects/disconnects right now.
-	c.mu.Lock()
 
 	if c.conn != nil {
 		panic("use of connect more than once")
@@ -284,7 +285,6 @@ startConn:
 					c.RunHandlers(&Event{Command: STS_ERR_FALLBACK})
 				}
 			}
-			c.mu.Unlock()
 			return err
 		}
 
@@ -295,7 +295,6 @@ startConn:
 
 	var ctx context.Context
 	ctx, c.stop = context.WithCancel(context.Background())
-	c.mu.Unlock()
 
 	errs := make(chan error, 4)
 	var wg sync.WaitGroup
@@ -352,15 +351,13 @@ startConn:
 	}
 
 	// Make sure that the connection is closed if not already.
-	c.mu.RLock()
+
 	if c.stop != nil {
 		c.stop()
 	}
-	c.conn.mu.Lock()
-	c.conn.connected = false
+
+	c.conn.connected.Store(false)
 	_ = c.conn.Close()
-	c.conn.mu.Unlock()
-	c.mu.RUnlock()
 
 	c.RunHandlers(&Event{Command: DISCONNECTED, Params: []string{addr}})
 
@@ -374,13 +371,11 @@ startConn:
 	// This helps ensure that the end user isn't improperly using the client
 	// more than once. If they want to do this, they should be using multiple
 	// clients, not multiple instances of Connect().
-	c.mu.Lock()
 	c.conn = nil
 
 	if result == nil {
 		if c.state.sts.beginUpgrade {
 			c.state.sts.beginUpgrade = false
-			c.mu.Unlock()
 			goto startConn
 		}
 
@@ -388,7 +383,6 @@ startConn:
 			c.state.sts.persistenceReceived = time.Now()
 		}
 	}
-	c.mu.Unlock()
 
 	return result
 }
@@ -432,21 +426,21 @@ func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 func (c *Client) Send(event *Event) {
 	var delay time.Duration
 
+	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
+		randSleep()
+	}
+	defer atomic.StoreUint32(&c.atom, stateUnlocked)
+
 	if !c.Config.AllowFlood {
-		c.mu.RLock()
 
 		// Drop the event early as we're disconnected, this way we don't have to wait
 		// the (potentially long) rate limit delay before dropping.
 		if c.conn == nil {
 			c.debugLogEvent(event, true)
-			c.mu.RUnlock()
 			return
 		}
 
-		c.conn.mu.Lock()
 		delay = c.conn.rate(event.Len())
-		c.conn.mu.Unlock()
-		c.mu.RUnlock()
 	}
 
 	if c.Config.GlobalFormat && len(event.Params) > 0 && event.Params[len(event.Params)-1] != "" &&
@@ -477,11 +471,18 @@ func (c *Client) write(event *Event) {
 func (c *ircConn) rate(chars int) time.Duration {
 	_time := time.Second + ((time.Duration(chars) * time.Second) / 100)
 
-	if c.writeDelay += _time - time.Now().Sub(c.lastWrite); c.writeDelay < 0 {
-		c.writeDelay = 0
+	if c.writeDelay.Load() == nil {
+		c.writeDelay.Store(time.Duration(0))
+	}
+	wdelay := c.writeDelay.Load().(time.Duration)
+
+	lwrite := c.lastWrite.Load().(time.Time)
+
+	if wdelay += _time - time.Since(lwrite); wdelay < 0 {
+		c.writeDelay.Store(time.Duration(0))
 	}
 
-	if c.writeDelay > (8 * time.Second) {
+	if c.writeDelay.Load().(time.Duration) > (8 * time.Second) {
 		return _time
 	}
 
@@ -500,7 +501,7 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 			// Check if tags exist on the event. If they do, and message-tags
 			// isn't a supported capability, remove them from the event.
 			if event.Tags != nil {
-				c.state.RLock()
+				// c.state.RLock()
 				var in bool
 				for i := 0; i < len(c.state.enabledCap); i++ {
 					if _, ok := c.state.enabledCap["message-tags"]; ok {
@@ -508,7 +509,7 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 						break
 					}
 				}
-				c.state.RUnlock()
+				// c.state.RUnlock()
 
 				if !in {
 					event.Tags = Tags{}
@@ -517,13 +518,11 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 
 			c.debugLogEvent(event, false)
 
-			c.conn.mu.Lock()
-			c.conn.lastWrite = time.Now()
+			c.conn.lastWrite.Store(time.Now())
 
 			if event.Command != PING && event.Command != PONG && event.Command != WHO {
 				c.conn.lastActive = c.conn.lastWrite
 			}
-			c.conn.mu.Unlock()
 
 			// Write the raw line.
 			_, err = c.conn.io.Write(event.Bytes())
@@ -579,10 +578,8 @@ func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 	c.debug.Print("starting pingLoop")
 	defer c.debug.Print("closing pingLoop")
 
-	c.conn.mu.Lock()
-	c.conn.lastPing = time.Now()
-	c.conn.lastPong = time.Now()
-	c.conn.mu.Unlock()
+	c.conn.lastPing.Store(time.Now())
+	c.conn.lastPong.Store(time.Now())
 
 	tick := time.NewTicker(c.Config.PingDelay)
 	defer tick.Stop()
@@ -603,26 +600,21 @@ func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 				past = true
 			}
 
-			c.conn.mu.RLock()
-			if time.Since(c.conn.lastPong) > c.Config.PingDelay+(60*time.Second) {
+			if time.Since(c.conn.lastPong.Load().(time.Time)) > c.Config.PingDelay+(120*time.Second) {
 				// It's 60 seconds over what out ping delay is, connection
 				// has probably dropped.
 				errs <- ErrTimedOut{
-					TimeSinceSuccess: time.Since(c.conn.lastPong),
-					LastPong:         c.conn.lastPong,
-					LastPing:         c.conn.lastPing,
+					TimeSinceSuccess: time.Since(c.conn.lastPong.Load().(time.Time)),
+					LastPong:         c.conn.lastPong.Load().(time.Time),
+					LastPing:         c.conn.lastPing.Load().(time.Time),
 					Delay:            c.Config.PingDelay,
 				}
 
 				wg.Done()
-				c.conn.mu.RUnlock()
 				return
 			}
-			c.conn.mu.RUnlock()
 
-			c.conn.mu.Lock()
-			c.conn.lastPing = time.Now()
-			c.conn.mu.Unlock()
+			c.conn.lastPing.Store(time.Now())
 
 			c.Cmd.Ping(fmt.Sprintf("%d", time.Now().UnixNano()))
 		case <-ctx.Done():

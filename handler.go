@@ -99,11 +99,11 @@ func newCaller(debugOut *log.Logger) *Caller {
 func (c *Caller) Len() int {
 	var total int
 
-	c.mu.RLock()
+	// c.mu.RLock()
 	for command := range c.external {
 		total += len(c.external[command])
 	}
-	c.mu.RUnlock()
+	// c.mu.RUnlock()
 
 	return total
 }
@@ -115,13 +115,13 @@ func (c *Caller) Count(cmd string) int {
 
 	cmd = strings.ToUpper(cmd)
 
-	c.mu.RLock()
+	// c.mu.RLock()
 	for command := range c.external {
 		if command == cmd {
 			total += len(c.external[command])
 		}
 	}
-	c.mu.RUnlock()
+	// c.mu.RUnlock()
 
 	return total
 }
@@ -176,7 +176,7 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 	// Build a stack of handlers which can be executed concurrently.
 	var stack []execStack
 
-	c.mu.RLock()
+	// c.mu.RLock()
 	// Get internal handlers first.
 	if _, ok := c.internal[command]; ok {
 		for cuid := range c.internal[command] {
@@ -198,7 +198,7 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 			stack = append(stack, execStack{c.external[command][cuid], cuid})
 		}
 	}
-	c.mu.RUnlock()
+	// c.mu.RUnlock()
 
 	// Run all handlers concurrently across the same event. This should
 	// still help prevent mis-ordered events, while speeding up the
@@ -264,9 +264,9 @@ func (c *Caller) Clear(cmd string) {
 	cmd = strings.ToUpper(cmd)
 
 	c.mu.Lock()
-	if _, ok := c.external[cmd]; ok {
-		delete(c.external, cmd)
-	}
+
+	delete(c.external, cmd)
+
 	c.mu.Unlock()
 
 	c.debug.Printf("cleared external handlers for %s", cmd)
@@ -458,7 +458,6 @@ func recoverHandlerPanic(client *Client, event *Event, id string, skip int) {
 	}
 
 	client.Config.RecoverFunc(client, err)
-	return
 }
 
 // HandlerError is the error returned when a panic is intentionally recovered

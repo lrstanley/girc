@@ -13,7 +13,7 @@ import (
 
 const (
 	eventSpace byte = ' ' // Separator.
-	maxLength       = 510 // Maximum length is 510 (2 for line endings).
+	maxLength  int  = 510 // Maximum length is 510 (2 for line endings).
 )
 
 // cutCRFunc is used to trim CR characters from prefixes/messages.
@@ -248,7 +248,7 @@ func (e *Event) Len() (length int) {
 
 			// If param contains a space or it's empty, it's trailing, so it should be
 			// prefixed with a colon (:).
-			if i == len(e.Params)-1 && (strings.Contains(e.Params[i], " ") || strings.HasPrefix(e.Params[i], ":") || e.Params[i] == "") {
+			if i == len(e.Params)-1 && (strings.Contains(e.Params[i], " ") || e.Params[i] == "") {
 				length++
 			}
 		}
@@ -268,7 +268,9 @@ func (e *Event) Bytes() []byte {
 
 	// Tags.
 	if e.Tags != nil {
-		e.Tags.writeTo(buffer)
+		if _, err := e.Tags.writeTo(buffer); err != nil {
+			return nil
+		}
 	}
 
 	// Event prefix.
@@ -284,8 +286,9 @@ func (e *Event) Bytes() []byte {
 	// Space separated list of arguments.
 	if len(e.Params) > 0 {
 		// buffer.WriteByte(eventSpace)
+
 		for i := 0; i < len(e.Params); i++ {
-			if i == len(e.Params)-1 && (strings.Contains(e.Params[i], " ") || strings.HasPrefix(e.Params[i], ":") || e.Params[i] == "") {
+			if i == len(e.Params)-1 && (strings.Contains(e.Params[i], " ") || e.Params[i] == "") {
 				buffer.WriteString(string(eventSpace) + string(messagePrefix) + e.Params[i])
 				continue
 			}
@@ -636,6 +639,4 @@ func (s *Source) writeTo(buffer *bytes.Buffer) {
 		buffer.WriteByte(prefixHost)
 		buffer.WriteString(s.Host)
 	}
-
-	return
 }

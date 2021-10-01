@@ -5,7 +5,6 @@
 package girc
 
 import (
-	"strconv"
 	"errors"
 	"fmt"
 )
@@ -112,7 +111,7 @@ func (cmd *Commands) Message(target, message string) {
 // Messagef sends a formated PRIVMSG to target (either channel, service, or
 // user).
 func (cmd *Commands) Messagef(target, format string, a ...interface{}) {
-	cmd.Message(target, fmt.Sprintf(format, a...))
+	cmd.Message(target, fmt.Sprintf(Fmt(format), a...))
 }
 
 // ErrInvalidSource is returned when a method needs to know the origin of an
@@ -136,11 +135,33 @@ func (cmd *Commands) Reply(event Event, message string) {
 	cmd.Message(event.Source.Name, message)
 }
 
+// ReplyKick kicks the source of the event from the channel where the event originated
+func (cmd *Commands) ReplyKick(event Event, reason string) {
+	if event.Source == nil {
+		panic(ErrInvalidSource)
+	}
+
+	if len(event.Params) > 0 && IsValidChannel(event.Params[0]) {
+		cmd.Kick(event.Params[0], event.Source.Name, reason)
+	}
+}
+
+// ReplyBan kicks the source of the event from the channel where the event originated
+func (cmd *Commands) ReplyBan(event Event, reason string) {
+	if event.Source == nil {
+		panic(ErrInvalidSource)
+	}
+
+	if len(event.Params) > 0 && IsValidChannel(event.Params[0]) {
+		cmd.Ban(event.Params[0], event.Source.Name)
+	}
+}
+
 // Replyf sends a reply to channel or user with a format string, based on
 // where the supplied event originated from. See also ReplyTof(). Panics if
 // the incoming event has no source.
 func (cmd *Commands) Replyf(event Event, format string, a ...interface{}) {
-	cmd.Reply(event, fmt.Sprintf(format, a...))
+	cmd.Reply(event, fmt.Sprintf(Fmt(format), a...))
 }
 
 // ReplyTo sends a reply to a channel or user, based on where the supplied
@@ -165,7 +186,7 @@ func (cmd *Commands) ReplyTo(event Event, message string) {
 // from a channel will default to replying with "<user>, <message>". See
 // also Replyf(). Panics if the incoming event has no source.
 func (cmd *Commands) ReplyTof(event Event, format string, a ...interface{}) {
-	cmd.ReplyTo(event, fmt.Sprintf(format, a...))
+	cmd.ReplyTo(event, fmt.Sprintf(Fmt(format), a...))
 }
 
 // Action sends a PRIVMSG ACTION (/me) to target (either channel, service,
@@ -221,7 +242,7 @@ func (cmd *Commands) SendRawf(format string, a ...interface{}) error {
 // Topic sets the topic of channel to message. Does not verify the length
 // of the topic.
 func (cmd *Commands) Topic(channel, message string) {
-	cmd.c.Send(&Event{Command: TOPIC, Params: []string{channel, message}})
+	cmd.c.Send(&Event{Command: TOPIC, Params: []string{channel, Fmt(message)}})
 }
 
 // Who sends a WHO query to the server, which will attempt WHOX by default.
@@ -357,7 +378,7 @@ func (cmd *Commands) List(channels ...string) {
 // Whowas sends a WHOWAS query to the server. amount is the amount of results
 // you want back.
 func (cmd *Commands) Whowas(user string, amount int) {
-	cmd.c.Send(&Event{Command: WHOWAS, Params: []string{user, strconv.Itoa(amount)}})
+	cmd.c.Send(&Event{Command: WHOWAS, Params: []string{user, string(fmt.Sprintf("%d", amount))}})
 }
 
 // Monitor sends a MONITOR query to the server. The results of the query

@@ -47,6 +47,9 @@ type Client struct {
 	// so multiple threads aren't trying to connect at the same time, and
 	// vice versa.
 	mu sync.RWMutex
+
+	atom uint32
+
 	// stop is used to communicate with Connect(), letting it know that the
 	// client wishes to cancel/close.
 	stop context.CancelFunc
@@ -229,10 +232,10 @@ func (conf *Config) isValid() error {
 	}
 
 	if !IsValidNick(conf.Nick) {
-		return &ErrInvalidConfig{Conf: *conf, err: errors.New("bad nickname specified")}
+		return &ErrInvalidConfig{Conf: *conf, err: errors.New("bad nickname specified: " + conf.Nick)}
 	}
 	if !IsValidUser(conf.User) {
-		return &ErrInvalidConfig{Conf: *conf, err: errors.New("bad user/ident specified")}
+		return &ErrInvalidConfig{Conf: *conf, err: errors.New("bad user/ident specified: " + conf.User)}
 	}
 
 	return nil
@@ -250,6 +253,7 @@ func New(config Config) *Client {
 		tx:       make(chan *Event, 25),
 		CTCP:     newCTCP(),
 		initTime: time.Now(),
+		atom:     stateUnlocked,
 	}
 
 	c.Cmd = &Commands{c: c}
@@ -313,16 +317,11 @@ func (c *Client) String() string {
 // connection wasn't established using TLS (see ErrConnNotTLS), or if the
 // client isn't connected.
 func (c *Client) TLSConnectionState() (*tls.ConnectionState, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
 	if c.conn == nil {
 		return nil, ErrNotConnected
 	}
 
-	c.conn.mu.RLock()
-	defer c.conn.mu.RUnlock()
-
-	if !c.conn.connected {
+	if !c.conn.connected.Load().(bool) {
 		return nil, ErrNotConnected
 	}
 
@@ -442,9 +441,6 @@ func (c *Client) DisableTracking() {
 
 // Server returns the string representation of host+port pair for the connection.
 func (c *Client) Server() string {
-	c.state.Lock()
-	defer c.state.Lock()
-
 	return c.server()
 }
 
@@ -465,16 +461,12 @@ func (c *Client) Lifetime() time.Duration {
 
 // Uptime is the time at which the client successfully connected to the
 // server.
-func (c *Client) Uptime() (up *time.Time, err error) {
+func (c *Client) Uptime() (up time.Time, err error) {
 	if !c.IsConnected() {
-		return nil, ErrNotConnected
+		return time.Now(), ErrNotConnected
 	}
 
-	c.mu.RLock()
-	c.conn.mu.RLock()
-	up = c.conn.connTime
-	c.conn.mu.RUnlock()
-	c.mu.RUnlock()
+	up = c.conn.connTime.Load().(time.Time)
 
 	return up, nil
 }
@@ -486,29 +478,18 @@ func (c *Client) ConnSince() (since *time.Duration, err error) {
 		return nil, ErrNotConnected
 	}
 
-	c.mu.RLock()
-	c.conn.mu.RLock()
-	timeSince := time.Since(*c.conn.connTime)
-	c.conn.mu.RUnlock()
-	c.mu.RUnlock()
+	timeSince := time.Since(c.conn.connTime.Load().(time.Time))
 
 	return &timeSince, nil
 }
 
 // IsConnected returns true if the client is connected to the server.
 func (c *Client) IsConnected() bool {
-	c.mu.RLock()
 	if c.conn == nil {
-		c.mu.RUnlock()
 		return false
 	}
 
-	c.conn.mu.RLock()
-	connected := c.conn.connected
-	c.conn.mu.RUnlock()
-	c.mu.RUnlock()
-
-	return connected
+	return c.conn.connected.Load().(bool)
 }
 
 // GetNick returns the current nickname of the active connection. Panics if
@@ -516,13 +497,10 @@ func (c *Client) IsConnected() bool {
 func (c *Client) GetNick() string {
 	c.panicIfNotTracking()
 
-	c.state.RLock()
-	defer c.state.RUnlock()
-
-	if c.state.nick == "" {
+	if c.state.nick.Load().(string) == "" {
 		return c.Config.Nick
 	}
-	return c.state.nick
+	return c.state.nick.Load().(string)
 }
 
 // GetID returns an RFC1459 compliant version of the current nickname. Panics
@@ -537,13 +515,10 @@ func (c *Client) GetID() string {
 func (c *Client) GetIdent() string {
 	c.panicIfNotTracking()
 
-	c.state.RLock()
-	defer c.state.RUnlock()
-
-	if c.state.ident == "" {
+	if c.state.ident.Load().(string) == "" {
 		return c.Config.User
 	}
-	return c.state.ident
+	return c.state.ident.Load().(string)
 }
 
 // GetHost returns the current host of the active connection. Panics if
@@ -552,9 +527,8 @@ func (c *Client) GetIdent() string {
 func (c *Client) GetHost() (host string) {
 	c.panicIfNotTracking()
 
-	c.state.RLock()
-	host = c.state.host
-	c.state.RUnlock()
+	host = c.state.host.Load().(string)
+
 	return host
 }
 
@@ -714,11 +688,7 @@ func (c *Client) ServerMOTD() (motd string) {
 // by determining the difference in time between when we ping the server, and
 // when we receive a pong.
 func (c *Client) Latency() (delta time.Duration) {
-	c.mu.RLock()
-	c.conn.mu.RLock()
-	delta = c.conn.lastPong.Sub(c.conn.lastPing)
-	c.conn.mu.RUnlock()
-	c.mu.RUnlock()
+	delta = c.conn.lastPong.Load().(time.Time).Sub(c.conn.lastPing.Load().(time.Time))
 
 	if delta < 0 {
 		return 0

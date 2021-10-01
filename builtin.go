@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+const (
+	stateUnlocked uint32 = iota
+	stateLocked
+)
+
 // registerBuiltin sets up built-in handlers, based on client
 // configuration.
 func (c *Client) registerBuiltins() {
@@ -85,18 +90,14 @@ func handleConnect(c *Client, e Event) {
 	// the one we supplied during connection, but some networks will rename
 	// users on connect.
 	if len(e.Params) > 0 {
-		c.state.Lock()
-		c.state.nick = e.Params[0]
-		c.state.Unlock()
+		c.state.nick.Store(e.Params[0])
 
 		c.state.notify(c, UPDATE_GENERAL)
 	}
 
 	time.Sleep(2 * time.Second)
 
-	c.mu.RLock()
 	server := c.server()
-	c.mu.RUnlock()
 	c.RunHandlers(&Event{Command: CONNECTED, Params: []string{server}})
 }
 
@@ -117,9 +118,7 @@ func handlePING(c *Client, e Event) {
 }
 
 func handlePONG(c *Client, e Event) {
-	c.conn.mu.Lock()
-	c.conn.lastPong = time.Now()
-	c.conn.mu.Unlock()
+	c.conn.lastPong.Store(time.Now())
 }
 
 // handleJOIN ensures that the state has updated users and channels.
@@ -131,11 +130,11 @@ func handleJOIN(c *Client, e Event) {
 	channelName := e.Params[0]
 
 	c.state.Lock()
+	defer c.state.Unlock()
 
 	channel := c.state.lookupChannel(channelName)
 	if channel == nil {
 		if ok := c.state.createChannel(channelName); !ok {
-			c.state.Unlock()
 			return
 		}
 
@@ -145,7 +144,6 @@ func handleJOIN(c *Client, e Event) {
 	user := c.state.lookupUser(e.Source.Name)
 	if user == nil {
 		if ok := c.state.createUser(e.Source); !ok {
-			c.state.Unlock()
 			return
 		}
 		user = c.state.lookupUser(e.Source.Name)
@@ -166,7 +164,6 @@ func handleJOIN(c *Client, e Event) {
 			user.Extras.Name = e.Params[2]
 		}
 	}
-	c.state.Unlock()
 
 	if e.Source.ID() == c.GetID() {
 		// If it's us, don't just add our user to the list. Run a WHO which
@@ -178,10 +175,8 @@ func handleJOIN(c *Client, e Event) {
 
 		// Update our ident and host too, in state -- since there is no
 		// cleaner method to do this.
-		c.state.Lock()
-		c.state.ident = e.Source.Ident
-		c.state.host = e.Source.Host
-		c.state.Unlock()
+		c.state.ident.Store(e.Source.Ident)
+		c.state.host.Store(e.Source.Host)
 		return
 	}
 
@@ -448,7 +443,6 @@ func handleNAMES(c *Client, e Event) {
 
 	var modes, nick string
 	var ok bool
-	s := &Source{}
 
 	c.state.Lock()
 	for i := 0; i < len(parts); i++ {
@@ -456,6 +450,8 @@ func handleNAMES(c *Client, e Event) {
 		if !ok {
 			continue
 		}
+
+		var s *Source = new(Source)
 
 		// If userhost-in-names.
 		if strings.Contains(nick, "@") {
