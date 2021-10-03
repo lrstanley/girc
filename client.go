@@ -48,8 +48,9 @@ type Client struct {
 	// vice versa.
 	mu sync.RWMutex
 
-	atom uint32
-
+	// IRCd encapsulates IRC Server details.
+	IRCd Server
+	
 	// stop is used to communicate with Connect(), letting it know that the
 	// client wishes to cancel/close.
 	stop context.CancelFunc
@@ -60,6 +61,34 @@ type Client struct {
 	conn *ircConn
 	// debug is used if a writer is supplied for Client.Config.Debugger.
 	debug *log.Logger
+
+	atom uint32
+}
+
+// Server contains information about the IRC server that the client is connected to.
+type Server struct {
+	// Network is the name of the IRC network we are connected to as acquired by 005.
+	Network string
+	// Daemon is the name of the IRC daemon this server is running.
+	Daemon string
+	// Version is the software version of the IRC daemon as acquired by 004.
+	Version string
+	// Host is the hostname/id/IP of the leaf, as acquired by 002.
+	Host string
+	// compiled is the reported date the server was compiled on as acquired by 003.
+	Compiled time.Time
+	// UserCount is the amount of online users currently on this network as acquired by 251.
+	UserCount int
+	// MaxUserCount is the amount of online users currently on this network as acquired by 251.
+	MaxUserCount int
+	// LocalUserCount is the amount of online users currently on this leaf as acquired by 265.
+	LocalUserCount int
+	// LocalMaxUserCount is the maximum amount of users that have been on this leaf as acquired by 265.
+	LocalMaxUserCount int
+	// OperCount is the amount of opers currently online as acquired by 252.
+	OperCount int
+	// ChannelCount is the amount of channels formed as acquired by 254.
+	ChannelCount int
 }
 
 // Config contains configuration options for an IRC client
@@ -254,6 +283,13 @@ func New(config Config) *Client {
 		CTCP:     newCTCP(),
 		initTime: time.Now(),
 		atom:     stateUnlocked,
+	}
+
+	c.IRCd = Server{
+		Network: "",
+		Version: "",
+		UserCount: 0,
+		MaxUserCount: 0,
 	}
 
 	c.Cmd = &Commands{c: c}

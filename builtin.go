@@ -5,8 +5,11 @@
 package girc
 
 import (
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/araddon/dateparse"
 )
 
 const (
@@ -45,10 +48,16 @@ func (c *Client) registerBuiltins() {
 		// Other misc. useful stuff.
 		c.Handlers.register(true, false, TOPIC, HandlerFunc(handleTOPIC))
 		c.Handlers.register(true, false, RPL_TOPIC, HandlerFunc(handleTOPIC))
-		c.Handlers.register(true, false, RPL_MYINFO, HandlerFunc(handleMYINFO))
+		c.Handlers.register(true, false, RPL_YOURHOST, HandlerFunc(handleYOURHOST))
+		c.Handlers.register(true, false, RPL_CREATED, HandlerFunc(handleCREATED))
 		c.Handlers.register(true, false, RPL_ISUPPORT, HandlerFunc(handleISUPPORT))
+		c.Handlers.register(true, false, RPL_LUSERCHANNELS, HandlerFunc(handleLUSERCHANNELS)) // 254
+		c.Handlers.register(true, false, RPL_GLOBALUSERS, HandlerFunc(handleGLOBALUSERS))     // 266
+		c.Handlers.register(true, false, RPL_LOCALUSERS, HandlerFunc(handleLOCALUSERS))       // 265
+		c.Handlers.register(true, false, RPL_LUSEROP, HandlerFunc(handleLUSEROP))             // 252
 		c.Handlers.register(true, false, RPL_MOTDSTART, HandlerFunc(handleMOTD))
 		c.Handlers.register(true, false, RPL_MOTD, HandlerFunc(handleMOTD))
+		// c.Handlers.register(true, false, RPL_MYINFO, HandlerFunc(handleMYINFO))
 
 		// Keep users lastactive times up to date.
 		c.Handlers.register(true, false, PRIVMSG, HandlerFunc(updateLastActive))
@@ -352,26 +361,88 @@ func handleQUIT(c *Client, e Event) {
 	c.state.notify(c, UPDATE_STATE)
 }
 
-// handleMYINFO handles incoming MYINFO events -- these are commonly used
-// to tell us what the server name is, what version of software is being used
-// as well as what channel and user modes are being used on the server.
-func handleMYINFO(c *Client, e Event) {
-	// Malformed or odd output. As this can differ strongly between networks,
-	// just skip it.
-	if len(e.Params) < 3 {
+func handleGLOBALUSERS(c *Client, e Event) {
+	cusers, err := strconv.Atoi(e.Params[0])
+	if err != nil {
 		return
 	}
-
+	musers, err := strconv.Atoi(e.Params[1])
+	if err != nil {
+		return
+	}
 	c.state.Lock()
-	c.state.serverOptions["SERVER"] = e.Params[1]
-	c.state.serverOptions["VERSION"] = e.Params[2]
+	defer c.state.Unlock()
+	c.IRCd.UserCount = cusers
+	c.IRCd.MaxUserCount = musers
+}
+
+func handleLOCALUSERS(c *Client, e Event) {
+	cusers, err := strconv.Atoi(e.Params[0])
+	if err != nil {
+		return
+	}
+	musers, err := strconv.Atoi(e.Params[1])
+	if err != nil {
+		return
+	}
+	c.state.Lock()
+	defer c.state.Unlock()
+	c.IRCd.LocalUserCount = cusers
+	c.IRCd.LocalMaxUserCount = musers
+}
+
+func handleLUSERCHANNELS(c *Client, e Event) {
+	ccount, err := strconv.Atoi(e.Params[0])
+	if err != nil {
+		return
+	}
+	c.state.Lock()
+	defer c.state.Unlock()
+	c.IRCd.ChannelCount = ccount
+}
+
+func handleLUSEROP(c *Client, e Event) {
+	ocount, err := strconv.Atoi(e.Params[0])
+	if err != nil {
+		return
+	}
+	c.state.Lock()
+	defer c.state.Unlock()
+	c.IRCd.OperCount = ocount
+}
+
+// handleCREATED handles incoming CREATED events.
+// This is commonly used to tell us when the IRC daemon was compiled.
+func handleCREATED(c *Client, e Event) {
+	split := strings.Split(e.String(), "created ")
+	compiled, err := dateparse.ParseAny(split[1])
+	if err != nil {
+		return
+	}
+	c.state.Lock()
+	c.state.serverOptions["COMPILED"] = e.String()
+	c.IRCd.Compiled = compiled
+	c.state.Unlock()
+	c.state.notify(c, UPDATE_GENERAL)
+}
+
+// handleYOURHOST handles incoming YOURHOST events.
+// This is commonly used to tell us details on the currently connected leaf.
+func handleYOURHOST(c *Client, e Event) {
+	split := strings.Split(e.String(), "created ")
+	compiled, err := dateparse.ParseAny(split[1])
+	if err != nil {
+		return
+	}
+	c.state.Lock()
+	c.state.serverOptions["COMPILED"] = e.String()
+	c.IRCd.Compiled = compiled
 	c.state.Unlock()
 	c.state.notify(c, UPDATE_GENERAL)
 }
 
 // handleISUPPORT handles incoming RPL_ISUPPORT (also known as RPL_PROTOCTL)
-// events. These commonly contain the server capabilities and limitations.
-// For example, things like max channel name length, or nickname length.
+// events. This commonly contains the date of the daemon's compilation.
 func handleISUPPORT(c *Client, e Event) {
 	// Must be a ISUPPORT-based message.
 
@@ -400,6 +471,7 @@ func handleISUPPORT(c *Client, e Event) {
 		c.state.serverOptions[name] = val
 	}
 	c.state.Unlock()
+
 	c.state.notify(c, UPDATE_GENERAL)
 }
 
