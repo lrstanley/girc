@@ -8,6 +8,10 @@
   <a href="https://byteirc.org/channel/%23%2Fdev%2Fnull"><img src="https://img.shields.io/badge/ByteIRC-%23%2Fdev%2Fnull-blue.svg" alt="IRC Chat"></a>
 </p>
 
+## Fork changes
+
+[Click here to see the changes in girc-atomic vs girc](https://github.com/lrstanley/girc/compare/master...yunginnanet:master)
+
 ## Status
 
 **girc is fairly close to marking the 1.0.0 endpoint, which will be tagged as
