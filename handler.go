@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -173,29 +174,45 @@ type execStack struct {
 // Please note that there is no specific order/priority for which the handlers
 // are executed.
 func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
+
 	// Build a stack of handlers which can be executed concurrently.
 	var stack []execStack
 
-	// c.mu.RLock()
+	a := atomic.LoadUint32(&client.atom)
+	for a == stateLocked {
+		randSleep()
+		a = atomic.LoadUint32(&client.atom)
+	}
 	// Get internal handlers first.
 	if _, ok := c.internal[command]; ok {
 		for cuid := range c.internal[command] {
 			if (strings.HasSuffix(cuid, ":bg") && !bg) || (!strings.HasSuffix(cuid, ":bg") && bg) {
 				continue
 			}
-
+			for !atomic.CompareAndSwapUint32(&client.atom, stateUnlocked, stateLocked) {
+				randSleep()
+			}
 			stack = append(stack, execStack{c.internal[command][cuid], cuid})
+			atomic.StoreUint32(&client.atom, stateUnlocked)
 		}
 	}
 
+	a = atomic.LoadUint32(&client.atom)
+	for a == stateLocked {
+		randSleep()
+		a = atomic.LoadUint32(&client.atom)
+	}
 	// Then external handlers.
 	if _, ok := c.external[command]; ok {
 		for cuid := range c.external[command] {
 			if (strings.HasSuffix(cuid, ":bg") && !bg) || (!strings.HasSuffix(cuid, ":bg") && bg) {
 				continue
 			}
-
+			for !atomic.CompareAndSwapUint32(&client.atom, stateUnlocked, stateLocked) {
+				randSleep()
+			}
 			stack = append(stack, execStack{c.external[command][cuid], cuid})
+			atomic.StoreUint32(&client.atom, stateUnlocked)
 		}
 	}
 	// c.mu.RUnlock()
@@ -216,7 +233,11 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 					if client.Config.RecoverFunc != nil {
 						defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
 					}
-
+					a := atomic.LoadUint32(&client.atom)
+					for a == stateLocked {
+						randSleep()
+						a = atomic.LoadUint32(&client.atom)
+					}
 					stack[index].Execute(client, *event)
 					c.debug.Printf("[%d/%d] done %s == %s", index+1, len(stack), stack[index].cuid, time.Since(start))
 				}()
@@ -227,7 +248,11 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 			if client.Config.RecoverFunc != nil {
 				defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
 			}
-
+			a := atomic.LoadUint32(&client.atom)
+			for a == stateLocked {
+				randSleep()
+				a = atomic.LoadUint32(&client.atom)
+			}
 			stack[index].Execute(client, *event)
 			c.debug.Printf("[%d/%d] done %s == %s", index+1, len(stack), stack[index].cuid, time.Since(start))
 		}(i)

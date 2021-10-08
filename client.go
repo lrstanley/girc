@@ -532,11 +532,13 @@ func (c *Client) IsConnected() bool {
 // tracking is disabled.
 func (c *Client) GetNick() string {
 	c.panicIfNotTracking()
+	n := c.state.nick.Load().(string)
 
-	if c.state.nick.Load().(string) == "" {
+	if len(n) < 1 {
 		return c.Config.Nick
 	}
-	return c.state.nick.Load().(string)
+
+	return n
 }
 
 // GetID returns an RFC1459 compliant version of the current nickname. Panics
