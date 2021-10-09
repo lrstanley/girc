@@ -123,9 +123,9 @@ func handleCAP(c *Client, e Event) {
 
 	if len(e.Params) >= 2 && e.Params[1] == CAP_DEL {
 		caps := parseCap(e.Last())
-		for cap := range caps {
+		for capab := range caps {
 			// TODO: test the deletion.
-			delete(c.state.enabledCap, cap)
+			delete(c.state.enabledCap, capab)
 		}
 		return
 	}
@@ -194,11 +194,11 @@ func handleCAP(c *Client, e Event) {
 
 	if len(e.Params) == 3 && e.Params[1] == CAP_ACK {
 		enabled := strings.Split(e.Last(), " ")
-		for _, cap := range enabled {
-			if val, ok := c.state.tmpCap[cap]; ok {
-				c.state.enabledCap[cap] = val
+		for _, capab := range enabled {
+			if val, ok := c.state.tmpCap[capab]; ok {
+				c.state.enabledCap[capab] = val
 			} else {
-				c.state.enabledCap[cap] = nil
+				c.state.enabledCap[capab] = nil
 			}
 		}
 

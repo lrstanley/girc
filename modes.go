@@ -157,7 +157,7 @@ func (c *CModes) hasArg(set bool, mode byte) (hasArgs, isSetting bool) {
 // For example, the latter would mean applying an incoming MODE with the modes
 // stored for a channel.
 func (c *CModes) Apply(modes []CMode) {
-	var new []CMode
+	var newcm []CMode
 
 	for j := 0; j < len(c.modes); j++ {
 		isin := false
@@ -166,14 +166,14 @@ func (c *CModes) Apply(modes []CMode) {
 				continue
 			}
 			if c.modes[j].name == modes[i].name && modes[i].add {
-				new = append(new, modes[i])
+				newcm = append(newcm, modes[i])
 				isin = true
 				break
 			}
 		}
 
 		if !isin {
-			new = append(new, c.modes[j])
+			newcm = append(newcm, c.modes[j])
 		}
 	}
 
@@ -183,19 +183,19 @@ func (c *CModes) Apply(modes []CMode) {
 		}
 
 		isin := false
-		for j := 0; j < len(new); j++ {
-			if modes[i].name == new[j].name {
+		for j := 0; j < len(newcm); j++ {
+			if modes[i].name == newcm[j].name {
 				isin = true
 				break
 			}
 		}
 
 		if !isin {
-			new = append(new, modes[i])
+			newcm = append(newcm, modes[i])
 		}
 	}
 
-	c.modes = new
+	c.modes = newcm
 }
 
 // Parse parses a set of flags and args, returning the necessary list of

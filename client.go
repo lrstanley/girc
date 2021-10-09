@@ -50,7 +50,7 @@ type Client struct {
 
 	// IRCd encapsulates IRC Server details.
 	IRCd Server
-	
+
 	// stop is used to communicate with Connect(), letting it know that the
 	// client wishes to cancel/close.
 	stop context.CancelFunc
@@ -286,9 +286,9 @@ func New(config Config) *Client {
 	}
 
 	c.IRCd = Server{
-		Network: "",
-		Version: "",
-		UserCount: 0,
+		Network:      "",
+		Version:      "",
+		UserCount:    0,
 		MaxUserCount: 0,
 	}
 
@@ -317,7 +317,7 @@ func New(config Config) *Client {
 		c.debug.Print("initializing debugging")
 	}
 
-	envDisableSTS, _ := strconv.ParseBool((os.Getenv("GIRC_DISABLE_STS")))
+	envDisableSTS, _ := strconv.ParseBool(os.Getenv("GIRC_DISABLE_STS"))
 	if envDisableSTS {
 		c.Config.DisableSTS = envDisableSTS
 	}

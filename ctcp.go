@@ -196,7 +196,7 @@ func (c *CTCP) Set(cmd string, handler func(client *Client, ctcp CTCPEvent)) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.handlers[cmd] = CTCPHandler(handler)
+	c.handlers[cmd] = handler
 }
 
 // SetBg is much like Set, however the handler is executed in the background,

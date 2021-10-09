@@ -146,10 +146,15 @@ func (cmd *Commands) ReplyKick(event Event, reason string) {
 	}
 }
 
-// ReplyBan kicks the source of the event from the channel where the event originated
+// ReplyBan kicks the source of the event from the channel where the event originated.
+// Additionally, if a reason is provided, it will send a message to the channel.
 func (cmd *Commands) ReplyBan(event Event, reason string) {
 	if event.Source == nil {
 		panic(ErrInvalidSource)
+	}
+
+	if reason != "" {
+		cmd.Replyf(event, "{red}{b}[BAN] {r}%s", reason)
 	}
 
 	if len(event.Params) > 0 && IsValidChannel(event.Params[0]) {
@@ -378,7 +383,7 @@ func (cmd *Commands) List(channels ...string) {
 // Whowas sends a WHOWAS query to the server. amount is the amount of results
 // you want back.
 func (cmd *Commands) Whowas(user string, amount int) {
-	cmd.c.Send(&Event{Command: WHOWAS, Params: []string{user, string(fmt.Sprintf("%d", amount))}})
+	cmd.c.Send(&Event{Command: WHOWAS, Params: []string{user, fmt.Sprintf("%d", amount)}})
 }
 
 // Monitor sends a MONITOR query to the server. The results of the query

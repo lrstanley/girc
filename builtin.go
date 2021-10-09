@@ -417,6 +417,7 @@ func handleCREATED(c *Client, e Event) {
 	split := strings.Split(e.String(), "created ")
 	compiled, err := dateparse.ParseAny(split[0])
 	if err != nil {
+		c.IRCd.Compiled = time.Unix(0, 0)
 		return
 	}
 	c.state.Lock()
@@ -523,7 +524,7 @@ func handleNAMES(c *Client, e Event) {
 			continue
 		}
 
-		var s *Source = new(Source)
+		var s = new(Source)
 
 		// If userhost-in-names.
 		if strings.Contains(nick, "@") {
@@ -570,14 +571,13 @@ func updateLastActive(c *Client, e Event) {
 	}
 
 	c.state.Lock()
+	defer c.state.Unlock()
 
 	// Update the users last active time, if they exist.
 	user := c.state.lookupUser(e.Source.Name)
 	if user == nil {
-		c.state.Unlock()
 		return
 	}
 
 	user.LastActive = time.Now()
-	c.state.Unlock()
 }

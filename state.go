@@ -123,7 +123,7 @@ func (u User) Channels(c *Client) []*Channel {
 		panic("nil Client provided")
 	}
 
-	channels := []*Channel{}
+	var channels []*Channel
 
 	c.state.RLock()
 	for i := 0; i < len(u.ChannelList); i++ {
@@ -237,7 +237,7 @@ func (ch Channel) Users(c *Client) []*User {
 		panic("nil Client provided")
 	}
 
-	users := []*User{}
+	var users []*User
 
 	c.state.RLock()
 	for i := 0; i < len(ch.UserList); i++ {
@@ -258,7 +258,7 @@ func (ch Channel) Trusted(c *Client) []*User {
 		panic("nil Client provided")
 	}
 
-	users := []*User{}
+	var users []*User
 
 	c.state.RLock()
 	for i := 0; i < len(ch.UserList); i++ {
@@ -285,7 +285,7 @@ func (ch Channel) Admins(c *Client) []*User {
 		panic("nil Client provided")
 	}
 
-	users := []*User{}
+	var users []*User
 
 	c.state.RLock()
 	for i := 0; i < len(ch.UserList); i++ {
