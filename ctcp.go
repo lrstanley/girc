@@ -270,14 +270,14 @@ func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
 
 	client.Cmd.SendCTCPReplyf(
 		ctcp.Source.ID(), CTCP_VERSION,
-		"girc (git.tcp.direct/kayos/girc-atomic) using %s (%s, %s)",
+		"girc (github.com/yunginnanet/girc-atomic) using %s (%s, %s)",
 		runtime.Version(), runtime.GOOS, runtime.GOARCH,
 	)
 }
 
 // handleCTCPSource replies with the public git location of this library.
 func handleCTCPSource(client *Client, ctcp CTCPEvent) {
-	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_SOURCE, "https://git.tcp.direct/kayos/girc-atomic")
+	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_SOURCE, "https://github.com/yunginnanet/girc-atomic")
 }
 
 // handleCTCPTime replies with a RFC 1123 (Z) formatted version of Go's

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"git.tcp.direct/kayos/girc-atomic"
+	"github.com/yunginnanet/girc-atomic"
 )
 
 // Input is a wrapper for events, based around private messages.

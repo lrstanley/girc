@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"git.tcp.direct/kayos/girc-atomic"
+	"github.com/yunginnanet/girc-atomic"
 )
 
 func ExampleNew() {

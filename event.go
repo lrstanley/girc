@@ -248,7 +248,8 @@ func (e *Event) Len() (length int) {
 
 			// If param contains a space or it's empty, it's trailing, so it should be
 			// prefixed with a colon (:).
-			if i == len(e.Params)-1 && (strings.Contains(e.Params[i], " ") || e.Params[i] == "") {
+			if i == len(e.Params)-1 && (strings.Contains(e.Params[i], " ") ||
+				strings.HasPrefix(e.Params[i], ":") || e.Params[i] == "") {
 				length++
 			}
 		}
@@ -286,9 +287,8 @@ func (e *Event) Bytes() []byte {
 	// Space separated list of arguments.
 	if len(e.Params) > 0 {
 		// buffer.WriteByte(eventSpace)
-
 		for i := 0; i < len(e.Params); i++ {
-			if i == len(e.Params)-1 && (strings.Contains(e.Params[i], " ") || e.Params[i] == "") {
+			if i == len(e.Params)-1 && (strings.Contains(e.Params[i], " ") || strings.HasPrefix(e.Params[i], ":") || e.Params[i] == "") {
 				buffer.WriteString(string(eventSpace) + string(messagePrefix) + e.Params[i])
 				continue
 			}
