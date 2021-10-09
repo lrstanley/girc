@@ -1,4 +1,4 @@
-<p align="center"><a href="https://godoc.org/github.com/yunginnanet/girc-atomic"><img width="270" src="https://tcp.ac/i/G5OTn"></a></p>
+<p align="center"><a href="#"><img width="270" src="https://tcp.ac/i/G5OTn"></a></p>
 <p align="center">girc-atomic, a terrifying fork of an IRC library for Go</p>
 <p align="center">
   <a href="https://godoc.org/github.com/yunginnanet/girc-atomic"><img src="https://godoc.org/github.com/yunginnanet/girc-atomic?status.png" alt="GoDoc"></a>
@@ -14,6 +14,7 @@
   
 ### ₜₕₑ ₛₖy ᵢₛ 𝆑ₐₗₗᵢₙg ʇɥǝ sʞʎ ᴉs ⅎɐʅʅᴉuƃ 
 ### 𝚝𝚑𝚎𝚢 𝚜𝚑𝚘𝚞𝚕𝚍 𝚑𝚊𝚟𝚎 𝚕𝚒𝚜𝚝𝚎𝚗𝚎𝚍
+### ʇɥǝ sʞʎ ᴉs ⅎɐʅʅᴉuƃ ₜₕₑ ₛₖy ᵢₛ 𝆑ₐₗₗᵢₙg  
 
   
 ~~girc is fairly close to marking the 1.0.0 endpoint, which will be tagged as
@@ -22,7 +23,7 @@ you're using won't have breaking changes~~
 
 ## Features
 
-- Focuses on simplicity, yet tries to still be flexible.
+- Focuses on ~~simplicity~~ ʀᴀɪɴɪɴɢ ʜᴇʟʟғɪʀᴇ, yet tries to still be flexible.
 - Only requires [standard library packages](https://godoc.org/github.com/yunginnanet/girc-atomic?imports)
 - Event based triggering/responses ([example](https://godoc.org/github.com/yunginnanet/girc-atomic#ex-package--Commands), and [CTCP too](https://godoc.org/github.com/yunginnanet/girc-atomic#Commands.SendCTCP)!)
 - [Documentation](https://godoc.org/github.com/yunginnanet/girc-atomic) is _mostly_ complete.
@@ -69,8 +70,7 @@ Working on a project and want to add it to the list? Submit a pull request!
 on submitting pull requests and helping out.~~  
   
 **OH GOD PLEASE MAKE IT STOP**
-Please review the [CONTRIBUTING](CONTRIBUTING.md) doc for submitting issues/a guide
-on submitting pull requests and helping out.
+
 
 ## License
 
