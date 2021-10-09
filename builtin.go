@@ -22,72 +22,74 @@ const (
 func (c *Client) registerBuiltins() {
 	c.debug.Print("registering built-in handlers")
 	c.Handlers.mu.Lock()
+	defer c.Handlers.mu.Unlock()
 
 	// Built-in things that should always be supported.
 	c.Handlers.register(true, true, RPL_WELCOME, HandlerFunc(handleConnect))
 	c.Handlers.register(true, false, PING, HandlerFunc(handlePING))
 	c.Handlers.register(true, false, PONG, HandlerFunc(handlePONG))
 
-	if !c.Config.disableTracking {
-		// Joins/parts/anything that may add/remove/rename users.
-		c.Handlers.register(true, false, JOIN, HandlerFunc(handleJOIN))
-		c.Handlers.register(true, false, PART, HandlerFunc(handlePART))
-		c.Handlers.register(true, false, KICK, HandlerFunc(handleKICK))
-		c.Handlers.register(true, false, QUIT, HandlerFunc(handleQUIT))
-		c.Handlers.register(true, false, NICK, HandlerFunc(handleNICK))
-		c.Handlers.register(true, false, RPL_NAMREPLY, HandlerFunc(handleNAMES))
-
-		// Modes.
-		c.Handlers.register(true, false, MODE, HandlerFunc(handleMODE))
-		c.Handlers.register(true, false, RPL_CHANNELMODEIS, HandlerFunc(handleMODE))
-
-		// WHO/WHOX responses.
-		c.Handlers.register(true, false, RPL_WHOREPLY, HandlerFunc(handleWHO))
-		c.Handlers.register(true, false, RPL_WHOSPCRPL, HandlerFunc(handleWHO))
-
-		// Other misc. useful stuff.
-		c.Handlers.register(true, false, TOPIC, HandlerFunc(handleTOPIC))
-		c.Handlers.register(true, false, RPL_TOPIC, HandlerFunc(handleTOPIC))
-		c.Handlers.register(true, false, RPL_YOURHOST, HandlerFunc(handleYOURHOST))
-		c.Handlers.register(true, false, RPL_CREATED, HandlerFunc(handleCREATED))
-		c.Handlers.register(true, false, RPL_ISUPPORT, HandlerFunc(handleISUPPORT))
-		c.Handlers.register(true, false, RPL_LUSERCHANNELS, HandlerFunc(handleLUSERCHANNELS)) // 254
-		c.Handlers.register(true, false, RPL_GLOBALUSERS, HandlerFunc(handleGLOBALUSERS))     // 266
-		c.Handlers.register(true, false, RPL_LOCALUSERS, HandlerFunc(handleLOCALUSERS))       // 265
-		c.Handlers.register(true, false, RPL_LUSEROP, HandlerFunc(handleLUSEROP))             // 252
-		c.Handlers.register(true, false, RPL_MOTDSTART, HandlerFunc(handleMOTD))
-		c.Handlers.register(true, false, RPL_MOTD, HandlerFunc(handleMOTD))
-		// c.Handlers.register(true, false, RPL_MYINFO, HandlerFunc(handleMYINFO))
-
-		// Keep users lastactive times up to date.
-		c.Handlers.register(true, false, PRIVMSG, HandlerFunc(updateLastActive))
-		c.Handlers.register(true, false, NOTICE, HandlerFunc(updateLastActive))
-		c.Handlers.register(true, false, TOPIC, HandlerFunc(updateLastActive))
-		c.Handlers.register(true, false, KICK, HandlerFunc(updateLastActive))
-
-		// CAP IRCv3-specific tracking and functionality.
-		c.Handlers.register(true, false, CAP, HandlerFunc(handleCAP))
-		c.Handlers.register(true, false, CAP_CHGHOST, HandlerFunc(handleCHGHOST))
-		c.Handlers.register(true, false, CAP_AWAY, HandlerFunc(handleAWAY))
-		c.Handlers.register(true, false, CAP_ACCOUNT, HandlerFunc(handleACCOUNT))
-		c.Handlers.register(true, false, ALL_EVENTS, HandlerFunc(handleTags))
-
-		// SASL IRCv3 support.
-		c.Handlers.register(true, false, AUTHENTICATE, HandlerFunc(handleSASL))
-		c.Handlers.register(true, false, RPL_SASLSUCCESS, HandlerFunc(handleSASL))
-		c.Handlers.register(true, false, RPL_NICKLOCKED, HandlerFunc(handleSASLError))
-		c.Handlers.register(true, false, ERR_SASLFAIL, HandlerFunc(handleSASLError))
-		c.Handlers.register(true, false, ERR_SASLTOOLONG, HandlerFunc(handleSASLError))
-		c.Handlers.register(true, false, ERR_SASLABORTED, HandlerFunc(handleSASLError))
-		c.Handlers.register(true, false, RPL_SASLMECHS, HandlerFunc(handleSASLError))
-	}
-
 	// Nickname collisions.
 	c.Handlers.register(true, false, ERR_NICKNAMEINUSE, HandlerFunc(nickCollisionHandler))
 	c.Handlers.register(true, false, ERR_NICKCOLLISION, HandlerFunc(nickCollisionHandler))
 	c.Handlers.register(true, false, ERR_UNAVAILRESOURCE, HandlerFunc(nickCollisionHandler))
 
-	c.Handlers.mu.Unlock()
+	if c.Config.disableTracking {
+		return
+	}
+
+	// Joins/parts/anything that may add/remove/rename users.
+	c.Handlers.register(true, false, JOIN, HandlerFunc(handleJOIN))
+	c.Handlers.register(true, false, PART, HandlerFunc(handlePART))
+	c.Handlers.register(true, false, KICK, HandlerFunc(handleKICK))
+	c.Handlers.register(true, false, QUIT, HandlerFunc(handleQUIT))
+	c.Handlers.register(true, false, NICK, HandlerFunc(handleNICK))
+	c.Handlers.register(true, false, RPL_NAMREPLY, HandlerFunc(handleNAMES))
+
+	// Modes.
+	c.Handlers.register(true, false, MODE, HandlerFunc(handleMODE))
+	c.Handlers.register(true, false, RPL_CHANNELMODEIS, HandlerFunc(handleMODE))
+
+	// WHO/WHOX responses.
+	c.Handlers.register(true, false, RPL_WHOREPLY, HandlerFunc(handleWHO))
+	c.Handlers.register(true, false, RPL_WHOSPCRPL, HandlerFunc(handleWHO))
+
+	// Other misc. useful stuff.
+	c.Handlers.register(true, false, TOPIC, HandlerFunc(handleTOPIC))
+	c.Handlers.register(true, false, RPL_TOPIC, HandlerFunc(handleTOPIC))
+	c.Handlers.register(true, false, RPL_YOURHOST, HandlerFunc(handleYOURHOST))
+	c.Handlers.register(true, false, RPL_CREATED, HandlerFunc(handleCREATED))
+	c.Handlers.register(true, false, RPL_ISUPPORT, HandlerFunc(handleISUPPORT))
+	c.Handlers.register(true, false, RPL_LUSERCHANNELS, HandlerFunc(handleLUSERCHANNELS)) // 254
+	c.Handlers.register(true, false, RPL_GLOBALUSERS, HandlerFunc(handleGLOBALUSERS))     // 266
+	c.Handlers.register(true, false, RPL_LOCALUSERS, HandlerFunc(handleLOCALUSERS))       // 265
+	c.Handlers.register(true, false, RPL_LUSEROP, HandlerFunc(handleLUSEROP))             // 252
+	c.Handlers.register(true, false, RPL_MOTDSTART, HandlerFunc(handleMOTD))
+	c.Handlers.register(true, false, RPL_MOTD, HandlerFunc(handleMOTD))
+	// c.Handlers.register(true, false, RPL_MYINFO, HandlerFunc(handleMYINFO))
+
+	// Keep users lastactive times up to date.
+	c.Handlers.register(true, false, PRIVMSG, HandlerFunc(updateLastActive))
+	c.Handlers.register(true, false, NOTICE, HandlerFunc(updateLastActive))
+	c.Handlers.register(true, false, TOPIC, HandlerFunc(updateLastActive))
+	c.Handlers.register(true, false, KICK, HandlerFunc(updateLastActive))
+
+	// CAP IRCv3-specific tracking and functionality.
+	c.Handlers.register(true, false, CAP, HandlerFunc(handleCAP))
+	c.Handlers.register(true, false, CAP_CHGHOST, HandlerFunc(handleCHGHOST))
+	c.Handlers.register(true, false, CAP_AWAY, HandlerFunc(handleAWAY))
+	c.Handlers.register(true, false, CAP_ACCOUNT, HandlerFunc(handleACCOUNT))
+	c.Handlers.register(true, false, ALL_EVENTS, HandlerFunc(handleTags))
+
+	// SASL IRCv3 support.
+	c.Handlers.register(true, false, AUTHENTICATE, HandlerFunc(handleSASL))
+	c.Handlers.register(true, false, RPL_SASLSUCCESS, HandlerFunc(handleSASL))
+	c.Handlers.register(true, false, RPL_NICKLOCKED, HandlerFunc(handleSASLError))
+	c.Handlers.register(true, false, ERR_SASLFAIL, HandlerFunc(handleSASLError))
+	c.Handlers.register(true, false, ERR_SASLTOOLONG, HandlerFunc(handleSASLError))
+	c.Handlers.register(true, false, ERR_SASLABORTED, HandlerFunc(handleSASLError))
+	c.Handlers.register(true, false, RPL_SASLMECHS, HandlerFunc(handleSASLError))
+	return
 }
 
 // handleConnect is a helper function which lets the client know that enough
@@ -377,11 +379,11 @@ func handleGLOBALUSERS(c *Client, e Event) {
 }
 
 func handleLOCALUSERS(c *Client, e Event) {
-	cusers, err := strconv.Atoi(e.Params[0])
+	cusers, err := strconv.Atoi(e.Params[1])
 	if err != nil {
 		return
 	}
-	musers, err := strconv.Atoi(e.Params[1])
+	musers, err := strconv.Atoi(e.Params[2])
 	if err != nil {
 		return
 	}
@@ -392,7 +394,7 @@ func handleLOCALUSERS(c *Client, e Event) {
 }
 
 func handleLUSERCHANNELS(c *Client, e Event) {
-	ccount, err := strconv.Atoi(e.Params[0])
+	ccount, err := strconv.Atoi(e.Params[1])
 	if err != nil {
 		return
 	}
@@ -402,7 +404,7 @@ func handleLUSERCHANNELS(c *Client, e Event) {
 }
 
 func handleLUSEROP(c *Client, e Event) {
-	ocount, err := strconv.Atoi(e.Params[0])
+	ocount, err := strconv.Atoi(e.Params[1])
 	if err != nil {
 		return
 	}
@@ -414,14 +416,25 @@ func handleLUSEROP(c *Client, e Event) {
 // handleCREATED handles incoming CREATED events.
 // This is commonly used to tell us when the IRC daemon was compiled.
 func handleCREATED(c *Client, e Event) {
-	split := strings.Split(e.String(), "created ")
-	compiled, err := dateparse.ParseAny(split[0])
+	split := strings.Split(e.Params[1], " ")
+	days := []string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+	found := -1
+	for i, word := range split {
+		for _, day := range days {
+			if word == day+"," {
+				found = i
+				break
+			}
+		}
+	}
+	if found == -1 {
+		return
+	}
+	compiled, err := dateparse.ParseAny(strings.Join(split[found:], " "))
 	if err != nil {
-		c.IRCd.Compiled = time.Unix(0, 0)
 		return
 	}
 	c.state.Lock()
-	c.state.serverOptions["COMPILED"] = e.String()
 	c.IRCd.Compiled = compiled
 	c.state.Unlock()
 	c.state.notify(c, UPDATE_GENERAL)
@@ -430,14 +443,22 @@ func handleCREATED(c *Client, e Event) {
 // handleYOURHOST handles incoming YOURHOST events.
 // This is commonly used to tell us details on the currently connected leaf.
 func handleYOURHOST(c *Client, e Event) {
-	split := strings.Split(e.String(), "created ")
-	compiled, err := dateparse.ParseAny(split[0])
-	if err != nil {
+	var host = ""
+	var ver = ""
+	const prefix = "Your host is "
+	const suffix = " running version "
+	if strings.Contains(e.Params[1], prefix) && strings.Contains(e.Params[1], ",") {
+		s := strings.TrimPrefix(e.Params[1], prefix)
+		split := strings.Split(s, ",")
+		host = split[0]
+		ver = strings.Replace(split[1], suffix, "", 1)
+	}
+	if len(host)+len(ver) == 0 {
 		return
 	}
 	c.state.Lock()
-	c.state.serverOptions["COMPILED"] = e.String()
-	c.IRCd.Compiled = compiled
+	c.IRCd.Host = host
+	c.IRCd.Version = ver
 	c.state.Unlock()
 	c.state.notify(c, UPDATE_GENERAL)
 }

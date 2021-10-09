@@ -690,6 +690,20 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	return result, ok
 }
 
+// GetAllServerOption retrieves all of a server's capability settings that were retrieved
+// during client connection. This is also known as ISUPPORT (or RPL_PROTOCTL).
+// Will panic if used when tracking has been disabled.
+func (c *Client) GetAllServerOption() (map[string]string, error) {
+	c.panicIfNotTracking()
+	c.state.RLock()
+	defer c.state.RUnlock()
+	if len(c.state.serverOptions) > 0 {
+		return c.state.serverOptions, nil
+	} else {
+		return nil, errors.New("server options is empty")
+	}
+}
+
 // NetworkName returns the network identifier. E.g. "EsperNet", "ByteIRC".
 // May be empty if the server does not support RPL_ISUPPORT (or RPL_PROTOCTL).
 // Will panic if used when tracking has been disabled.
