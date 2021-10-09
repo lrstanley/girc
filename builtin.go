@@ -415,7 +415,7 @@ func handleLUSEROP(c *Client, e Event) {
 // This is commonly used to tell us when the IRC daemon was compiled.
 func handleCREATED(c *Client, e Event) {
 	split := strings.Split(e.String(), "created ")
-	compiled, err := dateparse.ParseAny(split[1])
+	compiled, err := dateparse.ParseAny(split[0])
 	if err != nil {
 		return
 	}
@@ -430,7 +430,7 @@ func handleCREATED(c *Client, e Event) {
 // This is commonly used to tell us details on the currently connected leaf.
 func handleYOURHOST(c *Client, e Event) {
 	split := strings.Split(e.String(), "created ")
-	compiled, err := dateparse.ParseAny(split[1])
+	compiled, err := dateparse.ParseAny(split[0])
 	if err != nil {
 		return
 	}
