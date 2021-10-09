@@ -606,14 +606,16 @@ func (s *Source) Bytes() []byte {
 
 // String returns a string representation of source.
 func (s *Source) String() (out string) {
-	out = s.Name
+	out = ""
+	if len(s.Name) > 0 {
+		out = s.Name
+	}
 	if len(s.Ident) > 0 {
 		out = out + string(prefixIdent) + s.Ident
 	}
 	if len(s.Host) > 0 {
 		out = out + string(prefixHost) + s.Host
 	}
-
 	return
 }
 
