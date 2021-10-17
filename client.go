@@ -67,10 +67,6 @@ type Client struct {
 
 // Server contains information about the IRC server that the client is connected to.
 type Server struct {
-	// Network is the name of the IRC network we are connected to as acquired by 005.
-	Network string
-	// Daemon is the name of the IRC daemon this server is running.
-	Daemon string
 	// Version is the software version of the IRC daemon as acquired by 004.
 	Version string
 	// Host is the hostname/id/IP of the leaf, as acquired by 002.
@@ -286,7 +282,6 @@ func New(config Config) *Client {
 	}
 
 	c.IRCd = Server{
-		Network:      "",
 		Version:      "",
 		UserCount:    0,
 		MaxUserCount: 0,

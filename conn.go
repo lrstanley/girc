@@ -410,6 +410,8 @@ func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 				return
 			}
 
+			event.Network = c.NetworkName()
+
 			// Check if it's an echo-message.
 			if !c.Config.disableTracking {
 				event.Echo = (event.Command == PRIVMSG || event.Command == NOTICE) &&

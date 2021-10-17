@@ -155,8 +155,10 @@ type Event struct {
 	// Sensitive should be true if the message is sensitive (e.g. and should
 	// not be logged/shown in debugging output).
 	Sensitive bool `json:"sensitive"`
-	// If the event is an echo-message response.
+	// Echo is if the event is an echo-message response.
 	Echo bool `json:"echo"`
+	// Network represents the originating IRC network the event came from.
+	Network string
 }
 
 // Last returns the last parameter in Event.Params if it exists.
