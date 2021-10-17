@@ -178,44 +178,36 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 	// Build a stack of handlers which can be executed concurrently.
 	var stack []execStack
 
-	a := atomic.LoadUint32(&client.atom)
-	for a == stateLocked {
-		randSleep()
-		a = atomic.LoadUint32(&client.atom)
-	}
 	// Get internal handlers first.
 	if _, ok := c.internal[command]; ok {
+		for !atomic.CompareAndSwapUint32(&client.atom, stateUnlocked, stateLocked) {
+			randSleep()
+		}
 		for cuid := range c.internal[command] {
 			if (strings.HasSuffix(cuid, ":bg") && !bg) || (!strings.HasSuffix(cuid, ":bg") && bg) {
 				continue
 			}
-			for !atomic.CompareAndSwapUint32(&client.atom, stateUnlocked, stateLocked) {
-				randSleep()
-			}
 			stack = append(stack, execStack{c.internal[command][cuid], cuid})
-			atomic.StoreUint32(&client.atom, stateUnlocked)
 		}
+		atomic.StoreUint32(&client.atom, stateUnlocked)
+
 	}
 
-	a = atomic.LoadUint32(&client.atom)
-	for a == stateLocked {
-		randSleep()
-		a = atomic.LoadUint32(&client.atom)
-	}
 	// Then external handlers.
 	if _, ok := c.external[command]; ok {
+		for !atomic.CompareAndSwapUint32(&client.atom, stateUnlocked, stateLocked) {
+			randSleep()
+		}
 		for cuid := range c.external[command] {
 			if (strings.HasSuffix(cuid, ":bg") && !bg) || (!strings.HasSuffix(cuid, ":bg") && bg) {
 				continue
 			}
-			for !atomic.CompareAndSwapUint32(&client.atom, stateUnlocked, stateLocked) {
-				randSleep()
-			}
+
 			stack = append(stack, execStack{c.external[command][cuid], cuid})
-			atomic.StoreUint32(&client.atom, stateUnlocked)
 		}
+		atomic.StoreUint32(&client.atom, stateUnlocked)
+
 	}
-	// c.mu.RUnlock()
 
 	// Run all handlers concurrently across the same event. This should
 	// still help prevent mis-ordered events, while speeding up the
