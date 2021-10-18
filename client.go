@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -678,10 +679,12 @@ func (c *Client) IsInChannel(channel string) (in bool) {
 //
 func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	c.panicIfNotTracking()
+	var opt atomic.Value
 
-	c.state.RLock()
-	result, ok = c.state.serverOptions[key]
-	c.state.RUnlock()
+	if opt, ok = c.state.serverOptions[key]; ok {
+		result = opt.Load().(string)
+	}
+
 	return result, ok
 }
 
@@ -693,7 +696,13 @@ func (c *Client) GetAllServerOption() (map[string]string, error) {
 	c.state.RLock()
 	defer c.state.RUnlock()
 	if len(c.state.serverOptions) > 0 {
-		return c.state.serverOptions, nil
+		copied := make(map[string]string)
+		for k, av := range c.state.serverOptions {
+			if v := av.Load(); v != nil {
+				copied[k] = av.Load().(string)
+			}
+		}
+		return copied, nil
 	} else {
 		return nil, errors.New("server options is empty")
 	}

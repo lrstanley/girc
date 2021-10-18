@@ -484,13 +484,15 @@ func handleISUPPORT(c *Client, e Event) {
 		j := strings.IndexByte(e.Params[i], '=')
 
 		if j < 1 || (j+1) == len(e.Params[i]) {
-			c.state.serverOptions[e.Params[i]] = ""
+			opt := c.state.serverOptions[e.Params[i]]
+			opt.Store("")
 			continue
 		}
 
 		name := e.Params[i][0:j]
 		val := e.Params[i][j+1:]
-		c.state.serverOptions[name] = val
+		opt := c.state.serverOptions[name]
+		opt.Store(val)
 	}
 	c.state.Unlock()
 

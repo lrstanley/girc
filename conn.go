@@ -428,13 +428,14 @@ func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 func (c *Client) Send(event *Event) {
 	var delay time.Duration
 
+	event.Network = c.NetworkName()
+
 	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
 		randSleep()
 	}
 	defer atomic.StoreUint32(&c.atom, stateUnlocked)
 
 	if !c.Config.AllowFlood {
-
 		// Drop the event early as we're disconnected, this way we don't have to wait
 		// the (potentially long) rate limit delay before dropping.
 		if c.conn == nil {

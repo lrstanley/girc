@@ -370,8 +370,11 @@ func handleMODE(c *Client, e Event) {
 // chanModes returns the ISUPPORT list of server-supported channel modes,
 // alternatively falling back to ModeDefaults.
 func (s *state) chanModes() string {
-	if modes, ok := s.serverOptions["CHANMODES"]; ok && IsValidChannelMode(modes) {
-		return modes
+	if validmodes, ok := s.serverOptions["CHANMODES"]; ok {
+		modes := validmodes.Load().(string)
+		if IsValidChannelMode(modes) {
+			return modes
+		}
 	}
 
 	return ModeDefaults
@@ -381,8 +384,11 @@ func (s *state) chanModes() string {
 // This includes mode characters, as well as user prefix symbols. Falls back
 // to DefaultPrefixes if not server-supported.
 func (s *state) userPrefixes() string {
-	if prefix, ok := s.serverOptions["PREFIX"]; ok && isValidUserPrefix(prefix) {
-		return prefix
+	if atomicprefix, ok := s.serverOptions["PREFIX"]; ok {
+		prefix := atomicprefix.Load().(string)
+		if isValidUserPrefix(prefix) {
+			return prefix
+		}
 	}
 
 	return DefaultPrefixes

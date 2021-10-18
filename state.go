@@ -32,7 +32,7 @@ type state struct {
 	// serverOptions are the standard capabilities and configurations
 	// supported by the server at connection time. This also includes
 	// RPL_ISUPPORT entries.
-	serverOptions map[string]string
+	serverOptions map[string]atomic.Value
 	// motd is the servers message of the day.
 	motd string
 
@@ -52,7 +52,7 @@ func (s *state) reset(initial bool) {
 	s.host.Store("")
 	s.channels = make(map[string]*Channel)
 	s.users = make(map[string]*User)
-	s.serverOptions = make(map[string]string)
+	s.serverOptions = make(map[string]atomic.Value)
 	s.enabledCap = make(map[string]map[string]string)
 	s.tmpCap = make(map[string]map[string]string)
 	s.motd = ""
