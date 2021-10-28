@@ -102,8 +102,11 @@ func handleConnect(c *Client, e Event) {
 	// users on connect.
 	if len(e.Params) > 0 {
 		c.state.nick.Store(e.Params[0])
-
 		c.state.notify(c, UPDATE_GENERAL)
+		split := strings.Split(e.Params[1], " ")
+		if strings.HasPrefix(e.Params[1], "Welcome to the") && len(split) > 3 {
+			c.IRCd.Network = split[3]
+		}
 	}
 
 	time.Sleep(2 * time.Second)

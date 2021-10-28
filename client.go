@@ -68,6 +68,8 @@ type Client struct {
 
 // Server contains information about the IRC server that the client is connected to.
 type Server struct {
+	// Network is the name of the IRC network we are connected to as acquired by 001.
+	Network string
 	// Version is the software version of the IRC daemon as acquired by 004.
 	Version string
 	// Host is the hostname/id/IP of the leaf, as acquired by 002.
@@ -715,6 +717,10 @@ func (c *Client) NetworkName() (name string) {
 	c.panicIfNotTracking()
 
 	name, _ = c.GetServerOption("NETWORK")
+	if len(name) < 1 {
+		name = c.IRCd.Network
+	}
+
 	return name
 }
 
