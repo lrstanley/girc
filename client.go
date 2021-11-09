@@ -321,7 +321,7 @@ func New(config Config) *Client {
 	}
 
 	// Setup the caller.
-	c.Handlers = newCaller(c.debug)
+	c.Handlers = newCaller(c, c.debug)
 
 	// Give ourselves a new state.
 	c.state = &state{}

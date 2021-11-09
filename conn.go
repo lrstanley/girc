@@ -277,7 +277,7 @@ startConn:
 
 	if mock == nil {
 		// Validate info, and actually make the connection.
-		c.debug.Printf("connecting to %s... (sts: %v, config-ssl: %v)", addr, c.state.sts.enabled(), c.Config.SSL)
+		c.debug.Printf("(%s) connecting to %s... (sts: %v, config-ssl: %v)", c.Config.Nick, addr, c.state.sts.enabled(), c.Config.SSL)
 		conn, err := newConn(c.Config, dialer, addr, &c.state.sts)
 		if err != nil {
 			if _, ok := err.(*ErrSTSUpgradeFailed); ok {
@@ -346,7 +346,7 @@ startConn:
 		}
 		c.RunHandlers(&Event{Command: CLOSED, Params: []string{addr}})
 	case err := <-errs:
-		c.debug.Printf("received error, beginning cleanup: %v", err)
+		c.debug.Printf("(%s) received error, beginning cleanup: %v", c.Config.Nick, err)
 		result = err
 	}
 

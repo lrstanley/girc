@@ -12,7 +12,6 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -42,15 +41,16 @@ func (c *Client) RunHandlers(event *Event) {
 	}
 
 	c.Handlers.exec(ALL_EVENTS, false, c, event.Copy())
+
 	if !event.Echo {
 		c.Handlers.exec(event.Command, false, c, event.Copy())
 	}
-
 	// Check if it's a CTCP.
 	if ctcp := DecodeCTCP(event.Copy()); ctcp != nil {
 		// Execute it.
 		c.CTCP.call(c, ctcp)
 	}
+
 }
 
 // Handler is lower level implementation of a handler. See
@@ -73,6 +73,8 @@ type Caller struct {
 	// mu is the mutex that should be used when accessing handlers.
 	mu sync.RWMutex
 
+	parent *Client
+
 	// external/internal keys are of structure:
 	//   map[COMMAND][CUID]Handler
 	// Also of note: "COMMAND" should always be uppercase for normalization.
@@ -86,11 +88,12 @@ type Caller struct {
 }
 
 // newCaller creates and initializes a new handler.
-func newCaller(debugOut *log.Logger) *Caller {
+func newCaller(parent *Client, debugOut *log.Logger) *Caller {
 	c := &Caller{
 		external: map[string]map[string]Handler{},
 		internal: map[string]map[string]Handler{},
 		debug:    debugOut,
+		parent:   parent,
 	}
 
 	return c
@@ -178,36 +181,29 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 	// Build a stack of handlers which can be executed concurrently.
 	var stack []execStack
 
+	c.mu.RLock()
 	// Get internal handlers first.
 	if _, ok := c.internal[command]; ok {
-		for !atomic.CompareAndSwapUint32(&client.atom, stateUnlocked, stateLocked) {
-			randSleep()
-		}
 		for cuid := range c.internal[command] {
 			if (strings.HasSuffix(cuid, ":bg") && !bg) || (!strings.HasSuffix(cuid, ":bg") && bg) {
 				continue
 			}
 			stack = append(stack, execStack{c.internal[command][cuid], cuid})
 		}
-		atomic.StoreUint32(&client.atom, stateUnlocked)
-
 	}
+	c.mu.RUnlock()
 
+	c.mu.RLock()
 	// Then external handlers.
 	if _, ok := c.external[command]; ok {
-		for !atomic.CompareAndSwapUint32(&client.atom, stateUnlocked, stateLocked) {
-			randSleep()
-		}
 		for cuid := range c.external[command] {
 			if (strings.HasSuffix(cuid, ":bg") && !bg) || (!strings.HasSuffix(cuid, ":bg") && bg) {
 				continue
 			}
-
 			stack = append(stack, execStack{c.external[command][cuid], cuid})
 		}
-		atomic.StoreUint32(&client.atom, stateUnlocked)
-
 	}
+	c.mu.RUnlock()
 
 	// Run all handlers concurrently across the same event. This should
 	// still help prevent mis-ordered events, while speeding up the
@@ -217,7 +213,8 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 	for i := 0; i < len(stack); i++ {
 		go func(index int) {
 			defer wg.Done()
-			c.debug.Printf("[%d/%d] exec %s => %s", index+1, len(stack), stack[index].cuid, command)
+			c.debug.Printf("(%s) [%d/%d] exec %s => %s", c.parent.Config.Nick,
+				index+1, len(stack), stack[index].cuid, command)
 			start := time.Now()
 
 			if bg {
@@ -225,13 +222,9 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 					if client.Config.RecoverFunc != nil {
 						defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
 					}
-					a := atomic.LoadUint32(&client.atom)
-					for a == stateLocked {
-						randSleep()
-						a = atomic.LoadUint32(&client.atom)
-					}
 					stack[index].Execute(client, *event)
-					c.debug.Printf("[%d/%d] done %s == %s", index+1, len(stack), stack[index].cuid, time.Since(start))
+					c.debug.Printf("(%s) [%d/%d] done %s == %s", c.parent.Config.Nick,
+						index+1, len(stack), stack[index].cuid, time.Since(start))
 				}()
 
 				return
@@ -240,18 +233,15 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 			if client.Config.RecoverFunc != nil {
 				defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
 			}
-			a := atomic.LoadUint32(&client.atom)
-			for a == stateLocked {
-				randSleep()
-				a = atomic.LoadUint32(&client.atom)
-			}
+
 			stack[index].Execute(client, *event)
-			c.debug.Printf("[%d/%d] done %s == %s", index+1, len(stack), stack[index].cuid, time.Since(start))
+			c.debug.Printf("(%s) [%d/%d] done %s == %s", c.parent.Config.Nick, index+1, len(stack), stack[index].cuid, time.Since(start))
 		}(i)
 	}
 
 	// Wait for all of the handlers to complete. Not doing this may cause
 	// new events from becoming ahead of older handlers.
+	c.debug.Printf("(%s) wg.Wait()", c.parent.Config.Nick)
 	wg.Wait()
 }
 
@@ -286,7 +276,7 @@ func (c *Caller) Clear(cmd string) {
 
 	c.mu.Unlock()
 
-	c.debug.Printf("cleared external handlers for %s", cmd)
+	c.debug.Printf("(%s) cleared external handlers for %s", c.parent.Config.Nick, cmd)
 }
 
 // Remove removes the handler with cuid from the handler stack. success
