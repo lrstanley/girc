@@ -519,6 +519,9 @@ func (c *Client) ConnSince() (since *time.Duration, err error) {
 
 // IsConnected returns true if the client is connected to the server.
 func (c *Client) IsConnected() bool {
+	if c == nil {
+		return false
+	}
 	if c.conn == nil {
 		return false
 	}
@@ -529,6 +532,9 @@ func (c *Client) IsConnected() bool {
 // GetNick returns the current nickname of the active connection. Panics if
 // tracking is disabled.
 func (c *Client) GetNick() string {
+	if c == nil {
+		return ""
+	}
 	c.panicIfNotTracking()
 	n := c.state.nick.Load().(string)
 
@@ -788,6 +794,9 @@ func (c *Client) HasCapability(name string) (has bool) {
 // disabled. Adds useful info like what function specifically, and where it
 // was called from.
 func (c *Client) panicIfNotTracking() {
+	if c == nil {
+		return
+	}
 	if !c.Config.disableTracking {
 		return
 	}
