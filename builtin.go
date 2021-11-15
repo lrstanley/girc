@@ -293,21 +293,29 @@ func handleWHO(c *Client, e Event) {
 	}
 
 	c.state.Lock()
+	defer c.state.Unlock()
+
+
+
 	user := c.state.lookupUser(nick)
 	if user == nil {
-		c.state.Unlock()
+		c.state.createUserManually(nick, ident, host)
+		c.state.users[nick].Extras.Name = realname
+		if account != "0" {
+			c.state.users[nick].Extras.Account = account
+		}
 		return
 	}
 
 	user.Host = host
 	user.Ident = ident
+	user.Mask = user.Nick + "!" + user.Ident + "@" + user.Host
 	user.Extras.Name = realname
 
 	if account != "0" {
 		user.Extras.Account = account
 	}
 
-	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)
 }
 

@@ -77,10 +77,15 @@ type User struct {
 	// reasons.
 	Host string `json:"host"`
 
+	// Mask is the combined Nick!Ident@Host of the given user.
+	Mask string `json:"mask"`
+
 	// ChannelList is a sorted list of all channels that we are currently
 	// tracking the user in. Each channel name is rfc1459 compliant. See
 	// User.Channels() for a shorthand if you're looking for the *Channel
 	// version of the channel list.
+	//
+	// NOTE: If the ChannelList is empty for the user, then the user's info could be out of date.
 	ChannelList []string `json:"channels"`
 
 	// FirstSeen represents the first time that the user was seen by the
@@ -402,13 +407,6 @@ func (s *state) deleteChannel(name string) {
 
 	for _, user := range s.channels[name].UserList {
 		s.users[user].deleteChannel(name)
-
-		if len(s.users[user].ChannelList) == 0 {
-			// Assume we were only tracking them in this channel, and they
-			// should be removed from state.
-
-			delete(s.users, user)
-		}
 	}
 
 	delete(s.channels, name)
@@ -426,6 +424,23 @@ func (s *state) lookupUser(name string) *User {
 	return s.users[ToRFC1459(name)]
 }
 
+func (s *state) createUserManually(nick, ident, host string) {
+	if _, ok := s.users[nick]; ok {
+		// User already exists.
+		return
+	}
+
+	s.users[nick] = &User{
+		Nick:       nick,
+		Host:       host,
+		Ident:      ident,
+		Mask:       nick + "!" + ident + "@" + host,
+		FirstSeen:  time.Now(),
+		LastActive: time.Now(),
+		Perms:      &UserPerms{channels: make(map[string]Perms)},
+	}
+}
+
 // createUser creates the user in state, if not already done.
 func (s *state) createUser(src *Source) (ok bool) {
 	if _, ok := s.users[src.ID()]; ok {
@@ -437,6 +452,7 @@ func (s *state) createUser(src *Source) (ok bool) {
 		Nick:       src.Name,
 		Host:       src.Host,
 		Ident:      src.Ident,
+		Mask:       src.Name + "!" + src.Ident + "@" + src.Host,
 		FirstSeen:  time.Now(),
 		LastActive: time.Now(),
 		Perms:      &UserPerms{channels: make(map[string]Perms)},
