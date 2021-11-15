@@ -525,6 +525,9 @@ func (c *Client) IsConnected() bool {
 	if c.conn == nil {
 		return false
 	}
+	if c.conn.connected.Load() == nil {
+		c.conn.connected.Store(false)
+	}
 
 	return c.conn.connected.Load().(bool)
 }
