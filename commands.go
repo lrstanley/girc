@@ -252,11 +252,10 @@ func (cmd *Commands) Topic(channel, message string) {
 
 // Who sends a WHO query to the server, which will attempt WHOX by default.
 // See http://faerion.sourceforge.net/doc/irc/whox.var for more details. This
-// sends "%tcuhnr,2" per default. Do not use "1" as this will conflict with
-// girc's builtin tracking functionality.
+// sends "%tcuhnr,1" per default.
 func (cmd *Commands) Who(users ...string) {
 	for i := 0; i < len(users); i++ {
-		cmd.c.Send(&Event{Command: WHO, Params: []string{users[i], "%tcuhnr,2"}})
+		cmd.c.Send(&Event{Command: WHO, Params: []string{users[i], "%tacuhnr,1"}})
 	}
 }
 

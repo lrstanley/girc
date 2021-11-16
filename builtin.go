@@ -295,8 +295,6 @@ func handleWHO(c *Client, e Event) {
 	c.state.Lock()
 	defer c.state.Unlock()
 
-
-
 	user := c.state.lookupUser(nick)
 	if user == nil {
 		c.state.createUserManually(nick, ident, host)
@@ -304,6 +302,7 @@ func handleWHO(c *Client, e Event) {
 		if account != "0" {
 			c.state.users[nick].Extras.Account = account
 		}
+		c.state.notify(c, UPDATE_STATE)
 		return
 	}
 
