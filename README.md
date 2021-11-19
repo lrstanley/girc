@@ -17,11 +17,6 @@
 ### 𝚝𝚑𝚎𝚢 𝚜𝚑𝚘𝚞𝚕𝚍 𝚑𝚊𝚟𝚎 𝚕𝚒𝚜𝚝𝚎𝚗𝚎𝚍
 ### ʇɥǝ sʞʎ ᴉs ⅎɐʅʅᴉuƃ ₜₕₑ ₛₖy ᵢₛ 𝆑ₐₗₗᵢₙg  
 
-  
-~~girc is fairly close to marking the 1.0.0 endpoint, which will be tagged as
-necessary, so you will be able to use this with care knowing the specific tag
-you're using won't have breaking changes~~
-
 ## Features
 
 - Focuses on ~~simplicity~~ ʀᴀɪɴɪɴɢ ʜᴇʟʟғɪʀᴇ, yet tries to still be flexible.
@@ -42,14 +37,10 @@ you're using won't have breaking changes~~
   - Event/message rate limiting.
   - Channel, nick, and user validation methods ([IsValidChannel](https://godoc.org/github.com/yunginnanet/girc-atomic#IsValidChannel), [IsValidNick](https://godoc.org/github.com/yunginnanet/girc-atomic#IsValidNick), etc.)
   - CTCP handling and auto-responses ([CTCP](https://godoc.org/github.com/yunginnanet/girc-atomic#CTCP))
-  - ~~And more!~~  
   - GOTTA GO FAST YOU GOTTA GO REALLY FAST
   - you can power hundreds of clients at the same time with this now
-
-## Installing
-
-  ~~$ go get -u github.com/yunginnanet/girc-atomic~~  
-  just use go modules probably
+  - ??????
+  - PROFIT!!!1!
 
 ## Examples
 
@@ -95,9 +86,9 @@ on submitting pull requests and helping out.~~
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
 
-girc artwork licensed under [CC 3.0](http://creativecommons.org/licenses/by/3.0/) based on Renee French under Creative Commons 3.0 Attributions...  
-  
-   or so I'm told. Then it was defiled by [some idiot](https://github.com/yunginnanet).
+girc artwork licensed under [CC 3.0](http://creativecommons.org/licenses/by/3.0/) based on Renee French under Creative Commons 3.0 Attributions
+
+later defiled by [some idiot](https://github.com/yunginnanet).
 
 ## References
 
