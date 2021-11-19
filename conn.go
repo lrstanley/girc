@@ -145,6 +145,17 @@ type ErrParseEvent struct {
 
 func (e ErrParseEvent) Error() string { return "unable to parse event: " + e.Line }
 
+func (c *ircConn) encode(event *Event) error {
+	if _, err := c.io.Write(event.Bytes()); err != nil {
+		return err
+	}
+	if _, err := c.io.Write(endline); err != nil {
+		return err
+	}
+
+	return c.io.Flush()
+}
+
 func (c *ircConn) decode() (event *Event, err error) {
 	line, err := c.io.ReadString(delim)
 	if err != nil {

@@ -7,6 +7,7 @@ package girc
 import (
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/araddon/dateparse"
@@ -123,7 +124,10 @@ func nickCollisionHandler(c *Client, e Event) {
 		return
 	}
 
-	c.Cmd.Nick(c.Config.HandleNickCollide(c.GetNick()))
+	newNick := c.Config.HandleNickCollide(c.GetNick())
+	if newNick != "" {
+		c.Cmd.Nick(newNick)
+	}
 }
 
 // handlePING helps respond to ping requests from the server.
@@ -488,23 +492,25 @@ func handleISUPPORT(c *Client, e Event) {
 		return
 	}
 
-	c.state.Lock()
 	// Skip the first parameter, as it's our nickname, and the last, as it's the doc.
-	for i := 1; i < len(e.Params)-1; i++ {
-		j := strings.IndexByte(e.Params[i], '=')
+	for i := range e.Params {
+		split := strings.Split(e.Params[i], "=")
 
-		if j < 1 || (j+1) == len(e.Params[i]) {
-			opt := c.state.serverOptions[e.Params[i]]
-			opt.Store("")
+		if len(split) != 2 {
+			c.state.serverOptions[e.Params[i]] = &atomic.Value{}
+			c.state.serverOptions[e.Params[i]].Store("")
 			continue
 		}
 
-		name := e.Params[i][0:j]
-		val := e.Params[i][j+1:]
-		opt := c.state.serverOptions[name]
-		opt.Store(val)
+		if len(split[0]) < 1 || len(split[1]) < 1 {
+			c.state.serverOptions[e.Params[i]] = &atomic.Value{}
+			c.state.serverOptions[e.Params[i]].Store("")
+			continue
+		}
+
+		c.state.serverOptions[split[0]] = &atomic.Value{}
+		c.state.serverOptions[split[0]].Store(split[1])
 	}
-	c.state.Unlock()
 
 	c.state.notify(c, UPDATE_GENERAL)
 }

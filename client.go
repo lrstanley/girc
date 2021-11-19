@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -199,6 +198,9 @@ type Config struct {
 	// an invalid nickname. For example, if "test" is already in use, or is
 	// blocked by the network/a service, the client will try and use "test_",
 	// then it will attempt "test__", "test___", and so on.
+	//
+	// If HandleNickCollide returns an empty string, the client will not
+	// attempt to fix nickname collisions, and you must handle this yourself.
 	HandleNickCollide func(oldNick string) (newNick string)
 }
 
@@ -690,10 +692,9 @@ func (c *Client) IsInChannel(channel string) (in bool) {
 //
 func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	c.panicIfNotTracking()
-	var opt atomic.Value
 
-	if opt, ok = c.state.serverOptions[key]; ok {
-		result = opt.Load().(string)
+	if _, ok := c.state.serverOptions[key]; ok {
+		return c.state.serverOptions[key].Load().(string), ok
 	}
 
 	return result, ok
@@ -725,8 +726,14 @@ func (c *Client) GetAllServerOption() (map[string]string, error) {
 func (c *Client) NetworkName() (name string) {
 	c.panicIfNotTracking()
 
-	name, _ = c.GetServerOption("NETWORK")
-	if len(name) < 1 {
+	var ok bool
+
+	name, ok = c.GetServerOption("NETWORK")
+	if !ok {
+		return c.IRCd.Network
+	}
+
+	if len(name) < 0 && len(c.IRCd.Network) > 1 {
 		name = c.IRCd.Network
 	}
 
