@@ -4,7 +4,7 @@
   <a href="https://godoc.org/github.com/yunginnanet/girc-atomic"><img src="https://godoc.org/github.com/yunginnanet/girc-atomic?status.png" alt="GoDoc"></a>
   <a href="https://goreportcard.com/report/github.com/yunginnanet/girc-atomic"><img src="https://goreportcard.com/badge/github.com/yunginnanet/girc-atomic" alt="Go Report Card"></a>
   <a href="ircs://ircd.chat:6697/#tcpdirect"><img src="https://img.shields.io/badge/ircd.chat-%23tcpdirect-blue.svg" alt="IRC Chat"></a>
-  <a href=""https://github.com/yunginnanet/girc-atomic/actions/workflows/go.yml"><img src="https://github.com/yunginnanet/girc-atomic/actions/workflows/go.yml/badge.svg?branch=master" alt="Build Status"></a>
+  <a href="https://github.com/yunginnanet/girc-atomic/actions/workflows/go.yml"><img src="https://github.com/yunginnanet/girc-atomic/actions/workflows/go.yml/badge.svg?branch=master" alt="Build Status"></a>
 </p>
 
 ## Fork changes
