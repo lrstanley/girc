@@ -225,7 +225,10 @@ type Channel struct {
 	Name string `json:"name"`
 	// Topic of the channel.
 	Topic string `json:"topic"`
-
+	// Created is the time/date the channel was created (if available).
+	// Created time.Time `json:"created"`
+	// TODO: Figure out if these are all unix timestamps, if so, convert it to time.Time
+	Created string `json:"created"`
 	// UserList is a sorted list of all users we are currently tracking within
 	// the channel. Each is the nickname, and is rfc1459 compliant.
 	UserList []string `json:"user_list"`

@@ -5,11 +5,16 @@ IRCNumToStr takes in a numeric IRC code and returns the relevant girc name.
 IRCNumToStr accepts a string because that's how we tend to receive the codes.
 */
 func IRCNumToStr(code string) string {
+	if _, ok := noTranslate[code]; ok {
+		return code
+	}
 	if result, ok := IRCCodes[code]; ok {
 		return result
 	}
 	return ""
 }
+
+var noTranslate = map[string]uint8{"JOIN":1, "INVITE":1, "NOTICE":1, "CAP":1, "MODE":1,"QUIT":1, "PRIVMSG":1}
 
 // IRCCodes is just a map form of our constants for quick lookup purposes.
 var IRCCodes = map[string]string {
@@ -36,6 +41,7 @@ var IRCCodes = map[string]string {
 	"323":"RPL_LISTEND",
 	"325":"RPL_UNIQOPIS",
 	"324":"RPL_CHANNELMODEIS",
+	"329":"RPL_CREATIONTIME",
 	"331":"RPL_NOTOPIC",
 	"332":"RPL_TOPIC",
 	"341":"RPL_INVITING",

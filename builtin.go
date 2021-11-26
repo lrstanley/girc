@@ -51,6 +51,9 @@ func (c *Client) registerBuiltins() {
 	c.Handlers.register(true, false, MODE, HandlerFunc(handleMODE))
 	c.Handlers.register(true, false, RPL_CHANNELMODEIS, HandlerFunc(handleMODE))
 
+	// Channel creation time.
+	c.Handlers.register(true, false, RPL_CREATIONTIME, HandlerFunc(handleCREATIONTIME))
+
 	// WHO/WHOX responses.
 	c.Handlers.register(true, false, RPL_WHOREPLY, HandlerFunc(handleWHO))
 	c.Handlers.register(true, false, RPL_WHOSPCRPL, HandlerFunc(handleWHO))
@@ -228,6 +231,32 @@ func handlePART(c *Client, e Event) {
 	c.state.Lock()
 	c.state.deleteUser(channel, e.Source.ID())
 	c.state.Unlock()
+}
+
+// handleCREATIONTIME handles incoming TOPIC events and keeps channel tracking info
+// updated with the latest channel topic.
+func handleCREATIONTIME(c *Client, e Event) {
+	var created string
+	var name string
+	switch len(e.Params) {
+	case 0, 1, 2:
+		return
+	default:
+		name = e.Params[1]
+		created = e.Params[2]
+		break
+	}
+
+	c.state.Lock()
+	defer c.state.Unlock()
+
+	channel := c.state.lookupChannel(name)
+	if channel == nil {
+		return
+	}
+
+	channel.Created = created
+	c.state.notify(c, UPDATE_STATE)
 }
 
 // handleTOPIC handles incoming TOPIC events and keeps channel tracking info

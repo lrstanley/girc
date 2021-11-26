@@ -7,5 +7,5 @@ import (
 
 func randSleep() {
 	rand.Seed(time.Now().UnixNano())
-	time.Sleep(time.Duration(rand.Intn(25)) * time.Millisecond)
+	time.Sleep(time.Duration(rand.Intn(5)) * time.Millisecond)
 }

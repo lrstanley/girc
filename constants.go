@@ -152,6 +152,7 @@ const (
 	RPL_LISTEND           = "323"
 	RPL_UNIQOPIS          = "325"
 	RPL_CHANNELMODEIS     = "324"
+	RPL_CREATIONTIME	  = "329"
 	RPL_NOTOPIC           = "331"
 	RPL_TOPIC             = "332"
 	RPL_INVITING          = "341"
