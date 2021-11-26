@@ -330,6 +330,8 @@ func New(config Config) *Client {
 	c.state = &state{}
 	c.state.reset(true)
 
+	c.state.client = c
+
 	// Register builtin handlers.
 	c.registerBuiltins()
 

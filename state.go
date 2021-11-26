@@ -36,6 +36,9 @@ type state struct {
 	// motd is the servers message of the day.
 	motd string
 
+	// client is a useful pointer to the state's related Client instance.
+	client *Client
+
 	// sts are strict transport security configurations, if specified by the
 	// server.
 	//
@@ -81,7 +84,7 @@ type User struct {
 	Mask string `json:"mask"`
 
 	// Network is the name of the IRC network where this user was found.
-	// This has been added for the purposes of girc being used in multi-client scenarios for datakeeping.
+	// This has been added for the purposes of girc being used in multi-client scenarios with data persistence.
 	Network string `json:"network"`
 
 	// ChannelList is a sorted list of all channels that we are currently
@@ -236,6 +239,9 @@ type Channel struct {
 	// UserList is a sorted list of all users we are currently tracking within
 	// the channel. Each is the nickname, and is rfc1459 compliant.
 	UserList []string `json:"user_list"`
+	// Network is the name of the IRC network where this channel was found.
+	// This has been added for the purposes of girc being used in multi-client scenarios with data persistence.
+	Network string `json:"network"`
 	// Joined represents the first time that the client joined the channel.
 	Joined time.Time `json:"joined"`
 	// Modes are the known channel modes that the bot has captured.
@@ -386,6 +392,7 @@ func (ch *Channel) Lifetime() time.Duration {
 
 // createChannel creates the channel in state, if not already done.
 func (s *state) createChannel(name string) (ok bool) {
+
 	supported := s.chanModes()
 	prefixes, _ := parsePrefixes(s.userPrefixes())
 
@@ -397,6 +404,7 @@ func (s *state) createChannel(name string) (ok bool) {
 		Name:     name,
 		UserList: []string{},
 		Joined:   time.Now(),
+		Network:  s.client.NetworkName(),
 		Modes:    NewCModes(supported, prefixes),
 	}
 
@@ -444,7 +452,7 @@ func (s *state) createUser(src *Source) (ok bool) {
 		Mask:       src.Name + "!" + src.Ident + "@" + src.Host,
 		FirstSeen:  time.Now(),
 		LastActive: time.Now(),
-		Network:    s.serverOptions["NETWORK"].Load().(string),
+		Network:    s.client.NetworkName(),
 		Perms:      &UserPerms{channels: make(map[string]Perms)},
 	}
 
