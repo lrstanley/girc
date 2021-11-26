@@ -511,6 +511,11 @@ func handleYOURHOST(c *Client, e Event) {
 func handleISUPPORT(c *Client, e Event) {
 	// Must be a ISUPPORT-based message.
 
+	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
+		randSleep()
+	}
+	defer atomic.StoreUint32(&c.atom, stateUnlocked)
+
 	// Also known as RPL_PROTOCTL.
 	if !strings.HasSuffix(e.Last(), "this server") {
 		return
