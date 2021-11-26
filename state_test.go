@@ -137,6 +137,10 @@ func TestState(t *testing.T) {
 			t.Fatalf("Channel.Topic == %q, want \"example topic\"", topic)
 		}
 
+		if ch.Network != "DummyIRC" {
+			t.Fatalf("Channel.Network == %q, want \"DummyIRC\"", ch.Network)
+		}
+
 		if in := ch.UserIn("fhjones"); !in {
 			t.Fatalf("Channel.UserIn == %t, want %t", in, true)
 		}
@@ -184,6 +188,10 @@ func TestState(t *testing.T) {
 
 		if user.Ident != "~user" {
 			t.Fatalf("User.Ident == %q, wanted \"~user\"", user.Ident)
+		}
+
+		if user.Network != "DummyIRC" {
+			t.Fatalf("User.Network == %q, want \"DummyIRC\"", user.Network)
 		}
 
 		if !user.InChannel("#channel2") {
