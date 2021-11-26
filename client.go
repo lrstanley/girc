@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -693,6 +694,11 @@ func (c *Client) IsInChannel(channel string) (in bool) {
 func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	c.panicIfNotTracking()
 
+	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
+		randSleep()
+	}
+	defer atomic.StoreUint32(&c.atom, stateUnlocked)
+
 	if _, ok := c.state.serverOptions[key]; ok {
 		return c.state.serverOptions[key].Load().(string), ok
 	}
@@ -705,8 +711,12 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 // Will panic if used when tracking has been disabled.
 func (c *Client) GetAllServerOption() (map[string]string, error) {
 	c.panicIfNotTracking()
-	c.state.RLock()
-	defer c.state.RUnlock()
+
+	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
+		randSleep()
+	}
+	defer atomic.StoreUint32(&c.atom, stateUnlocked)
+
 	if len(c.state.serverOptions) > 0 {
 		copied := make(map[string]string)
 		for k, av := range c.state.serverOptions {
@@ -725,6 +735,11 @@ func (c *Client) GetAllServerOption() (map[string]string, error) {
 // Will panic if used when tracking has been disabled.
 func (c *Client) NetworkName() (name string) {
 	c.panicIfNotTracking()
+
+	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
+		randSleep()
+	}
+	defer atomic.StoreUint32(&c.atom, stateUnlocked)
 
 	var ok bool
 
@@ -755,11 +770,9 @@ func (c *Client) ServerVersion() (version string) {
 // it upon connect. Will panic if used when tracking has been disabled.
 func (c *Client) ServerMOTD() (motd string) {
 	c.panicIfNotTracking()
-
 	c.state.RLock()
-	motd = c.state.motd
-	c.state.RUnlock()
-	return motd
+	defer c.state.RUnlock()
+	return c.state.motd
 }
 
 // Latency is the latency between the server and the client. This is measured
@@ -787,7 +800,11 @@ func (c *Client) HasCapability(name string) (has bool) {
 
 	name = strings.ToLower(name)
 
-	c.state.RLock()
+	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
+		randSleep()
+	}
+	defer atomic.StoreUint32(&c.atom, stateUnlocked)
+
 	for key := range c.state.enabledCap {
 		key = strings.ToLower(key)
 		if key == name {
@@ -795,7 +812,6 @@ func (c *Client) HasCapability(name string) (has bool) {
 			break
 		}
 	}
-	c.state.RUnlock()
 
 	return has
 }
