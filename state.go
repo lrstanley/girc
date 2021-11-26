@@ -80,6 +80,10 @@ type User struct {
 	// Mask is the combined Nick!Ident@Host of the given user.
 	Mask string `json:"mask"`
 
+	// Network is the name of the IRC network where this user was found.
+	// This has been added for the purposes of girc being used in multi-client scenarios for datakeeping.
+	Network string `json:"network"`
+
 	// ChannelList is a sorted list of all channels that we are currently
 	// tracking the user in. Each channel name is rfc1459 compliant. See
 	// User.Channels() for a shorthand if you're looking for the *Channel
@@ -427,24 +431,6 @@ func (s *state) lookupUser(name string) *User {
 	return s.users[ToRFC1459(name)]
 }
 
-func (s *state) createUserManually(nick, ident, host string) {
-	if _, ok := s.users[nick]; ok {
-		// User already exists.
-		return
-	}
-
-	s.users[nick] = &User{
-		Nick:       nick,
-		Host:       host,
-		Ident:      ident,
-		Mask:       nick + "!" + ident + "@" + host,
-		FirstSeen:  time.Now(),
-		LastActive: time.Now(),
-		Perms:      &UserPerms{channels: make(map[string]Perms)},
-	}
-}
-
-// createUser creates the user in state, if not already done.
 func (s *state) createUser(src *Source) (ok bool) {
 	if _, ok := s.users[src.ID()]; ok {
 		// User already exists.
@@ -458,6 +444,7 @@ func (s *state) createUser(src *Source) (ok bool) {
 		Mask:       src.Name + "!" + src.Ident + "@" + src.Host,
 		FirstSeen:  time.Now(),
 		LastActive: time.Now(),
+		Network:    s.serverOptions["NETWORK"].Load().(string),
 		Perms:      &UserPerms{channels: make(map[string]Perms)},
 	}
 

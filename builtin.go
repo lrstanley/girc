@@ -330,7 +330,7 @@ func handleWHO(c *Client, e Event) {
 
 	user := c.state.lookupUser(nick)
 	if user == nil {
-		c.state.createUserManually(nick, ident, host)
+		c.state.createUser(&Source{nick, ident, host})
 		c.state.users[nick].Extras.Name = realname
 		if account != "0" {
 			c.state.users[nick].Extras.Account = account
