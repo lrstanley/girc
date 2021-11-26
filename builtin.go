@@ -511,11 +511,6 @@ func handleYOURHOST(c *Client, e Event) {
 func handleISUPPORT(c *Client, e Event) {
 	// Must be a ISUPPORT-based message.
 
-	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
-		randSleep()
-	}
-	defer atomic.StoreUint32(&c.atom, stateUnlocked)
-
 	// Also known as RPL_PROTOCTL.
 	if !strings.HasSuffix(e.Last(), "this server") {
 		return
@@ -531,19 +526,24 @@ func handleISUPPORT(c *Client, e Event) {
 		split := strings.Split(e.Params[i], "=")
 
 		if len(split) != 2 {
+			c.mu.Lock()
 			c.state.serverOptions[e.Params[i]] = &atomic.Value{}
 			c.state.serverOptions[e.Params[i]].Store("")
+			c.mu.Unlock()
 			continue
 		}
 
 		if len(split[0]) < 1 || len(split[1]) < 1 {
+			c.mu.Lock()
 			c.state.serverOptions[e.Params[i]] = &atomic.Value{}
 			c.state.serverOptions[e.Params[i]].Store("")
+			c.mu.Unlock()
 			continue
 		}
-
+		c.mu.Lock()
 		c.state.serverOptions[split[0]] = &atomic.Value{}
 		c.state.serverOptions[split[0]].Store(split[1])
+		c.mu.Unlock()
 	}
 
 	c.state.notify(c, UPDATE_GENERAL)

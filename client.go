@@ -695,15 +695,14 @@ func (c *Client) IsInChannel(channel string) (in bool) {
 //
 func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	c.panicIfNotTracking()
+	ok = false
 
-	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
-		randSleep()
-	}
-	defer atomic.StoreUint32(&c.atom, stateUnlocked)
-
+	c.mu.RLock()
 	if _, ok := c.state.serverOptions[key]; ok {
-		return c.state.serverOptions[key].Load().(string), ok
+		result = c.state.serverOptions[key].Load().(string)
+		ok = true
 	}
+	c.mu.RUnlock()
 
 	return result, ok
 }
@@ -714,10 +713,8 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 func (c *Client) GetAllServerOption() (map[string]string, error) {
 	c.panicIfNotTracking()
 
-	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
-		randSleep()
-	}
-	defer atomic.StoreUint32(&c.atom, stateUnlocked)
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	if len(c.state.serverOptions) > 0 {
 		copied := make(map[string]string)
@@ -737,11 +734,6 @@ func (c *Client) GetAllServerOption() (map[string]string, error) {
 // Will panic if used when tracking has been disabled.
 func (c *Client) NetworkName() (name string) {
 	c.panicIfNotTracking()
-
-	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
-		randSleep()
-	}
-	defer atomic.StoreUint32(&c.atom, stateUnlocked)
 
 	var ok bool
 
