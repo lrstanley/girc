@@ -37,8 +37,8 @@
   - Event/message rate limiting.
   - Channel, nick, and user validation methods ([IsValidChannel](https://godoc.org/github.com/yunginnanet/girc-atomic#IsValidChannel), [IsValidNick](https://godoc.org/github.com/yunginnanet/girc-atomic#IsValidNick), etc.)
   - CTCP handling and auto-responses ([CTCP](https://godoc.org/github.com/yunginnanet/girc-atomic#CTCP))
-  - GOTTA GO FAST YOU GOTTA GO REALLY FAST
-  - you can power hundreds of clients at the same time with this now
+  - Utilizes the atomic/value package from stdlib to reduce backpressure in multi-client usage.
+  - Additional CTCP handlers and customization.
   - ??????
   - PROFIT!!!1!
 
