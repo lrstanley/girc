@@ -239,6 +239,8 @@ func (c *CTCP) addDefaultHandlers() {
 	c.SetBg(CTCP_PONG, handleCTCPPong)
 	c.SetBg(CTCP_VERSION, handleCTCPVersion)
 	c.SetBg(CTCP_SOURCE, handleCTCPSource)
+	c.SetBg(CTCP_USERINFO, handleCTCPUserInfo)
+	c.SetBg(CTCP_CLIENTINFO, handleCTCPUserInfo)
 	c.SetBg(CTCP_TIME, handleCTCPTime)
 	c.SetBg(CTCP_FINGER, handleCTCPFinger)
 }
@@ -260,8 +262,7 @@ func handleCTCPPong(client *Client, ctcp CTCPEvent) {
 }
 
 // handleCTCPVersion replies with the name of the client, Go version, as well
-// as the os type (darwin, linux, windows, etc) and architecture type (x86,
-// arm, etc).
+// as the os type if not overridden by client configuration.
 func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
 	if client.Config.Version != "" {
 		client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_VERSION, client.Config.Version)
@@ -275,10 +276,31 @@ func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
 	)
 }
 
-// handleCTCPSource replies with the public git location of this library.
+// handleCTCPUserInfo replies with the configured user information if available, otherwise it does not reply.
+func handleCTCPUserInfo(client *Client, ctcp CTCPEvent) {
+	if client.Config.UserInfo == "" {
+		return
+	}
+	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_USERINFO, client.Config.UserInfo)
+}
+
+// handleCTCPClientInfo replies with the configured client information if available, otherwise it does not reply.
+func handleCTCPClientInfo(client *Client, ctcp CTCPEvent) {
+	if client.Config.UserInfo == "" {
+		return
+	}
+	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_USERINFO, client.Config.UserInfo)
+}
+
+// handleCTCPUserInfo replies with the public git location of this library.
 func handleCTCPSource(client *Client, ctcp CTCPEvent) {
+	if client.Config.Source != "" {
+		client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_VERSION, client.Config.Source)
+		return
+	}
 	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_SOURCE, "https://github.com/yunginnanet/girc-atomic")
 }
+
 
 // handleCTCPTime replies with a RFC 1123 (Z) formatted version of Go's
 // local time.

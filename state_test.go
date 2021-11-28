@@ -74,12 +74,12 @@ func TestState(t *testing.T) {
 			t.Fatalf("Client.ServerMOTD() returned invalid MOTD: %q", motd)
 		}
 
-		if network := c.NetworkName(); network != "DummyIRC" {
-			t.Fatalf("Client.NetworkName() returned invalid network name: %q", network)
+		if network := c.NetworkName(); network != "DummyIRC" && network != "DUMMY" {
+			t.Fatalf("User.Network == %q, want \"DummyIRC\" or \"DUMMY\"", network)
 		}
 
 		if caseExample, ok := c.GetServerOption("NICKLEN"); !ok || caseExample != "20" {
-			t.Fatalf("Client.GetServerOptions returned invalid ISUPPORT variable")
+			t.Fatalf("Client.GetServerOptions returned invalid ISUPPORT variable: %q", caseExample)
 		}
 
 		users := c.UserList()
@@ -137,8 +137,8 @@ func TestState(t *testing.T) {
 			t.Fatalf("Channel.Topic == %q, want \"example topic\"", topic)
 		}
 
-		if ch.Network != "DummyIRC" {
-			t.Fatalf("Channel.Network == %q, want \"DummyIRC\"", ch.Network)
+		if ch.Network != "DummyIRC" && ch.Network != "DUMMY" {
+			t.Fatalf("Channel.Network == %q, want \"DummyIRC\" or \"DUMMY\"", ch.Network)
 		}
 
 		if in := ch.UserIn("fhjones"); !in {
@@ -190,8 +190,8 @@ func TestState(t *testing.T) {
 			t.Fatalf("User.Ident == %q, wanted \"~user\"", user.Ident)
 		}
 
-		if user.Network != "DummyIRC" {
-			t.Fatalf("User.Network == %q, want \"DummyIRC\"", user.Network)
+		if user.Network != "DummyIRC" && user.Network != "DUMMY" {
+			t.Fatalf("User.Network == %q, want \"DummyIRC\" or \"DUMMY\"", user.Network)
 		}
 
 		if !user.InChannel("#channel2") {

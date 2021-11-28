@@ -177,9 +177,17 @@ type Config struct {
 	// to the server if supported.
 	SupportedCaps map[string][]string
 	// Version is the application version information that will be used in
-	// response to a CTCP VERSION, if default CTCP replies have not been
-	// overwritten or a VERSION handler was already supplied.
+	// response to a CTCP VERSION. A default message will be sent otherwise.
 	Version string
+	// Source is the application source code information that will be used in
+	// response to a CTCP SOURCE. A default message will be sent otherwise.
+	Source string
+	// UserInfo is the user information that will be used in
+	// response to a CTCP USERINFO. No response will be sent if this is not set.
+	UserInfo string
+	// ClientInfo is the client information that will be used in
+	// response to a CTCP USERINFO. No response will be sent if this is not set.
+	ClientInfo string
 	// PingDelay is the frequency between when the client sends a keep-alive
 	// PING to the server, and awaits a response (and times out if the server
 	// doesn't respond in time). This should be between 20-600 seconds. See
@@ -695,14 +703,19 @@ func (c *Client) IsInChannel(channel string) (in bool) {
 //
 func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	c.panicIfNotTracking()
-	ok = false
 
 	c.mu.RLock()
-	if _, ok := c.state.serverOptions[key]; ok {
-		result = c.state.serverOptions[key].Load().(string)
+	if _, ok := c.state.serverOptions[key]; !ok {
+		c.mu.RUnlock()
+		return "", ok
+	}
+
+	c.mu.RUnlock()
+
+	result = c.state.serverOptions[key].Load().(string)
+	if len(result) > 0 {
 		ok = true
 	}
-	c.mu.RUnlock()
 
 	return result, ok
 }
@@ -734,15 +747,21 @@ func (c *Client) GetAllServerOption() (map[string]string, error) {
 // Will panic if used when tracking has been disabled.
 func (c *Client) NetworkName() (name string) {
 	c.panicIfNotTracking()
-
 	var ok bool
+
+	if c.state.network.Load() != nil {
+		name = c.state.network.Load().(string)
+		if len(name) > 0 {
+			return
+		}
+	}
 
 	name, ok = c.GetServerOption("NETWORK")
 	if !ok {
 		return c.IRCd.Network
 	}
 
-	if len(name) < 0 && len(c.IRCd.Network) > 1 {
+	if len(name) < 1 && len(c.IRCd.Network) > 1 {
 		name = c.IRCd.Network
 	}
 

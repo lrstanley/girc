@@ -109,7 +109,10 @@ func handleConnect(c *Client, e Event) {
 		c.state.notify(c, UPDATE_GENERAL)
 		split := strings.Split(e.Params[1], " ")
 		if strings.HasPrefix(e.Params[1], "Welcome to the") && len(split) > 3 {
-			c.IRCd.Network = split[3]
+			if len(split[3]) > 0 {
+				c.state.network.Store(split[3])
+				c.IRCd.Network = split[3]
+			}
 		}
 	}
 
@@ -528,22 +531,27 @@ func handleISUPPORT(c *Client, e Event) {
 		if len(split) != 2 {
 			c.mu.Lock()
 			c.state.serverOptions[e.Params[i]] = &atomic.Value{}
-			c.state.serverOptions[e.Params[i]].Store("")
 			c.mu.Unlock()
+			c.state.serverOptions[e.Params[i]].Store("")
 			continue
 		}
 
 		if len(split[0]) < 1 || len(split[1]) < 1 {
 			c.mu.Lock()
 			c.state.serverOptions[e.Params[i]] = &atomic.Value{}
-			c.state.serverOptions[e.Params[i]].Store("")
 			c.mu.Unlock()
+			c.state.serverOptions[e.Params[i]].Store("")
 			continue
 		}
+
+		if split[0] == "NETWORK" {
+			c.state.network.Store(split[1])
+		}
+
 		c.mu.Lock()
 		c.state.serverOptions[split[0]] = &atomic.Value{}
-		c.state.serverOptions[split[0]].Store(split[1])
 		c.mu.Unlock()
+		c.state.serverOptions[split[0]].Store(split[1])
 	}
 
 	c.state.notify(c, UPDATE_GENERAL)

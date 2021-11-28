@@ -33,6 +33,10 @@ type state struct {
 	// supported by the server at connection time. This also includes
 	// RPL_ISUPPORT entries.
 	serverOptions map[string]*atomic.Value
+
+	// network is an alternative way to store and retrieve the NETWORK server option.
+	network atomic.Value
+
 	// motd is the servers message of the day.
 	motd string
 
