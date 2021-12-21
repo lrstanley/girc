@@ -179,9 +179,9 @@ type Config struct {
 	// Version is the application version information that will be used in
 	// response to a CTCP VERSION. A default message will be sent otherwise.
 	Version string
-	// Source is the application source code information that will be used in
-	// response to a CTCP SOURCE. A default message will be sent otherwise.
-	Source string
+	// ClientInfo is the application ClientInfo code information that will be used in
+	// response to a CTCP CLIENTINFO. No response will be sent if this is not set.
+	ClientInfo string
 	// UserInfo is the user information that will be used in
 	// response to a CTCP USERINFO. No response will be sent if this is not set.
 	UserInfo string
