@@ -185,9 +185,12 @@ type Config struct {
 	// UserInfo is the user information that will be used in
 	// response to a CTCP USERINFO. No response will be sent if this is not set.
 	UserInfo string
-	// ClientInfo is the client information that will be used in
-	// response to a CTCP USERINFO. No response will be sent if this is not set.
-	ClientInfo string
+	// Finger is the client information that will be used in
+	// response to a CTCP FINGER. A default message will be sent otherwise.
+	Finger string
+	// Source is the application source code information that will be used in
+	// response to a CTCP SOURCE. A default message will be sent otherwise.
+	Source string
 	// PingDelay is the frequency between when the client sends a keep-alive
 	// PING to the server, and awaits a response (and times out if the server
 	// doesn't respond in time). This should be between 20-600 seconds. See

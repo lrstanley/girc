@@ -240,7 +240,7 @@ func (c *CTCP) addDefaultHandlers() {
 	c.SetBg(CTCP_VERSION, handleCTCPVersion)
 	c.SetBg(CTCP_SOURCE, handleCTCPSource)
 	c.SetBg(CTCP_USERINFO, handleCTCPUserInfo)
-	c.SetBg(CTCP_CLIENTINFO, handleCTCPUserInfo)
+	c.SetBg(CTCP_CLIENTINFO, handleCTCPClientInfo)
 	c.SetBg(CTCP_TIME, handleCTCPTime)
 	c.SetBg(CTCP_FINGER, handleCTCPFinger)
 }
@@ -311,6 +311,13 @@ func handleCTCPTime(client *Client, ctcp CTCPEvent) {
 // handleCTCPFinger replies with the realname and idle time of the user. This
 // is obsoleted by improvements to the IRC protocol, however still supported.
 func handleCTCPFinger(client *Client, ctcp CTCPEvent) {
+	if client.Config.Finger != "" {
+		client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_VERSION, client.Config.Finger)
+		return
+	}
+
+
 	active := client.conn.lastActive.Load().(time.Time)
 	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_FINGER, fmt.Sprintf("%s -- idle %s", client.Config.Name, time.Since(active)))
+
 }
