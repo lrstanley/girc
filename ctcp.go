@@ -271,7 +271,7 @@ func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
 
 	client.Cmd.SendCTCPReplyf(
 		ctcp.Source.ID(), CTCP_VERSION,
-		"girc (github.com/yunginnanet/girc-atomic) using %s (%s, %s)",
+		"girc-atomic using %s (%s, %s)",
 		runtime.Version(), runtime.GOOS, runtime.GOARCH,
 	)
 }
@@ -295,7 +295,7 @@ func handleCTCPClientInfo(client *Client, ctcp CTCPEvent) {
 // handleCTCPUserInfo replies with the public git location of this library.
 func handleCTCPSource(client *Client, ctcp CTCPEvent) {
 	if client.Config.Source != "" {
-		client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_VERSION, client.Config.Source)
+		client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_SOURCE, client.Config.Source)
 		return
 	}
 	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_SOURCE, "https://github.com/yunginnanet/girc-atomic")
@@ -312,7 +312,7 @@ func handleCTCPTime(client *Client, ctcp CTCPEvent) {
 // is obsoleted by improvements to the IRC protocol, however still supported.
 func handleCTCPFinger(client *Client, ctcp CTCPEvent) {
 	if client.Config.Finger != "" {
-		client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_VERSION, client.Config.Finger)
+		client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_FINGER, client.Config.Finger)
 		return
 	}
 
