@@ -5,7 +5,6 @@
 package girc
 
 import (
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -18,7 +17,6 @@ func TestDisableTracking(t *testing.T) {
 		Nick:   "test",
 		User:   "test",
 		Name:   "Testing123",
-		Debug:  os.Stdout,
 	})
 
 	if client.Handlers.internal.len() < 1 {
@@ -84,7 +82,6 @@ func TestClientLifetime(t *testing.T) {
 		Nick:   "test",
 		User:   "test",
 		Name:   "Testing123",
-		Debug:  os.Stdout,
 	})
 
 	tm := client.Lifetime()

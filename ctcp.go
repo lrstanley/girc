@@ -301,7 +301,6 @@ func handleCTCPSource(client *Client, ctcp CTCPEvent) {
 	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_SOURCE, "https://github.com/yunginnanet/girc-atomic")
 }
 
-
 // handleCTCPTime replies with a RFC 1123 (Z) formatted version of Go's
 // local time.
 func handleCTCPTime(client *Client, ctcp CTCPEvent) {
@@ -315,7 +314,6 @@ func handleCTCPFinger(client *Client, ctcp CTCPEvent) {
 		client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_FINGER, client.Config.Finger)
 		return
 	}
-
 
 	active := client.conn.lastActive.Load().(time.Time)
 	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_FINGER, fmt.Sprintf("%s -- idle %s", client.Config.Name, time.Since(active)))
