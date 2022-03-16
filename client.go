@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	cmap "github.com/orcaman/concurrent-map"
@@ -297,7 +296,6 @@ func New(config Config) *Client {
 		tx:       make(chan *Event, 25),
 		CTCP:     newCTCP(),
 		initTime: time.Now(),
-		atom:     stateUnlocked,
 	}
 
 	c.IRCd = Server{
@@ -341,6 +339,7 @@ func New(config Config) *Client {
 
 	// Give ourselves a new state.
 	c.state = &state{}
+	c.state.RWMutex = &sync.RWMutex{}
 	c.state.reset(true)
 
 	c.state.client = c
@@ -596,9 +595,12 @@ func (c *Client) GetHost() (host string) {
 func (c *Client) ChannelList() []string {
 	c.panicIfNotTracking()
 
-	channels := make([]string, 0, len(c.state.channels))
+	channels := make([]string, 0, len(c.state.channels.Keys()))
 	for channel := range c.state.channels.IterBuffered() {
 		chn := channel.Val.(*Channel)
+		if !chn.UserIn(c.GetNick()) {
+			continue
+		}
 		channels = append(channels, chn.Name)
 	}
 
@@ -729,7 +731,7 @@ func (c *Client) NetworkName() (name string) {
 	var ok bool
 
 	if len(c.state.network) > 0 {
-		return
+		return c.state.network
 	}
 
 	name, ok = c.GetServerOption("NETWORK")
@@ -788,12 +790,7 @@ func (c *Client) HasCapability(name string) (has bool) {
 
 	name = strings.ToLower(name)
 
-	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
-		randSleep()
-	}
-	defer atomic.StoreUint32(&c.atom, stateUnlocked)
-
-	for key := range c.state.enabledCap {
+	for _, key := range c.state.enabledCap.Keys() {
 		key = strings.ToLower(key)
 		if key == name {
 			has = true

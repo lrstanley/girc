@@ -28,11 +28,11 @@ type state struct {
 	// users map[string]*User
 	users cmap.ConcurrentMap
 	// enabledCap are the capabilities which are enabled for this connection.
-	enabledCap map[string]map[string]string
+	enabledCap cmap.ConcurrentMap
 	// tmpCap are the capabilties which we share with the server during the
 	// last capability check. These will get sent once we have received the
 	// last capability list command from the server.
-	tmpCap map[string]map[string]string
+	tmpCap cmap.ConcurrentMap
 	// serverOptions are the standard capabilities and configurations
 	// supported by the server at connection time. This also includes
 	// RPL_ISUPPORT entries.
@@ -69,8 +69,8 @@ func (s *state) reset(initial bool) {
 		}
 	}
 
-	s.enabledCap = make(map[string]map[string]string)
-	s.tmpCap = make(map[string]map[string]string)
+	s.enabledCap = cmap.New()
+	s.tmpCap = cmap.New()
 	s.motd = ""
 
 	if initial {
@@ -482,6 +482,7 @@ func (s *state) createUser(src *Source) (u *User, ok bool) {
 func (s *state) deleteUser(channelName, nick string) {
 	user := s.lookupUser(nick)
 	if user == nil {
+		s.client.debug.Printf(nick + ": was not found when trying to deleteUser from " + channelName)
 		return
 	}
 

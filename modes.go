@@ -404,13 +404,9 @@ func (p *UserPerms) Copy() (perms *UserPerms) {
 	np := &UserPerms{
 		channels: make(map[string]Perms),
 	}
-
-	p.mu.RLock()
 	for key := range p.channels {
 		np.channels[key] = p.channels[key]
 	}
-	p.mu.RUnlock()
-
 	return np
 }
 
@@ -426,9 +422,7 @@ func (p *UserPerms) MarshalJSON() ([]byte, error) {
 // Lookup looks up the users permissions for a given channel. ok is false
 // if the user is not in the given channel.
 func (p *UserPerms) Lookup(channel string) (perms Perms, ok bool) {
-	p.mu.RLock()
 	perms, ok = p.channels[ToRFC1459(channel)]
-	p.mu.RUnlock()
 
 	return perms, ok
 }

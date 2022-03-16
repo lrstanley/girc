@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	cmap "github.com/orcaman/concurrent-map"
 )
 
 // Something not in the list? Depending on the type of capability, you can
@@ -118,12 +120,11 @@ func parseCap(raw string) map[string]map[string]string {
 // This will lock further registration until we have acknowledged (or denied)
 // the capabilities.
 func handleCAP(c *Client, e Event) {
-
 	if len(e.Params) >= 2 && e.Params[1] == CAP_DEL {
 		caps := parseCap(e.Last())
 		for capab := range caps {
 			// TODO: test the deletion.
-			delete(c.state.enabledCap, capab)
+			c.state.enabledCap.Remove(capab)
 		}
 		return
 	}
@@ -146,7 +147,7 @@ func handleCAP(c *Client, e Event) {
 			}
 
 			if len(possible[capName]) == 0 || len(caps[capName]) == 0 {
-				c.state.tmpCap[capName] = caps[capName]
+				c.state.tmpCap.Set(capName, caps[capName])
 				continue
 			}
 
@@ -167,7 +168,7 @@ func handleCAP(c *Client, e Event) {
 				continue
 			}
 
-			c.state.tmpCap[capName] = caps[capName]
+			c.state.tmpCap.Set(capName, caps[capName])
 		}
 
 		// Indicates if this is a multi-line LS. (3 args means it's the
@@ -180,10 +181,11 @@ func handleCAP(c *Client, e Event) {
 			}
 
 			// Let them know which ones we'd like to enable.
-			reqKeys := make([]string, len(c.state.tmpCap))
+			reqKeys := make([]string, len(c.state.tmpCap.Keys()))
 			i := 0
-			for k := range c.state.tmpCap {
-				reqKeys[i] = k
+			for k := range c.state.tmpCap.IterBuffered() {
+				kv := k.Val.(string)
+				reqKeys[i] = kv
 				i++
 			}
 			c.write(&Event{Command: CAP, Params: []string{CAP_REQ, strings.Join(reqKeys, " ")}})
@@ -193,10 +195,12 @@ func handleCAP(c *Client, e Event) {
 	if len(e.Params) == 3 && e.Params[1] == CAP_ACK {
 		enabled := strings.Split(e.Last(), " ")
 		for _, capab := range enabled {
-			if val, ok := c.state.tmpCap[capab]; ok {
-				c.state.enabledCap[capab] = val
+			val, ok := c.state.tmpCap.Get(capab)
+			if ok {
+				val = val.(map[string]string)
+				c.state.enabledCap.Set(capab, val)
 			} else {
-				c.state.enabledCap[capab] = nil
+				c.state.enabledCap.Set(capab, nil)
 			}
 		}
 
@@ -205,9 +209,10 @@ func handleCAP(c *Client, e Event) {
 
 		// Handle STS, and only if it's something specifically we enabled (client
 		// may choose to disable girc automatic STS, and do it themselves).
-		if sts, sok := c.state.enabledCap["sts"]; sok && !c.Config.DisableSTS {
+		stsi, sok := c.state.enabledCap.Get("sts")
+		if sok && !c.Config.DisableSTS {
 			var isError bool
-
+			sts := stsi.(map[string]string)
 			// Some things are updated in the policy depending on if the current
 			// connection is over tls or not.
 			var hasTLSConnection bool
@@ -284,9 +289,10 @@ func handleCAP(c *Client, e Event) {
 
 		// Re-initialize the tmpCap, so if we get multiple 'CAP LS' requests
 		// due to cap-notify, we can re-evaluate what we can support.
-		c.state.tmpCap = make(map[string]map[string]string)
+		c.state.tmpCap = cmap.New()
 
-		if _, ok := c.state.enabledCap["sasl"]; ok && c.Config.SASL != nil {
+		_, ok := c.state.enabledCap.Get("sasl")
+		if ok && c.Config.SASL != nil {
 			c.write(&Event{Command: AUTHENTICATE, Params: []string{c.Config.SASL.Method()}})
 			// Don't "CAP END", since we want to authenticate.
 			return
@@ -342,11 +348,9 @@ func handleACCOUNT(c *Client, e Event) {
 		account = ""
 	}
 
-	c.state.Lock()
 	user := c.state.lookupUser(e.Source.Name)
 	if user != nil {
 		user.Extras.Account = account
 	}
-	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)
 }

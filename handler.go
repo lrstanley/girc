@@ -167,6 +167,7 @@ func (c *Caller) Len() int {
 // Count is much like Caller.Len(), however it counts the number of
 // registered handlers for a given command.
 func (c *Caller) Count(cmd string) int {
+	cmd = strings.ToUpper(cmd)
 	return c.external.lenFor(cmd)
 }
 
@@ -198,63 +199,91 @@ func (c *Caller) cuidToID(input string) (cmd, uid string) {
 	return input[:i], input[i+1:]
 }
 
+type execStack struct {
+	Handler
+	cuid string
+}
+
 // exec executes all handlers pertaining to specified event. Internal first,
 // then external.
 //
 // Please note that there is no specific order/priority for which the handlers
 // are executed.
 func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
-	handle := func(wgr *sync.WaitGroup, h handlerTuple) {
 
-		c.debug.Printf("(%s) exec %s => %s", c.parent.Config.Nick, command, h.cuid)
-		start := time.Now()
+	// Build a stack of handlers which can be executed concurrently.
+	var stack []execStack
 
-		if bg {
-			go func() {
-				defer wgr.Done()
-				if client.Config.RecoverFunc != nil {
-					defer recoverHandlerPanic(client, event, h.cuid, 3)
-				}
-				h.handler.Execute(client, *event)
-				c.debug.Printf("(%s) done %s == %s", c.parent.Config.Nick,
-					h.cuid, time.Since(start))
-			}()
-			return
+	// Get internal handlers first.
+	ihm, iok := c.internal.cm.Get(command)
+	if iok {
+		hmap := ihm.(cmap.ConcurrentMap)
+		for _, cuid := range hmap.Keys() {
+			if (strings.HasSuffix(cuid, ":bg") && !bg) || (!strings.HasSuffix(cuid, ":bg") && bg) {
+				continue
+			}
+			hi, _ := hmap.Get(cuid)
+			hndlr, ok := hi.(Handler)
+			if !ok {
+				continue
+			}
+			stack = append(stack, execStack{hndlr, cuid})
 		}
-
-		if client.Config.RecoverFunc != nil {
-			defer recoverHandlerPanic(client, event, h.cuid, 3)
+	}
+	// Then external handlers.
+	ehm, eok := c.external.cm.Get(command)
+	if eok {
+		hmap := ehm.(cmap.ConcurrentMap)
+		for _, cuid := range hmap.Keys() {
+			if (strings.HasSuffix(cuid, ":bg") && !bg) || (!strings.HasSuffix(cuid, ":bg") && bg) {
+				continue
+			}
+			hi, _ := hmap.Get(cuid)
+			hndlr, ok := hi.(Handler)
+			if !ok {
+				continue
+			}
+			stack = append(stack, execStack{hndlr, cuid})
 		}
-
-		h.handler.Execute(client, *event)
-		c.debug.Printf("(%s) done %s == %s", c.parent.Config.Nick, h.cuid, time.Since(start))
-		wgr.Done()
 	}
 
 	// Run all handlers concurrently across the same event. This should
 	// still help prevent mis-ordered events, while speeding up the
 	// execution speed.
 	var wg sync.WaitGroup
+	wg.Add(len(stack))
+	for i := 0; i < len(stack); i++ {
+		go func(index int) {
+			c.debug.Printf("(%s) [%d/%d] exec %s => %s", c.parent.Config.Nick,
+				index+1, len(stack), stack[index].cuid, command)
+			start := time.Now()
 
-	internals, iok := c.internal.getAllHandlersFor(command)
-	if iok {
-		for h := range internals {
-			wg.Add(1)
-			go handle(&wg, h)
-		}
-	}
-	externals, eok := c.external.getAllHandlersFor(command)
-	if eok {
-		for h := range externals {
-			wg.Add(1)
-			go handle(&wg, h)
-		}
-	}
+			if bg {
+				go func() {
+					defer wg.Done()
+					if client.Config.RecoverFunc != nil {
+						defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
+					}
+					stack[index].Handler.Execute(client, *event)
+					c.debug.Printf("(%s) done %s == %s", c.parent.Config.Nick,
+						stack[index].cuid, time.Since(start))
+				}()
+				return
+			}
+			defer wg.Done()
 
-	// Wait for all of the handlers to complete. Not doing this may cause
-	// new events from becoming ahead of older handlers.
-	c.debug.Printf("(%s) wg.Wait()", c.parent.Config.Nick)
-	wg.Wait()
+			if client.Config.RecoverFunc != nil {
+				defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
+			}
+
+			stack[index].Handler.Execute(client, *event)
+			c.debug.Printf("(%s) done %s == %s", c.parent.Config.Nick, stack[index].cuid, time.Since(start))
+		}(i)
+
+		// new events from becoming ahead of ol1 handlers.
+		c.debug.Printf("(%s) wg.Wait()", c.parent.Config.Nick)
+		wg.Wait()
+	}
 }
 
 // ClearAll clears all external handlers currently setup within the client.
@@ -283,11 +312,8 @@ func (c *Caller) Clear(cmd string) {
 // indicates that it existed, and has been removed. If not success, it
 // wasn't a registered handler.
 func (c *Caller) Remove(cuid string) (success bool) {
-	c.mu.Lock()
-	success = c.remove(cuid)
-	c.mu.Unlock()
-
-	return success
+	c.remove(cuid)
+	return true
 }
 
 // remove is much like Remove, however is NOT concurrency safe. Lock Caller.mu
@@ -359,12 +385,12 @@ func (c *Caller) register(internal, bg bool, cmd string, handler Handler) (cuid 
 	} else {
 		chandlers = cmap.New()
 	}
-	parent.cm.SetIfAbsent(cmd, chandlers)
 
 	chandlers.Set(uid, handler)
 
-	_, file, line, _ := runtime.Caller(2)
+	parent.cm.Set(cmd, chandlers)
 
+	_, file, line, _ := runtime.Caller(2)
 	c.debug.Printf("reg %q => %s [int:%t bg:%t] %s:%d", uid, cmd, internal, bg, file, line)
 
 	return cuid

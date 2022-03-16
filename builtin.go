@@ -12,17 +12,10 @@ import (
 	"github.com/araddon/dateparse"
 )
 
-const (
-	stateUnlocked uint32 = iota
-	stateLocked
-)
-
 // registerBuiltin sets up built-in handlers, based on client
 // configuration.
 func (c *Client) registerBuiltins() {
 	c.debug.Print("registering built-in handlers")
-	c.Handlers.mu.Lock()
-	defer c.Handlers.mu.Unlock()
 
 	// Built-in things that should always be supported.
 	c.Handlers.register(true, true, RPL_WELCOME, HandlerFunc(handleConnect))
@@ -107,10 +100,19 @@ func handleConnect(c *Client, e Event) {
 		c.state.nick.Store(e.Params[0])
 		c.state.notify(c, UPDATE_GENERAL)
 		split := strings.Split(e.Params[1], " ")
-		if strings.HasPrefix(e.Params[1], "Welcome to the") && len(split) > 3 {
-			if len(split[3]) > 0 {
-				c.state.network = split[3]
-				c.IRCd.Network = split[3]
+	search:
+		for i, artifact := range split {
+			switch strings.ToLower(artifact) {
+			case "welcome", "to":
+				continue
+			case "the":
+				if len(split) < i {
+					break search
+				}
+				c.IRCd.Network = split[i+1]
+				break search
+			default:
+				break search
 			}
 		}
 	}
@@ -221,9 +223,7 @@ func handlePART(c *Client, e Event) {
 	defer c.state.notify(c, UPDATE_STATE)
 
 	if e.Source.ID() == c.GetID() {
-
 		c.state.deleteChannel(channel)
-
 		return
 	}
 
@@ -376,7 +376,6 @@ func handleNICK(c *Client, e Event) {
 	if len(e.Params) >= 1 {
 		c.state.renameUser(e.Source.ID(), e.Last())
 	}
-
 	c.state.notify(c, UPDATE_STATE)
 }
 
@@ -404,7 +403,6 @@ func handleGLOBALUSERS(c *Client, e Event) {
 	if err != nil {
 		return
 	}
-
 	c.IRCd.UserCount = cusers
 	c.IRCd.MaxUserCount = musers
 }
@@ -418,7 +416,6 @@ func handleLOCALUSERS(c *Client, e Event) {
 	if err != nil {
 		return
 	}
-
 	c.IRCd.LocalUserCount = cusers
 	c.IRCd.LocalMaxUserCount = musers
 }
@@ -428,7 +425,6 @@ func handleLUSERCHANNELS(c *Client, e Event) {
 	if err != nil {
 		return
 	}
-
 	c.IRCd.ChannelCount = ccount
 }
 
@@ -437,7 +433,6 @@ func handleLUSEROP(c *Client, e Event) {
 	if err != nil {
 		return
 	}
-
 	c.IRCd.OperCount = ocount
 }
 
@@ -462,9 +457,7 @@ func handleCREATED(c *Client, e Event) {
 	if err != nil {
 		return
 	}
-
 	c.IRCd.Compiled = compiled
-
 	c.state.notify(c, UPDATE_GENERAL)
 }
 
@@ -484,10 +477,8 @@ func handleYOURHOST(c *Client, e Event) {
 	if len(host)+len(ver) == 0 {
 		return
 	}
-
 	c.IRCd.Host = host
 	c.IRCd.Version = ver
-
 	c.state.notify(c, UPDATE_GENERAL)
 }
 
@@ -533,13 +524,11 @@ func handleISUPPORT(c *Client, e Event) {
 // handleMOTD handles incoming MOTD messages and buffers them up for use with
 // Client.ServerMOTD().
 func handleMOTD(c *Client, e Event) {
-
 	defer c.state.notify(c, UPDATE_GENERAL)
 
 	// Beginning of the MOTD.
 	if e.Command == RPL_MOTDSTART {
 		c.state.motd = ""
-
 		return
 	}
 
@@ -548,7 +537,6 @@ func handleMOTD(c *Client, e Event) {
 		c.state.motd += "\n"
 	}
 	c.state.motd += e.Last()
-
 }
 
 // handleNAMES handles incoming NAMES queries, of which lists all users in
@@ -608,7 +596,6 @@ func handleNAMES(c *Client, e Event) {
 		perms.set(modes, false)
 		user.Perms.set(channel.Name, perms)
 	}
-
 	c.state.notify(c, UPDATE_STATE)
 }
 

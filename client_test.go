@@ -5,23 +5,11 @@
 package girc
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
 )
-
-type debugWriter struct {
-	t *testing.T
-}
-
-func newDebugWriter(t *testing.T) debugWriter {
-	return debugWriter{t: t}
-}
-
-func (d debugWriter) Write(p []byte) (n int, err error) {
-	go d.t.Logf("%v", string(p))
-	return len(p), nil
-}
 
 func TestDisableTracking(t *testing.T) {
 	client := New(Config{
@@ -30,7 +18,7 @@ func TestDisableTracking(t *testing.T) {
 		Nick:   "test",
 		User:   "test",
 		Name:   "Testing123",
-		Debug:  newDebugWriter(t),
+		Debug:  os.Stdout,
 	})
 
 	if client.Handlers.internal.len() < 1 {
@@ -96,7 +84,7 @@ func TestClientLifetime(t *testing.T) {
 		Nick:   "test",
 		User:   "test",
 		Name:   "Testing123",
-		Debug:    newDebugWriter(t),
+		Debug:  os.Stdout,
 	})
 
 	tm := client.Lifetime()
@@ -107,7 +95,7 @@ func TestClientLifetime(t *testing.T) {
 }
 
 func TestClientUptime(t *testing.T) {
-	c, conn, server := genMockConn(t)
+	c, conn, server := genMockConn()
 	defer conn.Close()
 	defer server.Close()
 	go mockReadBuffer(conn)
@@ -152,7 +140,7 @@ func TestClientUptime(t *testing.T) {
 }
 
 func TestClientGet(t *testing.T) {
-	c, conn, server := genMockConn(t)
+	c, conn, server := genMockConn()
 	defer conn.Close()
 	defer server.Close()
 	go mockReadBuffer(conn)
@@ -183,7 +171,7 @@ func TestClientGet(t *testing.T) {
 }
 
 func TestClientClose(t *testing.T) {
-	c, conn, server := genMockConn(t)
+	c, conn, server := genMockConn()
 	defer server.Close()
 	defer conn.Close()
 	go mockReadBuffer(conn)

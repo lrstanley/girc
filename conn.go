@@ -441,11 +441,6 @@ func (c *Client) Send(event *Event) {
 
 	event.Network = c.NetworkName()
 
-	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
-		randSleep()
-	}
-	defer atomic.StoreUint32(&c.atom, stateUnlocked)
-
 	if !c.Config.AllowFlood {
 		// Drop the event early as we're disconnected, this way we don't have to wait
 		// the (potentially long) rate limit delay before dropping.
@@ -515,7 +510,7 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 				//
 				var in bool
 				for i := 0; i < len(c.state.enabledCap); i++ {
-					if _, ok := c.state.enabledCap["message-tags"]; ok {
+					if _, ok := c.state.enabledCap.Get("message-tags"); ok {
 						in = true
 						break
 					}
@@ -580,9 +575,9 @@ type ErrTimedOut struct {
 func (ErrTimedOut) Error() string { return "timed out waiting for a requested PING response" }
 
 func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
-	defer wg.Done()
 	// Don't run the pingLoop if they want to disable it.
 	if c.Config.PingDelay <= 0 {
+		wg.Done()
 		return
 	}
 
@@ -621,6 +616,7 @@ func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 					Delay:            c.Config.PingDelay,
 				}
 
+				wg.Done()
 				return
 			}
 
@@ -628,6 +624,7 @@ func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 
 			c.Cmd.Ping(fmt.Sprintf("%d", time.Now().UnixNano()))
 		case <-ctx.Done():
+			wg.Done()
 			return
 		}
 	}
