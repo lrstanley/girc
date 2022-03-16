@@ -24,12 +24,11 @@ func handleTags(c *Client, e Event) {
 		return
 	}
 
-	c.state.Lock()
 	user := c.state.lookupUser(e.Source.ID())
 	if user != nil {
 		user.Extras.Account = account
 	}
-	c.state.Unlock()
+
 	c.state.notify(c, UPDATE_STATE)
 }
 

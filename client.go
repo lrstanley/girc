@@ -21,6 +21,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	cmap "github.com/orcaman/concurrent-map"
 )
 
 // Client contains all of the information necessary to run a single IRC
@@ -392,12 +394,10 @@ var ErrConnNotTLS = errors.New("underlying connection is not tls")
 // safe to call multiple times. See Connect()'s documentation on how
 // handlers and goroutines are handled when disconnected from the server.
 func (c *Client) Close() {
-	c.mu.RLock()
 	if c.stop != nil {
 		c.debug.Print("requesting client to stop")
 		c.stop()
 	}
-	c.mu.RUnlock()
 }
 
 // Quit sends a QUIT message to the server with a given reason to close the
@@ -481,9 +481,7 @@ func (c *Client) DisableTracking() {
 	c.Config.disableTracking = true
 	c.Handlers.clearInternal()
 
-	c.state.Lock()
-	c.state.channels = nil
-	c.state.Unlock()
+	c.state.channels.Clear()
 	c.state.notify(c, UPDATE_STATE)
 
 	c.registerBuiltins()
@@ -598,12 +596,12 @@ func (c *Client) GetHost() (host string) {
 func (c *Client) ChannelList() []string {
 	c.panicIfNotTracking()
 
-	c.state.RLock()
 	channels := make([]string, 0, len(c.state.channels))
-	for channel := range c.state.channels {
-		channels = append(channels, c.state.channels[channel].Name)
+	for channel := range c.state.channels.IterBuffered() {
+		chn := channel.Val.(*Channel)
+		channels = append(channels, chn.Name)
 	}
-	c.state.RUnlock()
+
 	sort.Strings(channels)
 	return channels
 }
@@ -613,12 +611,11 @@ func (c *Client) ChannelList() []string {
 func (c *Client) Channels() []*Channel {
 	c.panicIfNotTracking()
 
-	c.state.RLock()
 	channels := make([]*Channel, 0, len(c.state.channels))
-	for channel := range c.state.channels {
-		channels = append(channels, c.state.channels[channel].Copy())
+	for channel := range c.state.channels.IterBuffered() {
+		chn := channel.Val.(*Channel)
+		channels = append(channels, chn.Copy())
 	}
-	c.state.RUnlock()
 
 	sort.Slice(channels, func(i, j int) bool {
 		return channels[i].Name < channels[j].Name
@@ -631,12 +628,12 @@ func (c *Client) Channels() []*Channel {
 func (c *Client) UserList() []string {
 	c.panicIfNotTracking()
 
-	c.state.RLock()
 	users := make([]string, 0, len(c.state.users))
-	for user := range c.state.users {
-		users = append(users, c.state.users[user].Nick)
+	for user := range c.state.users.IterBuffered() {
+		usr := user.Val.(*User)
+		users = append(users, usr.Nick)
 	}
-	c.state.RUnlock()
+
 	sort.Strings(users)
 	return users
 }
@@ -646,12 +643,11 @@ func (c *Client) UserList() []string {
 func (c *Client) Users() []*User {
 	c.panicIfNotTracking()
 
-	c.state.RLock()
 	users := make([]*User, 0, len(c.state.users))
-	for user := range c.state.users {
-		users = append(users, c.state.users[user].Copy())
+	for user := range c.state.users.IterBuffered() {
+		usr := user.Val.(*User)
+		users = append(users, usr.Copy())
 	}
-	c.state.RUnlock()
 
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].Nick < users[j].Nick
@@ -667,9 +663,8 @@ func (c *Client) LookupChannel(name string) (channel *Channel) {
 		return nil
 	}
 
-	c.state.RLock()
 	channel = c.state.lookupChannel(name).Copy()
-	c.state.RUnlock()
+
 	return channel
 }
 
@@ -681,20 +676,17 @@ func (c *Client) LookupUser(nick string) (user *User) {
 		return nil
 	}
 
-	c.state.RLock()
 	user = c.state.lookupUser(nick).Copy()
-	c.state.RUnlock()
+
 	return user
 }
 
 // IsInChannel returns true if the client is in channel. Panics if tracking
 // is disabled.
+// TODO: make sure this still works.
 func (c *Client) IsInChannel(channel string) (in bool) {
 	c.panicIfNotTracking()
-
-	c.state.RLock()
-	_, in = c.state.channels[ToRFC1459(channel)]
-	c.state.RUnlock()
+	_, in = c.state.channels.Get(ToRFC1459(channel))
 	return in
 }
 
@@ -707,15 +699,13 @@ func (c *Client) IsInChannel(channel string) (in bool) {
 func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	c.panicIfNotTracking()
 
-	c.mu.RLock()
-	if _, ok := c.state.serverOptions[key]; !ok {
-		c.mu.RUnlock()
+	oi, ok := c.state.serverOptions.Get(key)
+	if !ok {
 		return "", ok
 	}
 
-	c.mu.RUnlock()
+	result = oi.(string)
 
-	result = c.state.serverOptions[key].Load().(string)
 	if len(result) > 0 {
 		ok = true
 	}
@@ -726,23 +716,9 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 // GetAllServerOption retrieves all of a server's capability settings that were retrieved
 // during client connection. This is also known as ISUPPORT (or RPL_PROTOCTL).
 // Will panic if used when tracking has been disabled.
-func (c *Client) GetAllServerOption() (map[string]string, error) {
+func (c *Client) GetAllServerOption() <-chan cmap.Tuple {
 	c.panicIfNotTracking()
-
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	if len(c.state.serverOptions) > 0 {
-		copied := make(map[string]string)
-		for k, av := range c.state.serverOptions {
-			if v := av.Load(); v != nil {
-				copied[k] = av.Load().(string)
-			}
-		}
-		return copied, nil
-	} else {
-		return nil, errors.New("server options is empty")
-	}
+	return c.state.serverOptions.IterBuffered()
 }
 
 // NetworkName returns the network identifier. E.g. "EsperNet", "ByteIRC".
@@ -752,11 +728,8 @@ func (c *Client) NetworkName() (name string) {
 	c.panicIfNotTracking()
 	var ok bool
 
-	if c.state.network.Load() != nil {
-		name = c.state.network.Load().(string)
-		if len(name) > 0 {
-			return
-		}
+	if len(c.state.network) > 0 {
+		return
 	}
 
 	name, ok = c.GetServerOption("NETWORK")
@@ -786,8 +759,7 @@ func (c *Client) ServerVersion() (version string) {
 // it upon connect. Will panic if used when tracking has been disabled.
 func (c *Client) ServerMOTD() (motd string) {
 	c.panicIfNotTracking()
-	c.state.RLock()
-	defer c.state.RUnlock()
+
 	return c.state.motd
 }
 

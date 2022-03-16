@@ -10,6 +10,19 @@ import (
 	"time"
 )
 
+type debugWriter struct {
+	t *testing.T
+}
+
+func newDebugWriter(t *testing.T) debugWriter {
+	return debugWriter{t: t}
+}
+
+func (d debugWriter) Write(p []byte) (n int, err error) {
+	go d.t.Logf("%v", string(p))
+	return len(p), nil
+}
+
 func TestDisableTracking(t *testing.T) {
 	client := New(Config{
 		Server: "dummy.int",
@@ -17,21 +30,19 @@ func TestDisableTracking(t *testing.T) {
 		Nick:   "test",
 		User:   "test",
 		Name:   "Testing123",
+		Debug:  newDebugWriter(t),
 	})
 
-	if len(client.Handlers.internal) < 1 {
+	if client.Handlers.internal.len() < 1 {
 		t.Fatal("Client.Handlers empty, though just initialized")
 	}
 
 	client.DisableTracking()
-	if _, ok := client.Handlers.internal[CAP]; ok {
+	if _, ok := client.Handlers.internal.cm.Get(CAP); ok {
 		t.Fatal("Client.Handlers contains capability tracking handlers, though disabled")
 	}
 
-	client.state.Lock()
-	defer client.state.Unlock()
-
-	if client.state.channels != nil {
+	if len(client.state.channels.Keys()) > 0 {
 		t.Fatal("Client.DisableTracking() called but channel state still exists")
 	}
 }
@@ -85,6 +96,7 @@ func TestClientLifetime(t *testing.T) {
 		Nick:   "test",
 		User:   "test",
 		Name:   "Testing123",
+		Debug:    newDebugWriter(t),
 	})
 
 	tm := client.Lifetime()
@@ -95,7 +107,7 @@ func TestClientLifetime(t *testing.T) {
 }
 
 func TestClientUptime(t *testing.T) {
-	c, conn, server := genMockConn()
+	c, conn, server := genMockConn(t)
 	defer conn.Close()
 	defer server.Close()
 	go mockReadBuffer(conn)
@@ -140,7 +152,7 @@ func TestClientUptime(t *testing.T) {
 }
 
 func TestClientGet(t *testing.T) {
-	c, conn, server := genMockConn()
+	c, conn, server := genMockConn(t)
 	defer conn.Close()
 	defer server.Close()
 	go mockReadBuffer(conn)
@@ -171,7 +183,7 @@ func TestClientGet(t *testing.T) {
 }
 
 func TestClientClose(t *testing.T) {
-	c, conn, server := genMockConn()
+	c, conn, server := genMockConn(t)
 	defer server.Close()
 	defer conn.Close()
 	go mockReadBuffer(conn)

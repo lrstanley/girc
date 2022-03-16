@@ -469,9 +469,6 @@ func (c *Client) Send(event *Event) {
 // write is the lower level function to write an event. It does not have a
 // write-delay when sending events.
 func (c *Client) write(event *Event) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	if c.conn == nil {
 		// Drop the event if disconnected.
 		c.debugLogEvent(event, true)
@@ -515,7 +512,7 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 			// Check if tags exist on the event. If they do, and message-tags
 			// isn't a supported capability, remove them from the event.
 			if event.Tags != nil {
-				// c.state.RLock()
+				//
 				var in bool
 				for i := 0; i < len(c.state.enabledCap); i++ {
 					if _, ok := c.state.enabledCap["message-tags"]; ok {
@@ -523,7 +520,7 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 						break
 					}
 				}
-				// c.state.RUnlock()
+				//
 
 				if !in {
 					event.Tags = Tags{}
@@ -583,9 +580,9 @@ type ErrTimedOut struct {
 func (ErrTimedOut) Error() string { return "timed out waiting for a requested PING response" }
 
 func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
+	defer wg.Done()
 	// Don't run the pingLoop if they want to disable it.
 	if c.Config.PingDelay <= 0 {
-		wg.Done()
 		return
 	}
 
@@ -624,7 +621,6 @@ func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 					Delay:            c.Config.PingDelay,
 				}
 
-				wg.Done()
 				return
 			}
 
@@ -632,7 +628,6 @@ func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 
 			c.Cmd.Ping(fmt.Sprintf("%d", time.Now().UnixNano()))
 		case <-ctx.Done():
-			wg.Done()
 			return
 		}
 	}

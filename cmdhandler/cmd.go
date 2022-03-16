@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"sync"
 
 	"github.com/yunginnanet/girc-atomic"
 )
@@ -72,7 +71,6 @@ type CmdHandler struct {
 	prefix string
 	re     *regexp.Regexp
 
-	mu   sync.Mutex
 	cmds map[string]*Command
 }
 
@@ -116,9 +114,6 @@ func (ch *CmdHandler) Add(cmd *Command) error {
 		cmd.MinArgs = 0
 	}
 
-	ch.mu.Lock()
-	defer ch.mu.Unlock()
-
 	if _, ok := ch.cmds[cmd.Name]; ok {
 		return fmt.Errorf("command already registered: %s", cmd.Name)
 	}
@@ -153,9 +148,6 @@ func (ch *CmdHandler) Execute(client *girc.Client, event girc.Event) {
 	if len(args) == 1 && args[0] == "" {
 		args = []string{}
 	}
-
-	ch.mu.Lock()
-	defer ch.mu.Unlock()
 
 	if invCmd == "help" {
 		if len(args) == 0 {

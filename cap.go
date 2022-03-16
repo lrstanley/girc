@@ -118,8 +118,6 @@ func parseCap(raw string) map[string]map[string]string {
 // This will lock further registration until we have acknowledged (or denied)
 // the capabilities.
 func handleCAP(c *Client, e Event) {
-	c.state.Lock()
-	defer c.state.Unlock()
 
 	if len(e.Params) >= 2 && e.Params[1] == CAP_DEL {
 		caps := parseCap(e.Last())
@@ -309,13 +307,11 @@ func handleCHGHOST(c *Client, e Event) {
 		return
 	}
 
-	c.state.Lock()
 	user := c.state.lookupUser(e.Source.Name)
 	if user != nil {
 		user.Ident = e.Params[0]
 		user.Host = e.Params[1]
 	}
-	c.state.Unlock()
 
 	c.state.notify(c, UPDATE_STATE)
 }
@@ -323,12 +319,12 @@ func handleCHGHOST(c *Client, e Event) {
 // handleAWAY handles incoming IRCv3 AWAY events, for which are sent both
 // when users are no longer away, or when they are away.
 func handleAWAY(c *Client, e Event) {
-	c.state.Lock()
+
 	user := c.state.lookupUser(e.Source.Name)
 	if user != nil {
 		user.Extras.Away = e.Last()
 	}
-	c.state.Unlock()
+
 	c.state.notify(c, UPDATE_STATE)
 }
 

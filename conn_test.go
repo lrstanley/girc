@@ -93,13 +93,14 @@ func TestRate(t *testing.T) {
 	return
 }
 
-func genMockConn() (client *Client, clientConn net.Conn, serverConn net.Conn) {
+func genMockConn(t *testing.T) (client *Client, clientConn net.Conn, serverConn net.Conn) {
 	client = New(Config{
 		Server: "dummy.int",
 		Port:   6667,
 		Nick:   "test",
 		User:   "test",
 		Name:   "Testing123",
+		Debug:  newDebugWriter(t),
 	})
 
 	conn1, conn2 := net.Pipe()
@@ -107,14 +108,19 @@ func genMockConn() (client *Client, clientConn net.Conn, serverConn net.Conn) {
 	return client, conn1, conn2
 }
 
-func mockReadBuffer(conn net.Conn) {
+func mockReadBuffer(conn net.Conn) error {
 	// Accept all outgoing writes from the client.
 	b := bufio.NewReader(conn)
 	for {
-		conn.SetReadDeadline(time.Now().Add(10 * time.Second))
-		_, err := b.ReadString(byte('\n'))
+		err := conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 		if err != nil {
-			return
+			return err
+		}
+		var str string
+		str, err = b.ReadString(byte('\n'))
+		println(str)
+		if err != nil {
+			return err
 		}
 	}
 }

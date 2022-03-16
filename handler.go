@@ -13,11 +13,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/orcaman/concurrent-map"
 )
 
 // RunHandlers manually runs handlers for a given event.
 func (c *Client) RunHandlers(event *Event) {
 	if event == nil {
+		c.debug.Print("nil event")
 		return
 	}
 
@@ -68,6 +71,62 @@ func (f HandlerFunc) Execute(client *Client, event Event) {
 	f(client, event)
 }
 
+// nestedHandlers consists of a nested concurrent map.
+//
+// ( cmap.ConcurrentMap[command]cmap.ConcurrentMap[cuid]Handler )
+//
+// command and cuid are both strings.
+type nestedHandlers struct {
+	cm cmap.ConcurrentMap
+}
+
+type handlerTuple struct {
+	cuid    string
+	handler Handler
+}
+
+func newNestedHandlers() *nestedHandlers {
+	return &nestedHandlers{cm: cmap.New()}
+}
+
+func (nest *nestedHandlers) len() (total int) {
+	for hs := range nest.cm.IterBuffered() {
+		hndlrs := hs.Val.(cmap.ConcurrentMap)
+		total += len(hndlrs.Keys())
+	}
+	return
+}
+
+func (nest *nestedHandlers) lenFor(cmd string) (total int) {
+	cmd = strings.ToUpper(cmd)
+	hs, ok := nest.cm.Get(cmd)
+	if !ok {
+		return 0
+	}
+	hndlrs := hs.(cmap.ConcurrentMap)
+	return len(hndlrs.Keys())
+}
+
+func (nest *nestedHandlers) getAllHandlersFor(s string) (handlers chan handlerTuple, ok bool) {
+	var h interface{}
+	h, ok = nest.cm.Get(s)
+	if !ok {
+		return
+	}
+	hm := h.(cmap.ConcurrentMap)
+	handlers = make(chan handlerTuple, 5)
+	go func() {
+		for hi := range hm.IterBuffered() {
+			ht := handlerTuple{
+				hi.Key,
+				hi.Val.(Handler),
+			}
+			handlers <- ht
+		}
+	}()
+	return
+}
+
 // Caller manages internal and external (user facing) handlers.
 type Caller struct {
 	// mu is the mutex that should be used when accessing handlers.
@@ -80,9 +139,10 @@ type Caller struct {
 	// Also of note: "COMMAND" should always be uppercase for normalization.
 
 	// external is a map of user facing handlers.
-	external map[string]map[string]Handler
+	external *nestedHandlers
+	// external map[string]map[string]Handler
 	// internal is a map of internally used handlers for the client.
-	internal map[string]map[string]Handler
+	internal *nestedHandlers
 	// debug is the clients logger used for debugging.
 	debug *log.Logger
 }
@@ -90,8 +150,8 @@ type Caller struct {
 // newCaller creates and initializes a new handler.
 func newCaller(parent *Client, debugOut *log.Logger) *Caller {
 	c := &Caller{
-		external: map[string]map[string]Handler{},
-		internal: map[string]map[string]Handler{},
+		external: newNestedHandlers(),
+		internal: newNestedHandlers(),
 		debug:    debugOut,
 		parent:   parent,
 	}
@@ -101,45 +161,17 @@ func newCaller(parent *Client, debugOut *log.Logger) *Caller {
 
 // Len returns the total amount of user-entered registered handlers.
 func (c *Caller) Len() int {
-	var total int
-
-	// c.mu.RLock()
-	for command := range c.external {
-		total += len(c.external[command])
-	}
-	// c.mu.RUnlock()
-
-	return total
+	return c.external.len()
 }
 
 // Count is much like Caller.Len(), however it counts the number of
 // registered handlers for a given command.
 func (c *Caller) Count(cmd string) int {
-	var total int
-
-	cmd = strings.ToUpper(cmd)
-
-	// c.mu.RLock()
-	for command := range c.external {
-		if command == cmd {
-			total += len(c.external[command])
-		}
-	}
-	// c.mu.RUnlock()
-
-	return total
+	return c.external.lenFor(cmd)
 }
 
 func (c *Caller) String() string {
-	var total int
-
-	c.mu.RLock()
-	for cmd := range c.internal {
-		total += len(c.internal[cmd])
-	}
-	c.mu.RUnlock()
-
-	return fmt.Sprintf("<Caller external:%d internal:%d>", c.Len(), total)
+	return fmt.Sprintf("<Caller external:%d internal:%d>", c.Len(), c.internal.len())
 }
 
 const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -166,77 +198,57 @@ func (c *Caller) cuidToID(input string) (cmd, uid string) {
 	return input[:i], input[i+1:]
 }
 
-type execStack struct {
-	Handler
-	cuid string
-}
-
 // exec executes all handlers pertaining to specified event. Internal first,
 // then external.
 //
 // Please note that there is no specific order/priority for which the handlers
 // are executed.
 func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
+	handle := func(wgr *sync.WaitGroup, h handlerTuple) {
 
-	// Build a stack of handlers which can be executed concurrently.
-	var stack []execStack
+		c.debug.Printf("(%s) exec %s => %s", c.parent.Config.Nick, command, h.cuid)
+		start := time.Now()
 
-	c.mu.RLock()
-	// Get internal handlers first.
-	if _, ok := c.internal[command]; ok {
-		for cuid := range c.internal[command] {
-			if (strings.HasSuffix(cuid, ":bg") && !bg) || (!strings.HasSuffix(cuid, ":bg") && bg) {
-				continue
-			}
-			stack = append(stack, execStack{c.internal[command][cuid], cuid})
+		if bg {
+			go func() {
+				defer wgr.Done()
+				if client.Config.RecoverFunc != nil {
+					defer recoverHandlerPanic(client, event, h.cuid, 3)
+				}
+				h.handler.Execute(client, *event)
+				c.debug.Printf("(%s) done %s == %s", c.parent.Config.Nick,
+					h.cuid, time.Since(start))
+			}()
+			return
 		}
-	}
-	c.mu.RUnlock()
 
-	c.mu.RLock()
-	// Then external handlers.
-	if _, ok := c.external[command]; ok {
-		for cuid := range c.external[command] {
-			if (strings.HasSuffix(cuid, ":bg") && !bg) || (!strings.HasSuffix(cuid, ":bg") && bg) {
-				continue
-			}
-			stack = append(stack, execStack{c.external[command][cuid], cuid})
+		if client.Config.RecoverFunc != nil {
+			defer recoverHandlerPanic(client, event, h.cuid, 3)
 		}
+
+		h.handler.Execute(client, *event)
+		c.debug.Printf("(%s) done %s == %s", c.parent.Config.Nick, h.cuid, time.Since(start))
+		wgr.Done()
 	}
-	c.mu.RUnlock()
 
 	// Run all handlers concurrently across the same event. This should
 	// still help prevent mis-ordered events, while speeding up the
 	// execution speed.
 	var wg sync.WaitGroup
-	wg.Add(len(stack))
-	for i := 0; i < len(stack); i++ {
-		go func(index int) {
-			defer wg.Done()
-			c.debug.Printf("(%s) [%d/%d] exec %s => %s", c.parent.Config.Nick,
-				index+1, len(stack), stack[index].cuid, command)
-			start := time.Now()
 
-			if bg {
-				go func() {
-					if client.Config.RecoverFunc != nil {
-						defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
-					}
-					stack[index].Execute(client, *event)
-					c.debug.Printf("(%s) [%d/%d] done %s == %s", c.parent.Config.Nick,
-						index+1, len(stack), stack[index].cuid, time.Since(start))
-				}()
-
-				return
-			}
-
-			if client.Config.RecoverFunc != nil {
-				defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
-			}
-
-			stack[index].Execute(client, *event)
-			c.debug.Printf("(%s) [%d/%d] done %s == %s", c.parent.Config.Nick, index+1, len(stack), stack[index].cuid, time.Since(start))
-		}(i)
+	internals, iok := c.internal.getAllHandlersFor(command)
+	if iok {
+		for h := range internals {
+			wg.Add(1)
+			go handle(&wg, h)
+		}
+	}
+	externals, eok := c.external.getAllHandlersFor(command)
+	if eok {
+		for h := range externals {
+			wg.Add(1)
+			go handle(&wg, h)
+		}
 	}
 
 	// Wait for all of the handlers to complete. Not doing this may cause
@@ -248,20 +260,14 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 // ClearAll clears all external handlers currently setup within the client.
 // This ignores internal handlers.
 func (c *Caller) ClearAll() {
-	c.mu.Lock()
-	c.external = map[string]map[string]Handler{}
-	c.mu.Unlock()
-
+	c.external.cm.Clear()
 	c.debug.Print("cleared all external handlers")
 }
 
 // clearInternal clears all internal handlers currently setup within the
 // client.
 func (c *Caller) clearInternal() {
-	c.mu.Lock()
-	c.internal = map[string]map[string]Handler{}
-	c.mu.Unlock()
-
+	c.internal.cm.Clear()
 	c.debug.Print("cleared all internal handlers")
 }
 
@@ -269,13 +275,7 @@ func (c *Caller) clearInternal() {
 // This ignores internal handlers.
 func (c *Caller) Clear(cmd string) {
 	cmd = strings.ToUpper(cmd)
-
-	c.mu.Lock()
-
-	delete(c.external, cmd)
-
-	c.mu.Unlock()
-
+	c.external.cm.Remove(cmd)
 	c.debug.Printf("(%s) cleared external handlers for %s", c.parent.Config.Nick, cmd)
 }
 
@@ -292,23 +292,27 @@ func (c *Caller) Remove(cuid string) (success bool) {
 
 // remove is much like Remove, however is NOT concurrency safe. Lock Caller.mu
 // on your own.
-func (c *Caller) remove(cuid string) (success bool) {
+func (c *Caller) remove(cuid string) (ok bool) {
 	cmd, uid := c.cuidToID(cuid)
 	if len(cmd) == 0 || len(uid) == 0 {
 		return false
 	}
 
 	// Check if the irc command/event has any handlers on it.
-	if _, ok := c.external[cmd]; !ok {
-		return false
+	var h interface{}
+	h, ok = c.external.cm.Get(cmd)
+	if !ok {
+		return
 	}
+
+	hs := h.(cmap.ConcurrentMap)
 
 	// Check to see if it's actually a registered handler.
-	if _, ok := c.external[cmd][uid]; !ok {
-		return false
+	if _, ok = hs.Get(cuid); !ok {
+		return
 	}
 
-	delete(c.external[cmd], uid)
+	hs.Remove(uid)
 	c.debug.Printf("removed handler %s", cuid)
 
 	// Assume success.
@@ -318,10 +322,7 @@ func (c *Caller) remove(cuid string) (success bool) {
 // sregister is much like Caller.register(), except that it safely locks
 // the Caller mutex.
 func (c *Caller) sregister(internal, bg bool, cmd string, handler Handler) (cuid string) {
-	c.mu.Lock()
 	cuid = c.register(internal, bg, cmd, handler)
-	c.mu.Unlock()
-
 	return cuid
 }
 
@@ -338,21 +339,31 @@ func (c *Caller) register(internal, bg bool, cmd string, handler Handler) (cuid 
 		cuid += ":bg"
 	}
 
+	var (
+		parent    *nestedHandlers
+		chandlers cmap.ConcurrentMap
+		ei        interface{}
+		ok        bool
+	)
+
 	if internal {
-		if _, ok := c.internal[cmd]; !ok {
-			c.internal[cmd] = map[string]Handler{}
-		}
-
-		c.internal[cmd][uid] = handler
+		parent = c.internal
 	} else {
-		if _, ok := c.external[cmd]; !ok {
-			c.external[cmd] = map[string]Handler{}
-		}
-
-		c.external[cmd][uid] = handler
+		parent = c.external
 	}
 
-	_, file, line, _ := runtime.Caller(3)
+	ei, ok = parent.cm.Get(cmd)
+
+	if ok {
+		chandlers = ei.(cmap.ConcurrentMap)
+	} else {
+		chandlers = cmap.New()
+	}
+	parent.cm.SetIfAbsent(cmd, chandlers)
+
+	chandlers.Set(uid, handler)
+
+	_, file, line, _ := runtime.Caller(2)
 
 	c.debug.Printf("reg %q => %s [int:%t bg:%t] %s:%d", uid, cmd, internal, bg, file, line)
 
