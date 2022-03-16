@@ -7,6 +7,7 @@ package girc
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,8 +22,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	cmap "github.com/orcaman/concurrent-map"
 )
 
 // Client contains all of the information necessary to run a single IRC
@@ -694,13 +693,13 @@ func (c *Client) IsInChannel(channel string) (in bool) {
 	return in
 }
 
-// GetServerOption retrieves a server capability setting that was retrieved
+// GetServerOpt retrieves a server capability setting that was retrieved
 // during client connection. This is also known as ISUPPORT (or RPL_PROTOCTL).
 // Will panic if used when tracking has been disabled. Examples of usage:
 //
-//   nickLen, success := GetServerOption("MAXNICKLEN")
+//   nickLen, success := GetServerOpt("MAXNICKLEN")
 //
-func (c *Client) GetServerOption(key string) (result string, ok bool) {
+func (c *Client) GetServerOpt(key string) (result string, ok bool) {
 	c.panicIfNotTracking()
 
 	oi, ok := c.state.serverOptions.Get(key)
@@ -717,12 +716,15 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	return result, ok
 }
 
-// GetAllServerOption retrieves all of a server's capability settings that were retrieved
+// GetServerOptions retrieves all of a server's capability settings that were retrieved
 // during client connection. This is also known as ISUPPORT (or RPL_PROTOCTL).
-// Will panic if used when tracking has been disabled.
-func (c *Client) GetAllServerOption() <-chan cmap.Tuple {
-	c.panicIfNotTracking()
-	return c.state.serverOptions.IterBuffered()
+func (c *Client) GetServerOptions() []byte {
+	o := make(map[string]string)
+	for opt := range c.state.serverOptions.IterBuffered() {
+		o[opt.Key] = opt.Val.(string)
+	}
+	jcytes, _ := json.Marshal(o)
+	return jcytes
 }
 
 // NetworkName returns the network identifier. E.g. "EsperNet", "ByteIRC".
@@ -736,7 +738,7 @@ func (c *Client) NetworkName() (name string) {
 		return c.state.network
 	}
 
-	name, ok = c.GetServerOption("NETWORK")
+	name, ok = c.GetServerOpt("NETWORK")
 	if !ok {
 		return c.IRCd.Network
 	}
@@ -755,7 +757,7 @@ func (c *Client) NetworkName() (name string) {
 func (c *Client) ServerVersion() (version string) {
 	c.panicIfNotTracking()
 
-	version, _ = c.GetServerOption("VERSION")
+	version, _ = c.GetServerOpt("VERSION")
 	return version
 }
 

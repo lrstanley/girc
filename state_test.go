@@ -82,7 +82,7 @@ func TestState(t *testing.T) {
 			t.Logf("successfully tested network name: %s", network)
 		}
 
-		if caseExample, ok := c.GetServerOption("NICKLEN"); !ok || caseExample != "20" {
+		if caseExample, ok := c.GetServerOpt("NICKLEN"); !ok || caseExample != "20" {
 			t.Errorf("Client.GetServerOptions returned invalid ISUPPORT variable: %q", caseExample)
 			return
 		} else {
