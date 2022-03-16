@@ -10,7 +10,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -308,14 +307,14 @@ startConn:
 	ctx, c.stop = context.WithCancel(context.Background())
 
 	errs := make(chan error, 4)
-	var wg sync.WaitGroup
+	var working int32
 	// 4 being the number of goroutines we need to finish when this function
 	// returns.
-	wg.Add(4)
-	go c.execLoop(ctx, errs, &wg)
-	go c.readLoop(ctx, errs, &wg)
-	go c.sendLoop(ctx, errs, &wg)
-	go c.pingLoop(ctx, errs, &wg)
+	atomic.AddInt32(&working, 4)
+	go c.execLoop(ctx, errs, &working)
+	go c.readLoop(ctx, errs, &working)
+	go c.sendLoop(ctx, errs, &working)
+	go c.pingLoop(ctx, errs, &working)
 
 	// Passwords first.
 
@@ -376,7 +375,6 @@ startConn:
 	c.debug.Print("waiting for all routines to finish")
 
 	// Wait for all goroutines to finish.
-	wg.Wait()
 	close(errs)
 
 	// This helps ensure that the end user isn't improperly using the client
@@ -400,7 +398,7 @@ startConn:
 
 // readLoop sets a timeout of 300 seconds, and then attempts to read from the
 // IRC server. If there is an error, it calls Reconnect.
-func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
+func (c *Client) readLoop(ctx context.Context, errs chan error, working *int32) {
 	c.debug.Print("starting readLoop")
 	defer c.debug.Print("closing readLoop")
 
@@ -410,14 +408,14 @@ func (c *Client) readLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 	for {
 		select {
 		case <-ctx.Done():
-			wg.Done()
+			atomic.AddInt32(working, -1)
 			return
 		default:
 			_ = c.conn.sock.SetReadDeadline(time.Now().Add(300 * time.Second))
 			event, err = c.conn.decode()
 			if err != nil {
 				errs <- err
-				wg.Done()
+				atomic.AddInt32(working, -1)
 				return
 			}
 
@@ -495,9 +493,11 @@ func (c *ircConn) rate(chars int) time.Duration {
 	return 0
 }
 
-func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
+func (c *Client) sendLoop(ctx context.Context, errs chan error, working *int32) {
 	c.debug.Print("starting sendLoop")
 	defer c.debug.Print("closing sendLoop")
+
+	defer atomic.AddInt32(working, -1)
 
 	var err error
 
@@ -543,17 +543,14 @@ func (c *Client) sendLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 
 			if event.Command == QUIT {
 				c.Close()
-				wg.Done()
 				return
 			}
 
 			if err != nil {
 				errs <- err
-				wg.Done()
 				return
 			}
 		case <-ctx.Done():
-			wg.Done()
 			return
 		}
 	}
@@ -574,10 +571,10 @@ type ErrTimedOut struct {
 
 func (ErrTimedOut) Error() string { return "timed out waiting for a requested PING response" }
 
-func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
+func (c *Client) pingLoop(ctx context.Context, errs chan error, working *int32) {
+	defer atomic.AddInt32(working, -1)
 	// Don't run the pingLoop if they want to disable it.
 	if c.Config.PingDelay <= 0 {
-		wg.Done()
 		return
 	}
 
@@ -616,7 +613,6 @@ func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 					Delay:            c.Config.PingDelay,
 				}
 
-				wg.Done()
 				return
 			}
 
@@ -624,7 +620,6 @@ func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 
 			c.Cmd.Ping(fmt.Sprintf("%d", time.Now().UnixNano()))
 		case <-ctx.Done():
-			wg.Done()
 			return
 		}
 	}

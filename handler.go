@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/orcaman/concurrent-map"
@@ -19,6 +20,9 @@ import (
 
 // RunHandlers manually runs handlers for a given event.
 func (c *Client) RunHandlers(event *Event) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	if event == nil {
 		c.debug.Print("nil event")
 		return
@@ -114,7 +118,7 @@ func (nest *nestedHandlers) getAllHandlersFor(s string) (handlers chan handlerTu
 		return
 	}
 	hm := h.(cmap.ConcurrentMap)
-	handlers = make(chan handlerTuple, 5)
+	handlers = make(chan handlerTuple)
 	go func() {
 		for hi := range hm.IterBuffered() {
 			ht := handlerTuple{
@@ -218,14 +222,15 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 	ihm, iok := c.internal.cm.Get(command)
 	if iok {
 		hmap := ihm.(cmap.ConcurrentMap)
-		for _, cuid := range hmap.Keys() {
+		for assigned := range hmap.IterBuffered() {
+			cuid := assigned.Key
 			if (strings.HasSuffix(cuid, ":bg") && !bg) || (!strings.HasSuffix(cuid, ":bg") && bg) {
 				continue
 			}
 			hi, _ := hmap.Get(cuid)
 			hndlr, ok := hi.(Handler)
 			if !ok {
-				continue
+				panic("improper handler type in map")
 			}
 			stack = append(stack, execStack{hndlr, cuid})
 		}
@@ -241,7 +246,7 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 			hi, _ := hmap.Get(cuid)
 			hndlr, ok := hi.(Handler)
 			if !ok {
-				continue
+				panic("improper handler type in map")
 			}
 			stack = append(stack, execStack{hndlr, cuid})
 		}
@@ -250,8 +255,9 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 	// Run all handlers concurrently across the same event. This should
 	// still help prevent mis-ordered events, while speeding up the
 	// execution speed.
-	var wg sync.WaitGroup
-	wg.Add(len(stack))
+	var working int32
+	atomic.AddInt32(&working, int32(len(stack)))
+	c.debug.Printf("starting %d jobs", atomic.LoadInt32(&working))
 	for i := 0; i < len(stack); i++ {
 		go func(index int) {
 			c.debug.Printf("(%s) [%d/%d] exec %s => %s", c.parent.Config.Nick,
@@ -260,7 +266,7 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 
 			if bg {
 				go func() {
-					defer wg.Done()
+					defer atomic.AddInt32(&working, -1)
 					if client.Config.RecoverFunc != nil {
 						defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
 					}
@@ -270,7 +276,7 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 				}()
 				return
 			}
-			defer wg.Done()
+			defer atomic.AddInt32(&working, -1)
 
 			if client.Config.RecoverFunc != nil {
 				defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
@@ -281,8 +287,12 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 		}(i)
 
 		// new events from becoming ahead of ol1 handlers.
-		c.debug.Printf("(%s) wg.Wait()", c.parent.Config.Nick)
-		wg.Wait()
+		c.debug.Printf("(%s) atomic.CompareAndSwap: %d jobs running", c.parent.Config.Nick, atomic.LoadInt32(&working))
+
+		if atomic.CompareAndSwapInt32(&working, 0, -1) {
+			c.debug.Printf("(%s) exec stack completed", c.parent.Config.Nick)
+			return
+		}
 	}
 }
 

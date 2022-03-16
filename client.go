@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	cmap "github.com/orcaman/concurrent-map"
@@ -426,9 +427,11 @@ func (e *ErrEvent) Error() string {
 	return e.Event.Last()
 }
 
-func (c *Client) execLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
+func (c *Client) execLoop(ctx context.Context, errs chan error, working *int32) {
 	c.debug.Print("starting execLoop")
 	defer c.debug.Print("closing execLoop")
+
+	defer atomic.AddInt32(working, -1)
 
 	var event *Event
 
@@ -449,7 +452,6 @@ func (c *Client) execLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 			}
 
 		done:
-			wg.Done()
 			return
 		case event = <-c.rx:
 			if event != nil && event.Command == ERROR {
