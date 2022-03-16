@@ -184,8 +184,12 @@ func handleCAP(c *Client, e Event) {
 			reqKeys := make([]string, len(c.state.tmpCap.Keys()))
 			i := 0
 			for k := range c.state.tmpCap.IterBuffered() {
-				kv := k.Val.(string)
-				reqKeys[i] = kv
+				kv := k.Val.(map[string]string)
+				var index = 0
+				for _, value := range kv {
+					reqKeys[index] = value
+					index++
+				}
 				i++
 			}
 			c.write(&Event{Command: CAP, Params: []string{CAP_REQ, strings.Join(reqKeys, " ")}})
