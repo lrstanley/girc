@@ -238,7 +238,6 @@ func TestState(t *testing.T) {
 	})
 
 	cuid := c.Handlers.AddBg(UPDATE_STATE, func(c *Client, e Event) {
-		println(e.String())
 		bounceStart <- true
 	})
 
