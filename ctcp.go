@@ -271,8 +271,8 @@ func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
 
 	client.Cmd.SendCTCPReplyf(
 		ctcp.Source.ID(), CTCP_VERSION,
-		"girc-atomic using %s (%s, %s)",
-		runtime.Version(), runtime.GOOS, runtime.GOARCH,
+		"girc-atomic %s (%s, %s)",
+		Version, runtime.GOOS, runtime.GOARCH,
 	)
 }
 
