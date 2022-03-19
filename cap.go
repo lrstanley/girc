@@ -120,6 +120,11 @@ func parseCap(raw string) map[string]map[string]string {
 // This will lock further registration until we have acknowledged (or denied)
 // the capabilities.
 func handleCAP(c *Client, e Event) {
+	c.Handlers.mu.Lock()
+	defer c.Handlers.mu.Unlock()
+	c.state.Lock()
+	defer c.state.Unlock()
+
 	if len(e.Params) >= 2 && e.Params[1] == CAP_DEL {
 		caps := parseCap(e.Last())
 		for capab := range caps {
