@@ -349,3 +349,9 @@ const (
 	RPL_TOPICWHOTIME   = "333" // ircu, used on freenode.
 	RPL_WHOSPCRPL      = "354" // ircu, used on networks with WHOX support.
 )
+
+// As seen in the wild.
+const (
+	RPL_WHOISAUTHNAME = "330"
+	RPL_WHOISTLS      = "671"
+)
