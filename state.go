@@ -28,11 +28,11 @@ type state struct {
 	// users map[string]*User
 	users cmap.ConcurrentMap
 	// enabledCap are the capabilities which are enabled for this connection.
-	enabledCap cmap.ConcurrentMap
+	enabledCap map[string]map[string]string
 	// tmpCap are the capabilties which we share with the server during the
 	// last capability check. These will get sent once we have received the
 	// last capability list command from the server.
-	tmpCap cmap.ConcurrentMap
+	tmpCap map[string]map[string]string
 	// serverOptions are the standard capabilities and configurations
 	// supported by the server at connection time. This also includes
 	// RPL_ISUPPORT entries.
@@ -69,8 +69,8 @@ func (s *state) reset(initial bool) {
 		}
 	}
 
-	s.enabledCap = cmap.New()
-	s.tmpCap = cmap.New()
+	s.enabledCap = make(map[string]map[string]string)
+	s.tmpCap = make(map[string]map[string]string)
 	s.motd = ""
 
 	if initial {

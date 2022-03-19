@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	cmap "github.com/orcaman/concurrent-map"
 )
 
 // Something not in the list? Depending on the type of capability, you can
@@ -51,9 +49,7 @@ var possibleCap = map[string][]string{
 const capServerTimeFormat = "2006-01-02T15:04:05.999Z"
 
 func (c *Client) listCAP() {
-	if !c.Config.disableTracking {
-		c.write(&Event{Command: CAP, Params: []string{CAP_LS, "302"}})
-	}
+	c.write(&Event{Command: CAP, Params: []string{CAP_LS, "302"}})
 }
 
 func possibleCapList(c *Client) map[string][]string {
@@ -120,16 +116,14 @@ func parseCap(raw string) map[string]map[string]string {
 // This will lock further registration until we have acknowledged (or denied)
 // the capabilities.
 func handleCAP(c *Client, e Event) {
-	c.Handlers.mu.Lock()
-	defer c.Handlers.mu.Unlock()
 	c.state.Lock()
 	defer c.state.Unlock()
 
 	if len(e.Params) >= 2 && e.Params[1] == CAP_DEL {
 		caps := parseCap(e.Last())
-		for capab := range caps {
+		for cap := range caps {
 			// TODO: test the deletion.
-			c.state.enabledCap.Remove(capab)
+			delete(c.state.enabledCap, cap)
 		}
 		return
 	}
@@ -152,7 +146,7 @@ func handleCAP(c *Client, e Event) {
 			}
 
 			if len(possible[capName]) == 0 || len(caps[capName]) == 0 {
-				c.state.tmpCap.Set(capName, caps[capName])
+				c.state.tmpCap[capName] = caps[capName]
 				continue
 			}
 
@@ -173,7 +167,7 @@ func handleCAP(c *Client, e Event) {
 				continue
 			}
 
-			c.state.tmpCap.Set(capName, caps[capName])
+			c.state.tmpCap[capName] = caps[capName]
 		}
 
 		// Indicates if this is a multi-line LS. (3 args means it's the
@@ -186,15 +180,10 @@ func handleCAP(c *Client, e Event) {
 			}
 
 			// Let them know which ones we'd like to enable.
-			reqKeys := make([]string, len(c.state.tmpCap.Keys()))
+			reqKeys := make([]string, len(c.state.tmpCap))
 			i := 0
-			for k := range c.state.tmpCap.IterBuffered() {
-				kv := k.Val.(map[string]string)
-				var index = 0
-				for _, value := range kv {
-					reqKeys[index] = value
-					index++
-				}
+			for k := range c.state.tmpCap {
+				reqKeys[i] = k
 				i++
 			}
 			c.write(&Event{Command: CAP, Params: []string{CAP_REQ, strings.Join(reqKeys, " ")}})
@@ -204,12 +193,10 @@ func handleCAP(c *Client, e Event) {
 	if len(e.Params) == 3 && e.Params[1] == CAP_ACK {
 		enabled := strings.Split(e.Last(), " ")
 		for _, capab := range enabled {
-			val, ok := c.state.tmpCap.Get(capab)
-			if ok {
-				val = val.(map[string]string)
-				c.state.enabledCap.Set(capab, val)
+			if val, ok := c.state.tmpCap[capab]; ok {
+				c.state.enabledCap[capab] = val
 			} else {
-				c.state.enabledCap.Set(capab, nil)
+				c.state.enabledCap[capab] = nil
 			}
 		}
 
@@ -218,10 +205,8 @@ func handleCAP(c *Client, e Event) {
 
 		// Handle STS, and only if it's something specifically we enabled (client
 		// may choose to disable girc automatic STS, and do it themselves).
-		stsi, sok := c.state.enabledCap.Get("sts")
-		if sok && !c.Config.DisableSTS {
+		if sts, sok := c.state.enabledCap["sts"]; sok && !c.Config.DisableSTS {
 			var isError bool
-			sts := stsi.(map[string]string)
 			// Some things are updated in the policy depending on if the current
 			// connection is over tls or not.
 			var hasTLSConnection bool
@@ -298,10 +283,9 @@ func handleCAP(c *Client, e Event) {
 
 		// Re-initialize the tmpCap, so if we get multiple 'CAP LS' requests
 		// due to cap-notify, we can re-evaluate what we can support.
-		c.state.tmpCap = cmap.New()
+		c.state.tmpCap = make(map[string]map[string]string)
 
-		_, ok := c.state.enabledCap.Get("sasl")
-		if ok && c.Config.SASL != nil {
+		if _, ok := c.state.enabledCap["sasl"]; ok && c.Config.SASL != nil {
 			c.write(&Event{Command: AUTHENTICATE, Params: []string{c.Config.SASL.Method()}})
 			// Don't "CAP END", since we want to authenticate.
 			return

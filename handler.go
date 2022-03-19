@@ -20,9 +20,6 @@ import (
 
 // RunHandlers manually runs handlers for a given event.
 func (c *Client) RunHandlers(event *Event) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	if event == nil {
 		c.debug.Print("nil event")
 		return
@@ -134,7 +131,7 @@ func (nest *nestedHandlers) getAllHandlersFor(s string) (handlers chan handlerTu
 // Caller manages internal and external (user facing) handlers.
 type Caller struct {
 	// mu is the mutex that should be used when accessing handlers.
-	mu sync.RWMutex
+	mu *sync.RWMutex
 
 	parent *Client
 
@@ -158,6 +155,7 @@ func newCaller(parent *Client, debugOut *log.Logger) *Caller {
 		internal: newNestedHandlers(),
 		debug:    debugOut,
 		parent:   parent,
+		mu:       &sync.RWMutex{},
 	}
 
 	return c
@@ -216,7 +214,6 @@ type execStack struct {
 func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-
 	// Build a stack of handlers which can be executed concurrently.
 	var stack []execStack
 
@@ -259,12 +256,12 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 	// execution speed.
 	var working int32
 	atomic.AddInt32(&working, int32(len(stack)))
-	c.debug.Printf("starting %d jobs", atomic.LoadInt32(&working))
+	// c.debug.Printf("starting %d jobs", atomic.LoadInt32(&working))
 	for i := 0; i < len(stack); i++ {
 		go func(index int) {
-			c.debug.Printf("(%s) [%d/%d] exec %s => %s", c.parent.Config.Nick,
-				index+1, len(stack), stack[index].cuid, command)
-			start := time.Now()
+			// c.debug.Printf("(%s) [%d/%d] exec %s => %s", c.parent.Config.Nick,
+			//	index+1, len(stack), stack[index].cuid, command)
+			// start := time.Now()
 
 			if bg {
 				go func() {
@@ -273,8 +270,8 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 						defer recoverHandlerPanic(client, event, stack[index].cuid, 3)
 					}
 					stack[index].Handler.Execute(client, *event)
-					c.debug.Printf("(%s) done %s == %s", c.parent.Config.Nick,
-						stack[index].cuid, time.Since(start))
+					// c.debug.Printf("(%s) done %s == %s", c.parent.Config.Nick,
+					// stack[index].cuid, time.Since(start))
 				}()
 				return
 			}
@@ -285,14 +282,14 @@ func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
 			}
 
 			stack[index].Handler.Execute(client, *event)
-			c.debug.Printf("(%s) done %s == %s", c.parent.Config.Nick, stack[index].cuid, time.Since(start))
+			// c.debug.Printf("(%s) done %s == %s", c.parent.Config.Nick, stack[index].cuid, time.Since(start))
 		}(i)
 
 		// new events from becoming ahead of ol1 handlers.
-		c.debug.Printf("(%s) atomic.CompareAndSwap: %d jobs running", c.parent.Config.Nick, atomic.LoadInt32(&working))
+		// c.debug.Printf("(%s) atomic.CompareAndSwap: %d jobs running", c.parent.Config.Nick, atomic.LoadInt32(&working))
 
 		if atomic.CompareAndSwapInt32(&working, 0, -1) {
-			c.debug.Printf("(%s) exec stack completed", c.parent.Config.Nick)
+			// c.debug.Printf("(%s) exec stack completed", c.parent.Config.Nick)
 			return
 		}
 	}
@@ -360,6 +357,8 @@ func (c *Caller) remove(cuid string) (ok bool) {
 // sregister is much like Caller.register(), except that it safely locks
 // the Caller mutex.
 func (c *Caller) sregister(internal, bg bool, cmd string, handler Handler) (cuid string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	cuid = c.register(internal, bg, cmd, handler)
 	return cuid
 }

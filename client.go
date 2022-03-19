@@ -794,13 +794,15 @@ func (c *Client) HasCapability(name string) (has bool) {
 
 	name = strings.ToLower(name)
 
-	for _, key := range c.state.enabledCap.Keys() {
+	c.state.RLock()
+	for key := range c.state.enabledCap {
 		key = strings.ToLower(key)
 		if key == name {
 			has = true
 			break
 		}
 	}
+	c.state.RUnlock()
 
 	return has
 }
