@@ -214,6 +214,8 @@ type execStack struct {
 // Please note that there is no specific order/priority for which the handlers
 // are executed.
 func (c *Caller) exec(command string, bg bool, client *Client, event *Event) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	// Build a stack of handlers which can be executed concurrently.
 	var stack []execStack

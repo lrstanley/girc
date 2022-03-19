@@ -17,8 +17,8 @@ import (
 func (c *Client) registerBuiltins() {
 	c.debug.Print("registering built-in handlers")
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.Handlers.mu.Lock()
+	defer c.Handlers.mu.Unlock()
 
 	// Built-in things that should always be supported.
 	c.Handlers.register(true, true, RPL_WELCOME, HandlerFunc(handleConnect))
