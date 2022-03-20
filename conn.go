@@ -376,6 +376,12 @@ startConn:
 	// Once we have our error/result, let all other functions know we're done.
 	c.debug.Print("waiting for all routines to finish")
 
+	for {
+		if atomic.LoadInt32(&working) <= 0 {
+			break
+		}
+	}
+
 	// Wait for all goroutines to finish.
 	close(errs)
 
