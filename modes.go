@@ -422,6 +422,8 @@ func (p *UserPerms) MarshalJSON() ([]byte, error) {
 // Lookup looks up the users permissions for a given channel. ok is false
 // if the user is not in the given channel.
 func (p *UserPerms) Lookup(channel string) (perms Perms, ok bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	perms, ok = p.channels[ToRFC1459(channel)]
 
 	return perms, ok
