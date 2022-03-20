@@ -194,8 +194,14 @@ func TestState(t *testing.T) {
 			return
 		}
 
-		if !reflect.DeepEqual(user.ChannelList, []string{"#channel", "#channel2"}) {
-			t.Errorf("User.ChannelList == %#v, wanted %#v", user.ChannelList, []string{"#channel", "#channel2"})
+		if user.ChannelList.Count() != len([]string{"#channel", "#channel2"}) {
+			t.Errorf("user.ChannelList.Count() == %d, wanted %d",
+				user.ChannelList.Count(), len([]string{"#channel", "#channel2"}))
+			return
+		}
+
+		if !user.ChannelList.Has("#channel") || !user.ChannelList.Has("#channel2") {
+			t.Errorf("channel list is missing either #channel or #channel2")
 			return
 		}
 
@@ -273,19 +279,30 @@ func TestState(t *testing.T) {
 			return
 		}
 
-		if !reflect.DeepEqual(user.ChannelList, []string{"#channel"}) {
-			t.Errorf("user.ChannelList == %q, wanted %q", user.ChannelList, []string{"#channel"})
+		chi, chnok := user.ChannelList.Get("#channel")
+		chn, chiok := chi.(*Channel)
+
+		if !chnok || !chiok {
+			t.Errorf("should have been able to get a pointer by looking up #channel")
 			return
 		}
 
-		channel := c.LookupChannel("#channel")
-		if channel == nil {
+		if chn == nil {
 			t.Error("Client.LookupChannel() returned nil for existing channel")
 			return
 		}
 
-		if !reflect.DeepEqual(channel.UserList, []string{"notjones"}) {
-			t.Errorf("channel.UserList == %q, wanted %q", channel.UserList, []string{"notjones"})
+		chi2, _ := user.ChannelList.Get("#channel2")
+		chn2, _ := chi2.(*Channel)
+
+		if chn2.Len() != len([]string{"notjones"}) {
+			t.Errorf("channel.UserList.Count() == %d, wanted %d",
+				chn2.Len(), len([]string{"notjones"}))
+			return
+		}
+
+		if !chn.UserList.Has("notjones") {
+			t.Errorf("missing notjones from channel.UserList")
 			return
 		}
 

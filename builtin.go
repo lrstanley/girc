@@ -5,6 +5,7 @@
 package girc
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -176,8 +177,8 @@ func handleJOIN(c *Client, e Event) {
 
 	defer c.state.notify(c, UPDATE_STATE)
 
-	channel.addUser(user.Nick)
-	user.addChannel(channel.Name)
+	channel.addUser(user.Nick, user)
+	user.addChannel(channel.Name, channel)
 
 	// Assume extended-join (ircv3).
 	if len(e.Params) >= 2 {
@@ -215,6 +216,12 @@ func handlePART(c *Client, e Event) {
 		return
 	}
 
+	c.state.Lock()
+	defer c.state.Unlock()
+
+	c.debug.Println("handlePart")
+	defer c.debug.Println("handlePart done for " + e.Params[0])
+
 	// TODO: does this work if it's not the bot?
 	// er yes, but needs a test case
 
@@ -225,6 +232,15 @@ func handlePART(c *Client, e Event) {
 	}
 
 	defer c.state.notify(c, UPDATE_STATE)
+
+	if chn := c.LookupChannel(channel); chn != nil {
+		chn.UserList.Remove(e.Source.ID())
+		c.state.Unlock()
+		c.debug.Println(fmt.Sprintf("removed: %s, new count: %d", e.Source.ID(), chn.Len()))
+		c.state.Lock()
+	} else {
+		c.debug.Println("failed to lookup channel: " + channel)
+	}
 
 	if e.Source.ID() == c.GetID() {
 		c.state.deleteChannel(channel)
@@ -592,8 +608,8 @@ func handleNAMES(c *Client, e Event) {
 			continue
 		}
 
-		user.addChannel(channel.Name)
-		channel.addUser(s.ID())
+		user.addChannel(channel.Name, channel)
+		channel.addUser(s.ID(), user)
 
 		// Don't append modes, overwrite them.
 		perms, _ := user.Perms.Lookup(channel.Name)

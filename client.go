@@ -637,6 +637,9 @@ func (c *Client) UserList() []string {
 	users := make([]string, 0, len(c.state.users))
 	for user := range c.state.users.IterBuffered() {
 		usr := user.Val.(*User)
+		if usr.Stale {
+			continue
+		}
 		users = append(users, usr.Nick)
 	}
 

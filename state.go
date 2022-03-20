@@ -6,7 +6,6 @@ package girc
 
 import (
 	"fmt"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -106,7 +105,9 @@ type User struct {
 	// version of the channel list.
 	//
 	// NOTE: If the ChannelList is empty for the user, then the user's info could be out of date.
-	ChannelList []string `json:"channels"`
+	// turns out Concurrent-Map implements json.Marhsal!
+	// https://github.com/orcaman/concurrent-map/blob/893feb299719d9cbb2cfbe08b6dd4eb567d8039d/concurrent_map.go#L305
+	ChannelList cmap.ConcurrentMap `json:"channels"`
 
 	// FirstSeen represents the first time that the user was seen by the
 	// client for the given channel. Only usable if from state, not in past.
@@ -119,6 +120,8 @@ type User struct {
 	// Perms are the user permissions applied to this user that affect the given
 	// channel. This supports non-rfc style modes like Admin, Owner, and HalfOp.
 	Perms *UserPerms `json:"perms"`
+
+	Stale bool
 
 	// Extras are things added on by additional tracking methods, which may
 	// or may not work on the IRC server in mention.
@@ -150,9 +153,15 @@ func (u User) Channels(c *Client) []*Channel {
 
 	var channels []*Channel
 
-	for i := 0; i < len(u.ChannelList); i++ {
-		ch := c.state.lookupChannel(u.ChannelList[i])
+	for listed := range u.ChannelList.IterBuffered() {
+		chn, chok := listed.Val.(*Channel)
+		if chok {
+			channels = append(channels, chn)
+			continue
+		}
+		ch := c.state.lookupChannel(listed.Key)
 		if ch != nil {
+			u.ChannelList.Set(listed.Key, ch)
 			channels = append(channels, ch)
 		}
 	}
@@ -177,13 +186,18 @@ func (u *User) Copy() *User {
 }
 
 // addChannel adds the channel to the users channel list.
-func (u *User) addChannel(name string) {
+func (u *User) addChannel(name string, chn *Channel) {
+	name = ToRFC1459(name)
+
 	if u.InChannel(name) {
 		return
 	}
 
-	u.ChannelList = append(u.ChannelList, ToRFC1459(name))
-	sort.Strings(u.ChannelList)
+	if u.ChannelList.Has(name) {
+		return
+	}
+
+	u.ChannelList.Set(name, chn)
 
 	u.Perms.set(name, Perms{})
 }
@@ -192,32 +206,17 @@ func (u *User) addChannel(name string) {
 func (u *User) deleteChannel(name string) {
 	name = ToRFC1459(name)
 
-	j := -1
-	for i := 0; i < len(u.ChannelList); i++ {
-		if u.ChannelList[i] == name {
-			j = i
-			break
-		}
-	}
-
-	if j != -1 {
-		u.ChannelList = append(u.ChannelList[:j], u.ChannelList[j+1:]...)
-	}
+	u.ChannelList.Remove(name)
 
 	u.Perms.remove(name)
 }
 
 // InChannel checks to see if a user is in the given channel.
+// Maybe don't rely on it though, hasn't been the same since the war. :^)
 func (u *User) InChannel(name string) bool {
 	name = ToRFC1459(name)
 
-	for i := 0; i < len(u.ChannelList); i++ {
-		if u.ChannelList[i] == name {
-			return true
-		}
-	}
-
-	return false
+	return u.ChannelList.Has(name)
 }
 
 // Lifetime represents the amount of time that has passed since we have first
@@ -248,8 +247,8 @@ type Channel struct {
 	// TODO: Figure out if these are all unix timestamps, if so, convert it to time.Time
 	Created string `json:"created"`
 	// UserList is a sorted list of all users we are currently tracking within
-	// the channel. Each is the nickname, and is rfc1459 compliant.
-	UserList []string `json:"user_list"`
+	// the channel. Each is the1 nickname, and is rfc1459 compliant.
+	UserList cmap.ConcurrentMap `json:"user_list"`
 	// Network is the name of the IRC network where this channel was found.
 	// This has been added for the purposes of girc being used in multi-client scenarios with data persistence.
 	Network string `json:"network"`
@@ -268,9 +267,10 @@ func (ch Channel) Users(c *Client) []*User {
 
 	var users []*User
 
-	for i := 0; i < len(ch.UserList); i++ {
-		user := c.state.lookupUser(ch.UserList[i])
+	for listed := range ch.UserList.IterBuffered() {
+		user := c.state.lookupUser(listed.Key)
 		if user != nil {
+			ch.UserList.Set(listed.Key, user)
 			users = append(users, user)
 		}
 	}
@@ -287,8 +287,8 @@ func (ch Channel) Trusted(c *Client) []*User {
 
 	var users []*User
 
-	for i := 0; i < len(ch.UserList); i++ {
-		user := c.state.lookupUser(ch.UserList[i])
+	for listed := range ch.UserList.IterBuffered() {
+		user := c.state.lookupUser(listed.Key)
 		if user == nil {
 			continue
 		}
@@ -312,10 +312,16 @@ func (ch Channel) Admins(c *Client) []*User {
 
 	var users []*User
 
-	for i := 0; i < len(ch.UserList); i++ {
-		user := c.state.lookupUser(ch.UserList[i])
-		if user == nil {
-			continue
+	for listed := range ch.UserList.IterBuffered() {
+		ui := listed.Val
+		user, usrok := ui.(*User)
+		if !usrok {
+			user = c.state.lookupUser(listed.Key)
+			if user == nil {
+				continue
+			} else {
+				ch.UserList.Set(listed.Key, user)
+			}
 		}
 
 		perms, ok := user.Perms.Lookup(ch.Name)
@@ -328,30 +334,17 @@ func (ch Channel) Admins(c *Client) []*User {
 }
 
 // addUser adds a user to the users list.
-func (ch *Channel) addUser(nick string) {
+func (ch *Channel) addUser(nick string, usr *User) {
 	if ch.UserIn(nick) {
 		return
 	}
-
-	ch.UserList = append(ch.UserList, ToRFC1459(nick))
-	sort.Strings(ch.UserList)
+	ch.UserList.Set(ToRFC1459(nick), usr)
 }
 
 // deleteUser removes an existing user from the users list.
 func (ch *Channel) deleteUser(nick string) {
 	nick = ToRFC1459(nick)
-
-	j := -1
-	for i := 0; i < len(ch.UserList); i++ {
-		if ch.UserList[i] == nick {
-			j = i
-			break
-		}
-	}
-
-	if j != -1 {
-		ch.UserList = append(ch.UserList[:j], ch.UserList[j+1:]...)
-	}
+	ch.UserList.Remove(nick)
 }
 
 // Copy returns a deep copy of a given channel.
@@ -373,20 +366,13 @@ func (ch *Channel) Copy() *Channel {
 
 // Len returns the count of users in a given channel.
 func (ch *Channel) Len() int {
-	return len(ch.UserList)
+	return ch.UserList.Count()
 }
 
 // UserIn checks to see if a given user is in a channel.
 func (ch *Channel) UserIn(name string) bool {
 	name = ToRFC1459(name)
-
-	for i := 0; i < len(ch.UserList); i++ {
-		if ch.UserList[i] == name {
-			return true
-		}
-	}
-
-	return false
+	return ch.UserList.Has(name)
 }
 
 // Lifetime represents the amount of time that has passed since we have first
@@ -407,7 +393,7 @@ func (s *state) createChannel(name string) (ok bool) {
 
 	s.channels.Set(ToRFC1459(name), &Channel{
 		Name:     name,
-		UserList: []string{},
+		UserList: cmap.New(),
 		Joined:   time.Now(),
 		Network:  s.client.NetworkName(),
 		Modes:    NewCModes(supported, prefixes),
@@ -427,10 +413,12 @@ func (s *state) deleteChannel(name string) {
 
 	chn := c.(*Channel)
 
-	for _, user := range chn.UserList {
-		ui, _ := s.users.Get(user)
-		usr := ui.(*User)
-		usr.deleteChannel(name)
+	for listed := range chn.UserList.IterBuffered() {
+		ui, _ := s.users.Get(listed.Key)
+		usr, usrok := ui.(*User)
+		if usrok {
+			usr.deleteChannel(name)
+		}
 	}
 
 	s.channels.Remove(name)
@@ -465,14 +453,15 @@ func (s *state) createUser(src *Source) (u *User, ok bool) {
 	}
 
 	u = &User{
-		Nick:       src.Name,
-		Host:       src.Host,
-		Ident:      src.Ident,
-		Mask:       src.Name + "!" + src.Ident + "@" + src.Host,
-		FirstSeen:  time.Now(),
-		LastActive: time.Now(),
-		Network:    s.client.NetworkName(),
-		Perms:      &UserPerms{channels: make(map[string]Perms)},
+		Nick:        src.Name,
+		Host:        src.Host,
+		Ident:       src.Ident,
+		Mask:        src.Name + "!" + src.Ident + "@" + src.Host,
+		ChannelList: cmap.New(),
+		FirstSeen:   time.Now(),
+		LastActive:  time.Now(),
+		Network:     s.client.NetworkName(),
+		Perms:       &UserPerms{channels: make(map[string]Perms)},
 	}
 
 	s.users.Set(src.ID(), u)
@@ -488,13 +477,11 @@ func (s *state) deleteUser(channelName, nick string) {
 	}
 
 	if channelName == "" {
-		for i := 0; i < len(user.ChannelList); i++ {
-			ci, _ := s.channels.Get(user.ChannelList[i])
-			chn := ci.(*Channel)
-			chn.deleteUser(nick)
-		}
-
-		s.users.Remove(ToRFC1459(nick))
+		user.ChannelList.Clear()
+		// While we do still want to remove them from the channels,
+		// We want to hold onto that user object regardless on if they dip-set.
+		// s.users.Remove(ToRFC1459(nick))
+		user.Stale = true
 		return
 	}
 
@@ -505,12 +492,8 @@ func (s *state) deleteUser(channelName, nick string) {
 
 	user.deleteChannel(channelName)
 	channel.deleteUser(nick)
-
-	if len(user.ChannelList) == 0 {
-		// This means they are no longer in any channels we track, delete
-		// them from state.
-
-		s.users.Remove(ToRFC1459(nick))
+	if user.ChannelList.Count() == 0 {
+		user.Stale = true
 	}
 }
 
@@ -524,11 +507,15 @@ func (s *state) renameUser(from, to string) {
 	}
 
 	user := s.lookupUser(from)
-	if user == nil {
+
+	old, oldok := s.users.Pop(from)
+	if !oldok && user == nil {
 		return
 	}
 
-	s.users.Remove(from)
+	if old != nil && user == nil {
+		user = old.(*User)
+	}
 
 	user.Nick = to
 	user.LastActive = time.Now()
@@ -536,13 +523,12 @@ func (s *state) renameUser(from, to string) {
 
 	for chanchan := range s.channels.IterBuffered() {
 		chi := chanchan.Val
-		chn := chi.(*Channel)
-		for i := range chn.UserList {
-			if chn.UserList[i] == from {
-				chn.UserList[i] = ToRFC1459(to)
-				sort.Strings(chn.UserList)
-				break
-			}
+		chn, chok := chi.(*Channel)
+		if !chok {
+			continue
+		}
+		if old, oldok := chn.UserList.Pop(from); oldok {
+			chn.UserList.Set(to, old)
 		}
 	}
 }
