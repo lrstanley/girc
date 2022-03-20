@@ -354,4 +354,5 @@ const (
 const (
 	RPL_WHOISAUTHNAME = "330"
 	RPL_WHOISTLS      = "671"
+	ERR_ALREADYOPER   = "400"
 )
