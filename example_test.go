@@ -35,7 +35,6 @@ func Example_bare() {
 		Port:   6667,
 		Nick:   "test",
 		User:   "user",
-		Debug:  os.Stdout,
 	})
 
 	if err := client.Connect(); err != nil {
@@ -52,7 +51,6 @@ func Example_simple() {
 		Nick:   "test",
 		User:   "user",
 		Name:   "Example bot",
-		Debug:  os.Stdout,
 	})
 
 	client.Handlers.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {

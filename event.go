@@ -169,6 +169,16 @@ func (e *Event) Last() string {
 	return ""
 }
 
+// IsError does it's best to determine if the incoming event is tied to a known error event/command.
+// Note that if we are not aware of the given numeric IRC command, then this function will return false.
+// See: codebook.go
+func (e *Event) IsError() bool {
+	if cmdstr, ok := IRCCodes[e.Command]; ok {
+		return strings.Contains(cmdstr, "ERR_")
+	}
+	return false
+}
+
 // Copy makes a deep copy of a given event, for use with allowing untrusted
 // functions/handlers edit the event without causing potential issues with
 // other handlers.

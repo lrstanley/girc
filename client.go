@@ -7,6 +7,7 @@ package girc
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -69,7 +70,7 @@ type Client struct {
 // Server contains information about the IRC server that the client is connected to.
 type Server struct {
 	// Network is the name of the IRC network we are connected to as acquired by 001.
-	Network string
+	Network atomic.Value
 	// Version is the software version of the IRC daemon as acquired by 004.
 	Version string
 	// Host is the hostname/id/IP of the leaf, as acquired by 002.
@@ -295,14 +296,16 @@ func New(config Config) *Client {
 		tx:       make(chan *Event, 25),
 		CTCP:     newCTCP(),
 		initTime: time.Now(),
-		atom:     stateUnlocked,
 	}
 
 	c.IRCd = Server{
+		Network:      atomic.Value{},
 		Version:      "",
 		UserCount:    0,
 		MaxUserCount: 0,
 	}
+
+	c.IRCd.Network.Store("")
 
 	c.Cmd = &Commands{c: c}
 
@@ -339,6 +342,7 @@ func New(config Config) *Client {
 
 	// Give ourselves a new state.
 	c.state = &state{}
+	c.state.RWMutex = &sync.RWMutex{}
 	c.state.reset(true)
 
 	c.state.client = c
@@ -392,12 +396,10 @@ var ErrConnNotTLS = errors.New("underlying connection is not tls")
 // safe to call multiple times. See Connect()'s documentation on how
 // handlers and goroutines are handled when disconnected from the server.
 func (c *Client) Close() {
-	c.mu.RLock()
 	if c.stop != nil {
 		c.debug.Print("requesting client to stop")
 		c.stop()
 	}
-	c.mu.RUnlock()
 }
 
 // Quit sends a QUIT message to the server with a given reason to close the
@@ -427,9 +429,11 @@ func (e *ErrEvent) Error() string {
 	return e.Event.Last()
 }
 
-func (c *Client) execLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
+func (c *Client) execLoop(ctx context.Context, errs chan error, working *int32) {
 	c.debug.Print("starting execLoop")
 	defer c.debug.Print("closing execLoop")
+
+	defer atomic.AddInt32(working, -1)
 
 	var event *Event
 
@@ -450,7 +454,6 @@ func (c *Client) execLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 			}
 
 		done:
-			wg.Done()
 			return
 		case event = <-c.rx:
 			if event != nil && event.Command == ERROR {
@@ -481,9 +484,7 @@ func (c *Client) DisableTracking() {
 	c.Config.disableTracking = true
 	c.Handlers.clearInternal()
 
-	c.state.Lock()
-	c.state.channels = nil
-	c.state.Unlock()
+	c.state.channels.Clear()
 	c.state.notify(c, UPDATE_STATE)
 
 	c.registerBuiltins()
@@ -598,12 +599,15 @@ func (c *Client) GetHost() (host string) {
 func (c *Client) ChannelList() []string {
 	c.panicIfNotTracking()
 
-	c.state.RLock()
-	channels := make([]string, 0, len(c.state.channels))
-	for channel := range c.state.channels {
-		channels = append(channels, c.state.channels[channel].Name)
+	channels := make([]string, 0, len(c.state.channels.Keys()))
+	for channel := range c.state.channels.IterBuffered() {
+		chn := channel.Val.(*Channel)
+		if !chn.UserIn(c.GetNick()) {
+			continue
+		}
+		channels = append(channels, chn.Name)
 	}
-	c.state.RUnlock()
+
 	sort.Strings(channels)
 	return channels
 }
@@ -613,12 +617,11 @@ func (c *Client) ChannelList() []string {
 func (c *Client) Channels() []*Channel {
 	c.panicIfNotTracking()
 
-	c.state.RLock()
 	channels := make([]*Channel, 0, len(c.state.channels))
-	for channel := range c.state.channels {
-		channels = append(channels, c.state.channels[channel].Copy())
+	for channel := range c.state.channels.IterBuffered() {
+		chn := channel.Val.(*Channel)
+		channels = append(channels, chn.Copy())
 	}
-	c.state.RUnlock()
 
 	sort.Slice(channels, func(i, j int) bool {
 		return channels[i].Name < channels[j].Name
@@ -631,12 +634,12 @@ func (c *Client) Channels() []*Channel {
 func (c *Client) UserList() []string {
 	c.panicIfNotTracking()
 
-	c.state.RLock()
 	users := make([]string, 0, len(c.state.users))
-	for user := range c.state.users {
-		users = append(users, c.state.users[user].Nick)
+	for user := range c.state.users.IterBuffered() {
+		usr := user.Val.(*User)
+		users = append(users, usr.Nick)
 	}
-	c.state.RUnlock()
+
 	sort.Strings(users)
 	return users
 }
@@ -646,12 +649,11 @@ func (c *Client) UserList() []string {
 func (c *Client) Users() []*User {
 	c.panicIfNotTracking()
 
-	c.state.RLock()
 	users := make([]*User, 0, len(c.state.users))
-	for user := range c.state.users {
-		users = append(users, c.state.users[user].Copy())
+	for user := range c.state.users.IterBuffered() {
+		usr := user.Val.(*User)
+		users = append(users, usr.Copy())
 	}
-	c.state.RUnlock()
 
 	sort.Slice(users, func(i, j int) bool {
 		return users[i].Nick < users[j].Nick
@@ -667,9 +669,8 @@ func (c *Client) LookupChannel(name string) (channel *Channel) {
 		return nil
 	}
 
-	c.state.RLock()
 	channel = c.state.lookupChannel(name).Copy()
-	c.state.RUnlock()
+
 	return channel
 }
 
@@ -681,41 +682,36 @@ func (c *Client) LookupUser(nick string) (user *User) {
 		return nil
 	}
 
-	c.state.RLock()
 	user = c.state.lookupUser(nick).Copy()
-	c.state.RUnlock()
+
 	return user
 }
 
 // IsInChannel returns true if the client is in channel. Panics if tracking
 // is disabled.
+// TODO: make sure this still works.
 func (c *Client) IsInChannel(channel string) (in bool) {
 	c.panicIfNotTracking()
-
-	c.state.RLock()
-	_, in = c.state.channels[ToRFC1459(channel)]
-	c.state.RUnlock()
+	_, in = c.state.channels.Get(ToRFC1459(channel))
 	return in
 }
 
-// GetServerOption retrieves a server capability setting that was retrieved
+// GetServerOpt retrieves a server capability setting that was retrieved
 // during client connection. This is also known as ISUPPORT (or RPL_PROTOCTL).
 // Will panic if used when tracking has been disabled. Examples of usage:
 //
-//   nickLen, success := GetServerOption("MAXNICKLEN")
+//   nickLen, success := GetServerOpt("MAXNICKLEN")
 //
-func (c *Client) GetServerOption(key string) (result string, ok bool) {
+func (c *Client) GetServerOpt(key string) (result string, ok bool) {
 	c.panicIfNotTracking()
 
-	c.mu.RLock()
-	if _, ok := c.state.serverOptions[key]; !ok {
-		c.mu.RUnlock()
+	oi, ok := c.state.serverOptions.Get(key)
+	if !ok {
 		return "", ok
 	}
 
-	c.mu.RUnlock()
+	result = oi.(string)
 
-	result = c.state.serverOptions[key].Load().(string)
 	if len(result) > 0 {
 		ok = true
 	}
@@ -723,26 +719,15 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	return result, ok
 }
 
-// GetAllServerOption retrieves all of a server's capability settings that were retrieved
+// GetServerOptions retrieves all of a server's capability settings that were retrieved
 // during client connection. This is also known as ISUPPORT (or RPL_PROTOCTL).
-// Will panic if used when tracking has been disabled.
-func (c *Client) GetAllServerOption() (map[string]string, error) {
-	c.panicIfNotTracking()
-
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	if len(c.state.serverOptions) > 0 {
-		copied := make(map[string]string)
-		for k, av := range c.state.serverOptions {
-			if v := av.Load(); v != nil {
-				copied[k] = av.Load().(string)
-			}
-		}
-		return copied, nil
-	} else {
-		return nil, errors.New("server options is empty")
+func (c *Client) GetServerOptions() []byte {
+	o := make(map[string]string)
+	for opt := range c.state.serverOptions.IterBuffered() {
+		o[opt.Key] = opt.Val.(string)
 	}
+	jcytes, _ := json.Marshal(o)
+	return jcytes
 }
 
 // NetworkName returns the network identifier. E.g. "EsperNet", "ByteIRC".
@@ -752,20 +737,17 @@ func (c *Client) NetworkName() (name string) {
 	c.panicIfNotTracking()
 	var ok bool
 
-	if c.state.network.Load() != nil {
-		name = c.state.network.Load().(string)
-		if len(name) > 0 {
-			return
-		}
+	if len(c.state.network.Load().(string)) > 0 {
+		return c.state.network.Load().(string)
 	}
 
-	name, ok = c.GetServerOption("NETWORK")
+	name, ok = c.GetServerOpt("NETWORK")
 	if !ok {
-		return c.IRCd.Network
+		return c.IRCd.Network.Load().(string)
 	}
 
-	if len(name) < 1 && len(c.IRCd.Network) > 1 {
-		name = c.IRCd.Network
+	if len(name) < 1 && len(c.IRCd.Network.Load().(string)) > 1 {
+		name = c.IRCd.Network.Load().(string)
 	}
 
 	return name
@@ -778,7 +760,7 @@ func (c *Client) NetworkName() (name string) {
 func (c *Client) ServerVersion() (version string) {
 	c.panicIfNotTracking()
 
-	version, _ = c.GetServerOption("VERSION")
+	version, _ = c.GetServerOpt("VERSION")
 	return version
 }
 
@@ -786,8 +768,7 @@ func (c *Client) ServerVersion() (version string) {
 // it upon connect. Will panic if used when tracking has been disabled.
 func (c *Client) ServerMOTD() (motd string) {
 	c.panicIfNotTracking()
-	c.state.RLock()
-	defer c.state.RUnlock()
+
 	return c.state.motd
 }
 
@@ -816,11 +797,7 @@ func (c *Client) HasCapability(name string) (has bool) {
 
 	name = strings.ToLower(name)
 
-	for atomic.CompareAndSwapUint32(&c.atom, stateUnlocked, stateLocked) {
-		randSleep()
-	}
-	defer atomic.StoreUint32(&c.atom, stateUnlocked)
-
+	c.state.RLock()
 	for key := range c.state.enabledCap {
 		key = strings.ToLower(key)
 		if key == name {
@@ -828,6 +805,7 @@ func (c *Client) HasCapability(name string) (has bool) {
 			break
 		}
 	}
+	c.state.RUnlock()
 
 	return has
 }

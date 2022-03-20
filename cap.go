@@ -49,9 +49,7 @@ var possibleCap = map[string][]string{
 const capServerTimeFormat = "2006-01-02T15:04:05.999Z"
 
 func (c *Client) listCAP() {
-	if !c.Config.disableTracking {
-		c.write(&Event{Command: CAP, Params: []string{CAP_LS, "302"}})
-	}
+	c.write(&Event{Command: CAP, Params: []string{CAP_LS, "302"}})
 }
 
 func possibleCapList(c *Client) map[string][]string {
@@ -123,9 +121,9 @@ func handleCAP(c *Client, e Event) {
 
 	if len(e.Params) >= 2 && e.Params[1] == CAP_DEL {
 		caps := parseCap(e.Last())
-		for capab := range caps {
+		for cap := range caps {
 			// TODO: test the deletion.
-			delete(c.state.enabledCap, capab)
+			delete(c.state.enabledCap, cap)
 		}
 		return
 	}
@@ -209,7 +207,6 @@ func handleCAP(c *Client, e Event) {
 		// may choose to disable girc automatic STS, and do it themselves).
 		if sts, sok := c.state.enabledCap["sts"]; sok && !c.Config.DisableSTS {
 			var isError bool
-
 			// Some things are updated in the policy depending on if the current
 			// connection is over tls or not.
 			var hasTLSConnection bool
@@ -309,13 +306,11 @@ func handleCHGHOST(c *Client, e Event) {
 		return
 	}
 
-	c.state.Lock()
 	user := c.state.lookupUser(e.Source.Name)
 	if user != nil {
 		user.Ident = e.Params[0]
 		user.Host = e.Params[1]
 	}
-	c.state.Unlock()
 
 	c.state.notify(c, UPDATE_STATE)
 }
@@ -323,12 +318,12 @@ func handleCHGHOST(c *Client, e Event) {
 // handleAWAY handles incoming IRCv3 AWAY events, for which are sent both
 // when users are no longer away, or when they are away.
 func handleAWAY(c *Client, e Event) {
-	c.state.Lock()
+
 	user := c.state.lookupUser(e.Source.Name)
 	if user != nil {
 		user.Extras.Away = e.Last()
 	}
-	c.state.Unlock()
+
 	c.state.notify(c, UPDATE_STATE)
 }
 
@@ -346,11 +341,9 @@ func handleACCOUNT(c *Client, e Event) {
 		account = ""
 	}
 
-	c.state.Lock()
 	user := c.state.lookupUser(e.Source.Name)
 	if user != nil {
 		user.Extras.Account = account
 	}
-	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)
 }

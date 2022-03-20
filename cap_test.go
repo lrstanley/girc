@@ -16,6 +16,7 @@ func TestCapSupported(t *testing.T) {
 		User:          "user",
 		SASL:          &SASLPlain{User: "test", Pass: "example"},
 		SupportedCaps: map[string][]string{"example": nil},
+		// Debug:         os.Stdout,
 	})
 
 	var ok bool

@@ -333,10 +333,9 @@ func handleMODE(c *Client, e Event) {
 		return
 	}
 
-	c.state.RLock()
 	channel := c.state.lookupChannel(e.Params[0])
 	if channel == nil {
-		c.state.RUnlock()
+
 		return
 	}
 
@@ -363,15 +362,14 @@ func handleMODE(c *Client, e Event) {
 		}
 	}
 
-	c.state.RUnlock()
 	c.state.notify(c, UPDATE_STATE)
 }
 
 // chanModes returns the ISUPPORT list of server-supported channel modes,
 // alternatively falling back to ModeDefaults.
 func (s *state) chanModes() string {
-	if validmodes, ok := s.serverOptions["CHANMODES"]; ok {
-		modes := validmodes.Load().(string)
+	if validmodes, ok := s.serverOptions.Get("CHANMODES"); ok {
+		modes := validmodes.(string)
 		if IsValidChannelMode(modes) {
 			return modes
 		}
@@ -384,8 +382,8 @@ func (s *state) chanModes() string {
 // This includes mode characters, as well as user prefix symbols. Falls back
 // to DefaultPrefixes if not server-supported.
 func (s *state) userPrefixes() string {
-	if atomicprefix, ok := s.serverOptions["PREFIX"]; ok {
-		prefix := atomicprefix.Load().(string)
+	if pi, ok := s.serverOptions.Get("PREFIX"); ok {
+		prefix := pi.(string)
 		if isValidUserPrefix(prefix) {
 			return prefix
 		}
@@ -406,13 +404,9 @@ func (p *UserPerms) Copy() (perms *UserPerms) {
 	np := &UserPerms{
 		channels: make(map[string]Perms),
 	}
-
-	p.mu.RLock()
 	for key := range p.channels {
 		np.channels[key] = p.channels[key]
 	}
-	p.mu.RUnlock()
-
 	return np
 }
 
@@ -429,8 +423,8 @@ func (p *UserPerms) MarshalJSON() ([]byte, error) {
 // if the user is not in the given channel.
 func (p *UserPerms) Lookup(channel string) (perms Perms, ok bool) {
 	p.mu.RLock()
+	defer p.mu.RUnlock()
 	perms, ok = p.channels[ToRFC1459(channel)]
-	p.mu.RUnlock()
 
 	return perms, ok
 }

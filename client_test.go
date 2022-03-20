@@ -19,19 +19,16 @@ func TestDisableTracking(t *testing.T) {
 		Name:   "Testing123",
 	})
 
-	if len(client.Handlers.internal) < 1 {
+	if client.Handlers.internal.len() < 1 {
 		t.Fatal("Client.Handlers empty, though just initialized")
 	}
 
 	client.DisableTracking()
-	if _, ok := client.Handlers.internal[CAP]; ok {
+	if _, ok := client.Handlers.internal.cm.Get(CAP); ok {
 		t.Fatal("Client.Handlers contains capability tracking handlers, though disabled")
 	}
 
-	client.state.Lock()
-	defer client.state.Unlock()
-
-	if client.state.channels != nil {
+	if len(client.state.channels.Keys()) > 0 {
 		t.Fatal("Client.DisableTracking() called but channel state still exists")
 	}
 }

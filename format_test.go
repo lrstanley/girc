@@ -253,15 +253,15 @@ func TestToRFC1459(t *testing.T) {
 	return
 }
 
-func BenchmarkGlob(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		if !Glob("*quick*fox*dog", "The quick brown fox jumped over the lazy dog") {
-			b.Fatalf("should match")
-		}
-	}
-
-	return
-}
+//func BenchmarkGlob(b *testing.B) {
+//	for i := 0; i < b.N; i++ {
+//		if !Glob("*quick*fox*dog", "The quick brown fox jumped over the lazy dog") {
+//			b.Fatalf("should match")
+//		}
+//	}
+//
+//	return
+//}
 
 func testGlobMatch(t *testing.T, subj, pattern string) {
 	if !Glob(subj, pattern) {

@@ -31,7 +31,7 @@
   - `account-notify`, `away-notify`, `chghost`, `extended-join`, etc -- all handled seemlessly ([cap.go](https://github.com/yunginnanet/girc-atomic/blob/master/cap.go) for more info).
 - Channel and user tracking. Easily find what users are in a channel, if a
   user is away, or if they are authenticated (if the server supports it!)
-- Client state/capability tracking. Easy methods to access capability data ([LookupChannel](https://godoc.org/github.com/yunginnanet/girc-atomic#Client.LookupChannel), [LookupUser](https://godoc.org/github.com/yunginnanet/girc-atomic#Client.LookupUser), [GetServerOption (ISUPPORT)](https://godoc.org/github.com/yunginnanet/girc-atomic#Client.GetServerOption), etc.)
+- Client state/capability tracking. Easy methods to access capability data ([LookupChannel](https://godoc.org/github.com/yunginnanet/girc-atomic#Client.LookupChannel), [LookupUser](https://godoc.org/github.com/yunginnanet/girc-atomic#Client.LookupUser), [GetServerOpt (ISUPPORT)](https://godoc.org/github.com/yunginnanet/girc-atomic#Client.GetServerOpt), etc.)
 - Built-in support for things you would commonly have to implement yourself.
   - Nick collision detection and prevention (also see [Config.HandleNickCollide](https://godoc.org/github.com/yunginnanet/girc-atomic#Config).)
   - Event/message rate limiting.
@@ -67,6 +67,7 @@ on submitting pull requests and helping out.~~
 ## License
 
     Copyright (c) 2016 Liam Stanley <me@liamstanley.io>
+    Copyright (c) 2022 yung innanet <kayos@tcp.direct>
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal

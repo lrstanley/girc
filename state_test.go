@@ -71,15 +71,22 @@ func TestState(t *testing.T) {
 	finishStart := make(chan bool, 1)
 	go debounce(250*time.Millisecond, bounceStart, func() {
 		if motd := c.ServerMOTD(); motd != "example motd" {
-			t.Fatalf("Client.ServerMOTD() returned invalid MOTD: %q", motd)
+			t.Errorf("Client.ServerMOTD() returned invalid MOTD: %q", motd)
+			return
 		}
 
 		if network := c.NetworkName(); network != "DummyIRC" && network != "DUMMY" {
-			t.Fatalf("User.Network == %q, want \"DummyIRC\" or \"DUMMY\"", network)
+			t.Errorf("User.Network == %q, want \"DummyIRC\" or \"DUMMY\"", network)
+			return
+		} else {
+			t.Logf("successfully tested network name: %s", network)
 		}
 
-		if caseExample, ok := c.GetServerOption("NICKLEN"); !ok || caseExample != "20" {
-			t.Fatalf("Client.GetServerOptions returned invalid ISUPPORT variable: %q", caseExample)
+		if caseExample, ok := c.GetServerOpt("NICKLEN"); !ok || caseExample != "20" {
+			t.Errorf("Client.GetServerOptions returned invalid ISUPPORT variable: %q", caseExample)
+			return
+		} else {
+			t.Logf("successfully serveroption NICKLEN: %s", caseExample)
 		}
 
 		users := c.UserList()
@@ -87,31 +94,42 @@ func TestState(t *testing.T) {
 
 		if !reflect.DeepEqual(users, []string{"fhjones", "nick2"}) {
 			// This could fail too, if sorting isn't occurring.
-			t.Fatalf("got state users %#v, wanted: %#v", users, []string{"fhjones", "nick2"})
+			t.Errorf("got state users %#v, wanted: %#v", users, []string{"fhjones", "nick2"})
+			return
+		} else {
+			t.Logf("successfully checked userlist: %v", users)
 		}
 
 		if !reflect.DeepEqual(channels, []string{"#channel", "#channel2"}) {
 			// This could fail too, if sorting isn't occurring.
-			t.Fatalf("got state channels %#v, wanted: %#v", channels, []string{"#channel", "#channel2"})
+			t.Errorf("got state channels %#v, wanted: %#v", channels, []string{"#channel", "#channel2"})
+			return
+		} else {
+			t.Logf("successfully checked channel list: %v", channels)
 		}
 
 		fullChannels := c.Channels()
 		for i := 0; i < len(fullChannels); i++ {
 			if fullChannels[i].Name != channels[i] {
-				t.Fatalf("fullChannels name doesn't map to same name in ChannelsList: %q :: %#v", fullChannels[i].Name, channels)
+				t.Errorf("fullChannels name doesn't map to same name in ChannelsList: %q :: %#v", fullChannels[i].Name, channels)
+				return
+			} else {
+				t.Logf("successfully checked full channel list: %s: %v", fullChannels[i].Name, channels)
 			}
 		}
 
 		fullUsers := c.Users()
 		for i := 0; i < len(fullUsers); i++ {
 			if fullUsers[i].Nick != users[i] {
-				t.Fatalf("fullUsers nick doesn't map to same nick in UsersList: %q :: %#v", fullUsers[i].Nick, users)
+				t.Errorf("fullUsers nick doesn't map to same nick in UsersList: %q :: %#v", fullUsers[i].Nick, users)
+				return
 			}
 		}
 
 		ch := c.LookupChannel("#channel")
 		if ch == nil {
-			t.Fatal("Client.LookupChannel returned nil on existing channel")
+			t.Error("Client.LookupChannel returned nil on existing channel")
+			return
 		}
 
 		adm := ch.Admins(c)
@@ -126,76 +144,94 @@ func TestState(t *testing.T) {
 		}
 
 		if !reflect.DeepEqual(admList, []string{"nick2"}) {
-			t.Fatalf("got Channel.Admins() == %#v, wanted %#v", admList, []string{"nick2"})
+			t.Errorf("got Channel.Admins() == %#v, wanted %#v", admList, []string{"nick2"})
+			return
 		}
 
 		if !reflect.DeepEqual(trustedList, []string{"nick2"}) {
-			t.Fatalf("got Channel.Trusted() == %#v, wanted %#v", trustedList, []string{"nick2"})
+			t.Errorf("got Channel.Trusted() == %#v, wanted %#v", trustedList, []string{"nick2"})
+			return
 		}
 
 		if topic := ch.Topic; topic != "example topic" {
-			t.Fatalf("Channel.Topic == %q, want \"example topic\"", topic)
+			t.Errorf("Channel.Topic == %q, want \"example topic\"", topic)
+			return
 		}
 
 		if ch.Network != "DummyIRC" && ch.Network != "DUMMY" {
-			t.Fatalf("Channel.Network == %q, want \"DummyIRC\" or \"DUMMY\"", ch.Network)
+			t.Errorf("Channel.Network == %q, want \"DummyIRC\" or \"DUMMY\"", ch.Network)
+			return
 		}
 
 		if in := ch.UserIn("fhjones"); !in {
-			t.Fatalf("Channel.UserIn == %t, want %t", in, true)
+			t.Errorf("Channel.UserIn == %t, want %t", in, true)
+			return
 		}
 
 		if users := ch.Users(c); len(users) != 2 {
-			t.Fatalf("Channel.Users == %#v, wanted length of 2", users)
+			t.Errorf("Channel.Users == %#v, wanted length of 2", users)
+			return
 		}
 
 		if h := c.GetHost(); h != "local.int" {
-			t.Fatalf("Client.GetHost() == %q, want local.int", h)
+			t.Errorf("Client.GetHost() == %q, want local.int", h)
+			return
 		}
 
 		if nick := c.GetNick(); nick != "fhjones" {
-			t.Fatalf("Client.GetNick() == %q, want nick", nick)
+			t.Errorf("Client.GetNick() == %q, want nick", nick)
+			return
 		}
 
 		if ident := c.GetIdent(); ident != "~user" {
-			t.Fatalf("Client.GetIdent() == %q, want ~user", ident)
+			t.Errorf("Client.GetIdent() == %q, want ~user", ident)
+			return
 		}
 
 		user := c.LookupUser("fhjones")
 		if user == nil {
-			t.Fatal("Client.LookupUser() returned nil on existing user")
+			t.Error("Client.LookupUser() returned nil on existing user")
+			return
 		}
 
 		if !reflect.DeepEqual(user.ChannelList, []string{"#channel", "#channel2"}) {
-			t.Fatalf("User.ChannelList == %#v, wanted %#v", user.ChannelList, []string{"#channel", "#channel2"})
+			t.Errorf("User.ChannelList == %#v, wanted %#v", user.ChannelList, []string{"#channel", "#channel2"})
+			return
 		}
 
 		if count := len(user.Channels(c)); count != 2 {
-			t.Fatalf("len(User.Channels) == %d, want 2", count)
+			t.Errorf("len(User.Channels) == %d, want 2", count)
+			return
 		}
 
 		if user.Nick != "fhjones" {
-			t.Fatalf("User.Nick == %q, wanted \"nick\"", user.Nick)
+			t.Errorf("User.Nick == %q, wanted \"nick\"", user.Nick)
+			return
 		}
 
 		if user.Extras.Name != "realname" {
-			t.Fatalf("User.Extras.Name == %q, wanted \"realname\"", user.Extras.Name)
+			t.Errorf("User.Extras.Name == %q, wanted \"realname\"", user.Extras.Name)
+			return
 		}
 
 		if user.Host != "local.int" {
-			t.Fatalf("User.Host == %q, wanted \"local.int\"", user.Host)
+			t.Errorf("User.Host == %q, wanted \"local.int\"", user.Host)
+			return
 		}
 
 		if user.Ident != "~user" {
-			t.Fatalf("User.Ident == %q, wanted \"~user\"", user.Ident)
+			t.Errorf("User.Ident == %q, wanted \"~user\"", user.Ident)
+			return
 		}
 
 		if user.Network != "DummyIRC" && user.Network != "DUMMY" {
-			t.Fatalf("User.Network == %q, want \"DummyIRC\" or \"DUMMY\"", user.Network)
+			t.Errorf("User.Network == %q, want \"DummyIRC\" or \"DUMMY\"", user.Network)
+			return
 		}
 
 		if !user.InChannel("#channel2") {
-			t.Fatal("User.InChannel() returned false for existing channel")
+			t.Error("User.InChannel() returned false for existing channel")
+			return
 		}
 
 		finishStart <- true
@@ -222,29 +258,35 @@ func TestState(t *testing.T) {
 	finishEnd := make(chan bool, 1)
 	go debounce(250*time.Millisecond, bounceEnd, func() {
 		if !reflect.DeepEqual(c.ChannelList(), []string{"#channel"}) {
-			t.Fatalf("Client.ChannelList() == %#v, wanted %#v", c.ChannelList(), []string{"#channel"})
+			t.Errorf("Client.ChannelList() == %#v, wanted %#v", c.ChannelList(), []string{"#channel"})
+			return
 		}
 
 		if !reflect.DeepEqual(c.UserList(), []string{"notjones"}) {
-			t.Fatalf("Client.UserList() == %#v, wanted %#v", c.UserList(), []string{"notjones"})
+			t.Errorf("Client.UserList() == %#v, wanted %#v", c.UserList(), []string{"notjones"})
+			return
 		}
 
 		user := c.LookupUser("notjones")
 		if user == nil {
-			t.Fatal("Client.LookupUser() returned nil for existing user")
+			t.Error("Client.LookupUser() returned nil for existing user")
+			return
 		}
 
 		if !reflect.DeepEqual(user.ChannelList, []string{"#channel"}) {
-			t.Fatalf("user.ChannelList == %q, wanted %q", user.ChannelList, []string{"#channel"})
+			t.Errorf("user.ChannelList == %q, wanted %q", user.ChannelList, []string{"#channel"})
+			return
 		}
 
 		channel := c.LookupChannel("#channel")
 		if channel == nil {
-			t.Fatal("Client.LookupChannel() returned nil for existing channel")
+			t.Error("Client.LookupChannel() returned nil for existing channel")
+			return
 		}
 
 		if !reflect.DeepEqual(channel.UserList, []string{"notjones"}) {
-			t.Fatalf("channel.UserList == %q, wanted %q", channel.UserList, []string{"notjones"})
+			t.Errorf("channel.UserList == %q, wanted %q", channel.UserList, []string{"notjones"})
+			return
 		}
 
 		finishEnd <- true

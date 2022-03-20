@@ -134,9 +134,6 @@ func newCTCP() *CTCP {
 // call executes the necessary CTCP handler for the incoming event/CTCP
 // command.
 func (c *CTCP) call(client *Client, event *CTCPEvent) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	// If they want to catch any panics, add to defer stack.
 	if client.Config.RecoverFunc != nil && event.Origin != nil {
 		defer recoverHandlerPanic(client, event.Origin, "ctcp-"+strings.ToLower(event.Command), 3)
@@ -271,8 +268,8 @@ func handleCTCPVersion(client *Client, ctcp CTCPEvent) {
 
 	client.Cmd.SendCTCPReplyf(
 		ctcp.Source.ID(), CTCP_VERSION,
-		"girc-atomic using %s (%s, %s)",
-		runtime.Version(), runtime.GOOS, runtime.GOARCH,
+		"girc-atomic %s (%s, %s)",
+		Version, runtime.GOOS, runtime.GOARCH,
 	)
 }
 
@@ -301,7 +298,6 @@ func handleCTCPSource(client *Client, ctcp CTCPEvent) {
 	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_SOURCE, "https://github.com/yunginnanet/girc-atomic")
 }
 
-
 // handleCTCPTime replies with a RFC 1123 (Z) formatted version of Go's
 // local time.
 func handleCTCPTime(client *Client, ctcp CTCPEvent) {
@@ -315,7 +311,6 @@ func handleCTCPFinger(client *Client, ctcp CTCPEvent) {
 		client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_FINGER, client.Config.Finger)
 		return
 	}
-
 
 	active := client.conn.lastActive.Load().(time.Time)
 	client.Cmd.SendCTCPReply(ctcp.Source.ID(), CTCP_FINGER, fmt.Sprintf("%s -- idle %s", client.Config.Name, time.Since(active)))

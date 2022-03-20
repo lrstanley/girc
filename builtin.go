@@ -7,21 +7,16 @@ package girc
 import (
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/araddon/dateparse"
-)
-
-const (
-	stateUnlocked uint32 = iota
-	stateLocked
 )
 
 // registerBuiltin sets up built-in handlers, based on client
 // configuration.
 func (c *Client) registerBuiltins() {
 	c.debug.Print("registering built-in handlers")
+
 	c.Handlers.mu.Lock()
 	defer c.Handlers.mu.Unlock()
 
@@ -108,10 +103,19 @@ func handleConnect(c *Client, e Event) {
 		c.state.nick.Store(e.Params[0])
 		c.state.notify(c, UPDATE_GENERAL)
 		split := strings.Split(e.Params[1], " ")
-		if strings.HasPrefix(e.Params[1], "Welcome to the") && len(split) > 3 {
-			if len(split[3]) > 0 {
-				c.state.network.Store(split[3])
-				c.IRCd.Network = split[3]
+	search:
+		for i, artifact := range split {
+			switch strings.ToLower(artifact) {
+			case "welcome", "to":
+				continue
+			case "the":
+				if len(split) < i {
+					break search
+				}
+				c.IRCd.Network.Store(split[i+1])
+				break search
+			default:
+				break search
 			}
 		}
 	}
@@ -153,9 +157,6 @@ func handleJOIN(c *Client, e Event) {
 
 	channelName := e.Params[0]
 
-	c.state.Lock()
-	defer c.state.Unlock()
-
 	channel := c.state.lookupChannel(channelName)
 	if channel == nil {
 		if ok := c.state.createChannel(channelName); !ok {
@@ -167,7 +168,7 @@ func handleJOIN(c *Client, e Event) {
 
 	user := c.state.lookupUser(e.Source.Name)
 	if user == nil {
-		if ok := c.state.createUser(e.Source); !ok {
+		if _, ok := c.state.createUser(e.Source); !ok {
 			return
 		}
 		user = c.state.lookupUser(e.Source.Name)
@@ -225,15 +226,12 @@ func handlePART(c *Client, e Event) {
 	defer c.state.notify(c, UPDATE_STATE)
 
 	if e.Source.ID() == c.GetID() {
-		c.state.Lock()
 		c.state.deleteChannel(channel)
-		c.state.Unlock()
 		return
 	}
 
-	c.state.Lock()
 	c.state.deleteUser(channel, e.Source.ID())
-	c.state.Unlock()
+
 }
 
 // handleCREATIONTIME handles incoming TOPIC events and keeps channel tracking info
@@ -249,9 +247,6 @@ func handleCREATIONTIME(c *Client, e Event) {
 		created = e.Params[2]
 		break
 	}
-
-	c.state.Lock()
-	defer c.state.Unlock()
 
 	channel := c.state.lookupChannel(name)
 	if channel == nil {
@@ -275,15 +270,14 @@ func handleTOPIC(c *Client, e Event) {
 		name = e.Params[1]
 	}
 
-	c.state.Lock()
 	channel := c.state.lookupChannel(name)
 	if channel == nil {
-		c.state.Unlock()
+
 		return
 	}
 
 	channel.Topic = e.Last()
-	c.state.Unlock()
+
 	c.state.notify(c, UPDATE_STATE)
 }
 
@@ -328,15 +322,12 @@ func handleWHO(c *Client, e Event) {
 		}
 	}
 
-	c.state.Lock()
-	defer c.state.Unlock()
-
 	user := c.state.lookupUser(nick)
 	if user == nil {
-		c.state.createUser(&Source{nick, ident, host})
-		c.state.users[nick].Extras.Name = realname
+		usr, _ := c.state.createUser(&Source{nick, ident, host})
+		usr.Extras.Name = realname
 		if account != "0" {
-			c.state.users[nick].Extras.Account = account
+			usr.Extras.Account = account
 		}
 		c.state.notify(c, UPDATE_STATE)
 		return
@@ -365,16 +356,16 @@ func handleKICK(c *Client, e Event) {
 	defer c.state.notify(c, UPDATE_STATE)
 
 	if e.Params[1] == c.GetNick() {
-		c.state.Lock()
+
 		c.state.deleteChannel(e.Params[0])
-		c.state.Unlock()
+
 		return
 	}
 
 	// Assume it's just another user.
-	c.state.Lock()
+
 	c.state.deleteUser(e.Params[0], e.Params[1])
-	c.state.Unlock()
+
 }
 
 // handleNICK ensures that users are renamed in state, or the client name is
@@ -384,12 +375,10 @@ func handleNICK(c *Client, e Event) {
 		return
 	}
 
-	c.state.Lock()
 	// renameUser updates the LastActive time automatically.
 	if len(e.Params) >= 1 {
 		c.state.renameUser(e.Source.ID(), e.Last())
 	}
-	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)
 }
 
@@ -403,9 +392,8 @@ func handleQUIT(c *Client, e Event) {
 		return
 	}
 
-	c.state.Lock()
 	c.state.deleteUser("", e.Source.ID())
-	c.state.Unlock()
+
 	c.state.notify(c, UPDATE_STATE)
 }
 
@@ -418,8 +406,6 @@ func handleGLOBALUSERS(c *Client, e Event) {
 	if err != nil {
 		return
 	}
-	c.state.Lock()
-	defer c.state.Unlock()
 	c.IRCd.UserCount = cusers
 	c.IRCd.MaxUserCount = musers
 }
@@ -433,8 +419,6 @@ func handleLOCALUSERS(c *Client, e Event) {
 	if err != nil {
 		return
 	}
-	c.state.Lock()
-	defer c.state.Unlock()
 	c.IRCd.LocalUserCount = cusers
 	c.IRCd.LocalMaxUserCount = musers
 }
@@ -444,8 +428,6 @@ func handleLUSERCHANNELS(c *Client, e Event) {
 	if err != nil {
 		return
 	}
-	c.state.Lock()
-	defer c.state.Unlock()
 	c.IRCd.ChannelCount = ccount
 }
 
@@ -454,8 +436,6 @@ func handleLUSEROP(c *Client, e Event) {
 	if err != nil {
 		return
 	}
-	c.state.Lock()
-	defer c.state.Unlock()
 	c.IRCd.OperCount = ocount
 }
 
@@ -480,9 +460,7 @@ func handleCREATED(c *Client, e Event) {
 	if err != nil {
 		return
 	}
-	c.state.Lock()
 	c.IRCd.Compiled = compiled
-	c.state.Unlock()
 	c.state.notify(c, UPDATE_GENERAL)
 }
 
@@ -502,10 +480,8 @@ func handleYOURHOST(c *Client, e Event) {
 	if len(host)+len(ver) == 0 {
 		return
 	}
-	c.state.Lock()
 	c.IRCd.Host = host
 	c.IRCd.Version = ver
-	c.state.Unlock()
 	c.state.notify(c, UPDATE_GENERAL)
 }
 
@@ -529,18 +505,12 @@ func handleISUPPORT(c *Client, e Event) {
 		split := strings.Split(e.Params[i], "=")
 
 		if len(split) != 2 {
-			c.mu.Lock()
-			c.state.serverOptions[e.Params[i]] = &atomic.Value{}
-			c.mu.Unlock()
-			c.state.serverOptions[e.Params[i]].Store("")
+			c.state.serverOptions.Set(e.Params[i], "")
 			continue
 		}
 
 		if len(split[0]) < 1 || len(split[1]) < 1 {
-			c.mu.Lock()
-			c.state.serverOptions[e.Params[i]] = &atomic.Value{}
-			c.mu.Unlock()
-			c.state.serverOptions[e.Params[i]].Store("")
+			c.state.serverOptions.Set(e.Params[i], "")
 			continue
 		}
 
@@ -548,10 +518,7 @@ func handleISUPPORT(c *Client, e Event) {
 			c.state.network.Store(split[1])
 		}
 
-		c.mu.Lock()
-		c.state.serverOptions[split[0]] = &atomic.Value{}
-		c.mu.Unlock()
-		c.state.serverOptions[split[0]].Store(split[1])
+		c.state.serverOptions.Set(split[0], split[1])
 	}
 
 	c.state.notify(c, UPDATE_GENERAL)
@@ -560,15 +527,11 @@ func handleISUPPORT(c *Client, e Event) {
 // handleMOTD handles incoming MOTD messages and buffers them up for use with
 // Client.ServerMOTD().
 func handleMOTD(c *Client, e Event) {
-	c.state.Lock()
-
 	defer c.state.notify(c, UPDATE_GENERAL)
 
 	// Beginning of the MOTD.
 	if e.Command == RPL_MOTDSTART {
 		c.state.motd = ""
-
-		c.state.Unlock()
 		return
 	}
 
@@ -577,7 +540,6 @@ func handleMOTD(c *Client, e Event) {
 		c.state.motd += "\n"
 	}
 	c.state.motd += e.Last()
-	c.state.Unlock()
 }
 
 // handleNAMES handles incoming NAMES queries, of which lists all users in
@@ -598,7 +560,6 @@ func handleNAMES(c *Client, e Event) {
 	var modes, nick string
 	var ok bool
 
-	c.state.Lock()
 	for i := 0; i < len(parts); i++ {
 		modes, nick, ok = parseUserPrefix(parts[i])
 		if !ok {
@@ -638,7 +599,6 @@ func handleNAMES(c *Client, e Event) {
 		perms.set(modes, false)
 		user.Perms.set(channel.Name, perms)
 	}
-	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)
 }
 
@@ -650,9 +610,6 @@ func updateLastActive(c *Client, e Event) {
 	if e.Source == nil {
 		return
 	}
-
-	c.state.Lock()
-	defer c.state.Unlock()
 
 	// Update the users last active time, if they exist.
 	user := c.state.lookupUser(e.Source.Name)

@@ -152,7 +152,7 @@ const (
 	RPL_LISTEND           = "323"
 	RPL_UNIQOPIS          = "325"
 	RPL_CHANNELMODEIS     = "324"
-	RPL_CREATIONTIME	  = "329"
+	RPL_CREATIONTIME      = "329"
 	RPL_NOTOPIC           = "331"
 	RPL_TOPIC             = "332"
 	RPL_INVITING          = "341"
@@ -348,4 +348,11 @@ const (
 	RPL_LOCALUSERS     = "265" // aircd/hybrid/bahamut, used on freenode.
 	RPL_TOPICWHOTIME   = "333" // ircu, used on freenode.
 	RPL_WHOSPCRPL      = "354" // ircu, used on networks with WHOX support.
+)
+
+// As seen in the wild.
+const (
+	RPL_WHOISAUTHNAME = "330"
+	RPL_WHOISTLS      = "671"
+	ERR_ALREADYOPER   = "400"
 )

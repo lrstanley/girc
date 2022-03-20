@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"net"
+
 	"sync/atomic"
 	"testing"
 	"time"
