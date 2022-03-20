@@ -70,7 +70,7 @@ type Client struct {
 // Server contains information about the IRC server that the client is connected to.
 type Server struct {
 	// Network is the name of the IRC network we are connected to as acquired by 001.
-	Network string
+	Network atomic.Value
 	// Version is the software version of the IRC daemon as acquired by 004.
 	Version string
 	// Host is the hostname/id/IP of the leaf, as acquired by 002.
@@ -299,10 +299,13 @@ func New(config Config) *Client {
 	}
 
 	c.IRCd = Server{
+		Network:      atomic.Value{},
 		Version:      "",
 		UserCount:    0,
 		MaxUserCount: 0,
 	}
+
+	c.IRCd.Network.Store("")
 
 	c.Cmd = &Commands{c: c}
 
@@ -734,17 +737,17 @@ func (c *Client) NetworkName() (name string) {
 	c.panicIfNotTracking()
 	var ok bool
 
-	if len(c.state.network) > 0 {
-		return c.state.network
+	if len(c.state.network.Load().(string)) > 0 {
+		return c.state.network.Load().(string)
 	}
 
 	name, ok = c.GetServerOpt("NETWORK")
 	if !ok {
-		return c.IRCd.Network
+		return c.IRCd.Network.Load().(string)
 	}
 
-	if len(name) < 1 && len(c.IRCd.Network) > 1 {
-		name = c.IRCd.Network
+	if len(name) < 1 && len(c.IRCd.Network.Load().(string)) > 1 {
+		name = c.IRCd.Network.Load().(string)
 	}
 
 	return name

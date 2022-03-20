@@ -39,7 +39,7 @@ type state struct {
 	serverOptions cmap.ConcurrentMap
 
 	// network is an alternative way to store and retrieve the NETWORK server option.
-	network string
+	network atomic.Value
 
 	// motd is the servers message of the day.
 	motd string
@@ -60,6 +60,7 @@ func (s *state) reset(initial bool) {
 	s.nick.Store("")
 	s.ident.Store("")
 	s.host.Store("")
+	s.network.Store("")
 	var cmaps = []*cmap.ConcurrentMap{&s.channels, &s.users, &s.serverOptions}
 	for _, cm := range cmaps {
 		if initial {

@@ -112,7 +112,7 @@ func handleConnect(c *Client, e Event) {
 				if len(split) < i {
 					break search
 				}
-				c.IRCd.Network = split[i+1]
+				c.IRCd.Network.Store(split[i+1])
 				break search
 			default:
 				break search
@@ -515,7 +515,7 @@ func handleISUPPORT(c *Client, e Event) {
 		}
 
 		if split[0] == "NETWORK" {
-			c.state.network = split[1]
+			c.state.network.Store(split[1])
 		}
 
 		c.state.serverOptions.Set(split[0], split[1])
