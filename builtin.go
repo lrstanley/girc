@@ -216,6 +216,7 @@ func handlePART(c *Client, e Event) {
 	}
 
 	// TODO: does this work if it's not the bot?
+	// er yes, but needs a test case
 
 	channel := e.Params[0]
 
