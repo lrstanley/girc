@@ -13,32 +13,24 @@ func BenchmarkFormat(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Fmt("{red}test{c}")
 	}
-
-	return
 }
 
 func BenchmarkFormatLong(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		Fmt("{red}test {blue}2 {red}3 {brown} {italic}test{c}")
 	}
-
-	return
 }
 
 func BenchmarkStripFormat(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		TrimFmt("{red}test{c}")
 	}
-
-	return
 }
 
 func BenchmarkStripFormatLong(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		TrimFmt("{red}test {blue}2 {red}3 {brown} {italic}test{c}")
 	}
-
-	return
 }
 
 func BenchmarkStripRaw(b *testing.B) {
@@ -46,8 +38,6 @@ func BenchmarkStripRaw(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		StripRaw(text)
 	}
-
-	return
 }
 
 func BenchmarkStripRawLong(b *testing.B) {
@@ -55,8 +45,6 @@ func BenchmarkStripRawLong(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		StripRaw(text)
 	}
-
-	return
 }
 
 func TestFormat(t *testing.T) {
@@ -249,8 +237,6 @@ func TestToRFC1459(t *testing.T) {
 			t.Errorf("ToRFC1459() = %q, want %q", got, tt.want)
 		}
 	}
-
-	return
 }
 
 func BenchmarkGlob(b *testing.B) {
@@ -259,31 +245,23 @@ func BenchmarkGlob(b *testing.B) {
 			b.Fatalf("should match")
 		}
 	}
-
-	return
 }
 
 func testGlobMatch(t *testing.T, subj, pattern string) {
 	if !Glob(subj, pattern) {
 		t.Fatalf("'%s' should match '%s'", pattern, subj)
 	}
-
-	return
 }
 
 func testGlobNoMatch(t *testing.T, subj, pattern string) {
 	if Glob(subj, pattern) {
 		t.Fatalf("'%s' should not match '%s'", pattern, subj)
 	}
-
-	return
 }
 
 func TestEmptyPattern(t *testing.T) {
 	testGlobMatch(t, "", "")
 	testGlobNoMatch(t, "test", "")
-
-	return
 }
 
 func TestEmptySubject(t *testing.T) {
@@ -324,14 +302,10 @@ func TestEmptySubject(t *testing.T) {
 	for _, pattern := range cases {
 		testGlobNoMatch(t, pattern, "")
 	}
-
-	return
 }
 
 func TestPatternWithoutGlobs(t *testing.T) {
 	testGlobMatch(t, "test", "test")
-
-	return
 }
 
 func TestGlob(t *testing.T) {
@@ -368,6 +342,4 @@ func TestGlob(t *testing.T) {
 	for _, pattern := range cases {
 		testGlobNoMatch(t, "this is a test", pattern)
 	}
-
-	return
 }

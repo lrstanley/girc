@@ -43,8 +43,7 @@ type ircConn struct {
 	lastPing time.Time
 	// lastPong is the last successful time that we pinged the server and
 	// received a successful pong back.
-	lastPong  time.Time
-	pingDelay time.Duration
+	lastPong time.Time
 }
 
 // Dialer is an interface implementation of net.Dialer. Use this if you would
@@ -477,7 +476,7 @@ func (c *Client) write(event *Event) {
 func (c *ircConn) rate(chars int) time.Duration {
 	_time := time.Second + ((time.Duration(chars) * time.Second) / 100)
 
-	if c.writeDelay += _time - time.Now().Sub(c.lastWrite); c.writeDelay < 0 {
+	if c.writeDelay += _time - time.Since(c.lastWrite); c.writeDelay < 0 {
 		c.writeDelay = 0
 	}
 

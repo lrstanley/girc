@@ -46,8 +46,6 @@ func TestDecode(t *testing.T) {
 	if err == nil {
 		t.Fatalf("should have failed to parse decoded event. got: %#v", event)
 	}
-
-	return
 }
 
 func TestEncode(t *testing.T) {
@@ -70,8 +68,6 @@ func TestEncode(t *testing.T) {
 	if want != line {
 		t.Fatalf("encoded line wanted: %q, got: %q", want, line)
 	}
-
-	return
 }
 
 func TestRate(t *testing.T) {
@@ -88,8 +84,6 @@ func TestRate(t *testing.T) {
 	if delay := c.rate(200); delay > (3 * time.Second) {
 		t.Fatal("rate delay too high")
 	}
-
-	return
 }
 
 func genMockConn() (client *Client, clientConn net.Conn, serverConn net.Conn) {
