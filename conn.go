@@ -606,15 +606,16 @@ func (c *Client) pingLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 			if time.Since(c.conn.lastPong) > c.Config.PingDelay+(60*time.Second) {
 				// It's 60 seconds over what out ping delay is, connection
 				// has probably dropped.
-				errs <- ErrTimedOut{
+				err := ErrTimedOut{
 					TimeSinceSuccess: time.Since(c.conn.lastPong),
 					LastPong:         c.conn.lastPong,
 					LastPing:         c.conn.lastPing,
 					Delay:            c.Config.PingDelay,
 				}
 
-				wg.Done()
 				c.conn.mu.RUnlock()
+				errs <- err
+				wg.Done()
 				return
 			}
 			c.conn.mu.RUnlock()
