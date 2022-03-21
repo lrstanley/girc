@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v2
       - run: |
           go install golang.org/x/lint/golint@latest
-      - run: golint -min_confidence 0.9 -set_exit_status
+      - run: $(go env GOPATH)/bin/golint -min_confidence 0.9 -set_exit_status
       - run: |
           GORACE="exitcode=1 halt_on_error=1" go test -v -coverprofile=coverage.txt -race -timeout 3m -count 3 -cpu 1,4
           bash <(curl -s https://codecov.io/bash)
