@@ -15,7 +15,7 @@ jobs:
         with: { go-version: "${{ steps.goversion.outputs.version }}" }
       - uses: actions/checkout@v2
       - run: |
-          go get -u golang.org/x/lint/golint
+          go install golang.org/x/lint/golint@latest
       - run: golint -min_confidence 0.9 -set_exit_status
       - run: |
           GORACE="exitcode=1 halt_on_error=1" go test -v -coverprofile=coverage.txt -race -timeout 3m -count 3 -cpu 1,4
