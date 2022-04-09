@@ -34,7 +34,7 @@ func (c *CMode) Short() string {
 // String returns a string representation of a mode, including optional
 // arguments. E.g. "+b user*!ident@host.*.com"
 func (c *CMode) String() string {
-	if len(c.args) == 0 {
+	if c.args == "" {
 		return c.Short()
 	}
 
@@ -106,7 +106,7 @@ func (c *CModes) HasMode(mode string) bool {
 func (c *CModes) Get(mode string) (args string, ok bool) {
 	for i := 0; i < len(c.modes); i++ {
 		if string(c.modes[i].name) == mode {
-			if len(c.modes[i].args) == 0 {
+			if c.modes[i].args == "" {
 				return "", false
 			}
 
@@ -221,7 +221,7 @@ func (c *CModes) Parse(flags string, args []string) (out []CMode) {
 		}
 
 		hasArgs, isSetting := c.hasArg(add, flags[i])
-		if hasArgs && len(args) >= argCount+1 {
+		if hasArgs && len(args) > argCount {
 			mode.args = args[argCount]
 			argCount++
 		}
@@ -351,7 +351,7 @@ func handleMODE(c *Client, e Event) {
 
 	// Loop through and update users modes as necessary.
 	for i := 0; i < len(modes); i++ {
-		if modes[i].setting || len(modes[i].args) == 0 {
+		if modes[i].setting || modes[i].args == "" {
 			continue
 		}
 
