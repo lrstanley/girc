@@ -1,12 +1,9 @@
 <p align="center"><a href="https://pkg.go.dev/github.com/lrstanley/girc"><img width="270" src="http://i.imgur.com/DEnyrdB.png"></a></p>
-<p align="center">girc, a flexible IRC library for Go</p>
-<p align="center">
-  <a href="https://github.com/lrstanley/girc/actions"><img src="https://github.com/lrstanley/girc/workflows/test/badge.svg" alt="Test Status"></a>
-  <a href="https://codecov.io/gh/lrstanley/girc"><img src="https://codecov.io/gh/lrstanley/girc/branch/master/graph/badge.svg" alt="Coverage Status"></a>
-  <a href="https://pkg.go.dev/github.com/lrstanley/girc"><img src="https://pkg.go.dev/badge/github.com/lrstanley/girc" alt="GoDoc"></a>
-  <a href="https://goreportcard.com/report/github.com/lrstanley/girc"><img src="https://goreportcard.com/badge/github.com/lrstanley/girc" alt="Go Report Card"></a>
-  <a href="https://liam.sh/chat"><img src="https://img.shields.io/badge/community-chat%20with%20us-green.svg" alt="Community Chat"></a>
-</p>
+<!-- template:begin:header -->
+<!-- template:end:header -->
+
+<!-- template:begin:toc -->
+<!-- template:end:toc -->
 
 ## Features
 
@@ -48,35 +45,6 @@ usecases/examples/projects which utilize girc:
 
 Working on a project and want to add it to the list? Submit a pull request!
 
-## Contributing
-
-Please review the [CONTRIBUTING](CONTRIBUTING.md) doc for submitting issues/a guide
-on submitting pull requests and helping out.
-
-## License
-
-    Copyright (c) 2016 Liam Stanley <me@liamstanley.io>
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-
-girc artwork licensed under [CC 3.0](http://creativecommons.org/licenses/by/3.0/) based on Renee French under Creative Commons 3.0 Attributions.
-
 ## References
 
    * [IRCv3: Specification Docs](http://ircv3.net/irc/)
@@ -93,3 +61,15 @@ girc artwork licensed under [CC 3.0](http://creativecommons.org/licenses/by/3.0/
    * [RFC7194: Default Port for Internet Relay Chat (IRC) via TLS/SSL](https://tools.ietf.org/html/rfc7194)
    * [RFC4422: Simple Authentication and Security Layer](https://tools.ietf.org/html/rfc4422) ([SASL EXTERNAL](https://tools.ietf.org/html/rfc4422#appendix-A))
    * [RFC4616: The PLAIN SASL Mechanism](https://tools.ietf.org/html/rfc4616)
+
+
+<!-- template:begin:support -->
+<!-- template:end:support -->
+
+<!-- template:begin:contributing -->
+<!-- template:end:contributing -->
+
+<!-- template:begin:license -->
+<!-- template:end:license -->
+girc artwork licensed under [CC 3.0](http://creativecommons.org/licenses/by/3.0/)
+based on Renee French under Creative Commons 3.0 Attributions.
