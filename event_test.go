@@ -7,6 +7,7 @@ package girc
 import (
 	"reflect"
 	"testing"
+	"unicode/utf8"
 )
 
 func mockEvent() *Event {
@@ -17,36 +18,74 @@ func mockEvent() *Event {
 	}
 }
 
+var testsParseSource = []struct {
+	name    string
+	test    string
+	wantSrc *Source
+}{
+	{name: "full", test: "nick!user@hostname.com", wantSrc: &Source{
+		Name: "nick", Ident: "user", Host: "hostname.com",
+	}},
+	{name: "special chars", test: "^[]nick!~user@test.host---name.com", wantSrc: &Source{
+		Name: "^[]nick", Ident: "~user", Host: "test.host---name.com",
+	}},
+	{name: "short", test: "a!b@c", wantSrc: &Source{
+		Name: "a", Ident: "b", Host: "c",
+	}},
+	{name: "short", test: "a!b", wantSrc: &Source{
+		Name: "a", Ident: "b", Host: "",
+	}},
+	{name: "short", test: "a@b", wantSrc: &Source{
+		Name: "a", Ident: "", Host: "b",
+	}},
+	{name: "short", test: "test", wantSrc: &Source{
+		Name: "test", Ident: "", Host: "",
+	}},
+}
+
+func FuzzParseSource(f *testing.F) {
+	for _, tc := range testsParseSource {
+		f.Add(tc.test)
+	}
+
+	f.Fuzz(func(t *testing.T, orig string) {
+		got := ParseSource(orig)
+
+		_ = got.IsHostmask()
+		_ = got.IsServer()
+		_ = got.Len()
+
+		if utf8.ValidString(orig) {
+			if !utf8.ValidString(got.Host) {
+				t.Errorf("produced invalid UTF-8 string %q", got.Host)
+			}
+
+			if !utf8.ValidString(got.Ident) {
+				t.Errorf("produced invalid UTF-8 string %q", got.Ident)
+			}
+
+			if !utf8.ValidString(got.Name) {
+				t.Errorf("produced invalid UTF-8 string %q", got.Name)
+			}
+
+			if !utf8.ValidString(got.ID()) {
+				t.Errorf("produced invalid UTF-8 string %q", got.ID())
+			}
+
+			if !utf8.ValidString(got.String()) {
+				t.Errorf("produced invalid UTF-8 string %q", got.String())
+			}
+
+			if !utf8.Valid(got.Bytes()) {
+				t.Errorf("produced invalid UTF-8 []byte %q", got.Bytes())
+			}
+		}
+	})
+}
+
 func TestParseSource(t *testing.T) {
-	type args struct {
-		raw string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantSrc *Source
-	}{
-		{name: "full", args: args{raw: "nick!user@hostname.com"}, wantSrc: &Source{
-			Name: "nick", Ident: "user", Host: "hostname.com",
-		}},
-		{name: "special chars", args: args{raw: "^[]nick!~user@test.host---name.com"}, wantSrc: &Source{
-			Name: "^[]nick", Ident: "~user", Host: "test.host---name.com",
-		}},
-		{name: "short", args: args{raw: "a!b@c"}, wantSrc: &Source{
-			Name: "a", Ident: "b", Host: "c",
-		}},
-		{name: "short", args: args{raw: "a!b"}, wantSrc: &Source{
-			Name: "a", Ident: "b", Host: "",
-		}},
-		{name: "short", args: args{raw: "a@b"}, wantSrc: &Source{
-			Name: "a", Ident: "", Host: "b",
-		}},
-		{name: "short", args: args{raw: "test"}, wantSrc: &Source{
-			Name: "test", Ident: "", Host: "",
-		}},
-	}
-	for _, tt := range tests {
-		gotSrc := ParseSource(tt.args.raw)
+	for _, tt := range testsParseSource {
+		gotSrc := ParseSource(tt.test)
 
 		if !reflect.DeepEqual(gotSrc, tt.wantSrc) {
 			t.Errorf("ParseSource() = %v, want %v", gotSrc, tt.wantSrc)
@@ -74,36 +113,83 @@ func TestParseSource(t *testing.T) {
 	}
 }
 
-func TestParseEvent(t *testing.T) {
-	tests := []struct {
-		in   string
-		want string
-	}{
-		{in: "", want: ""},
-		{in: ":host.domain.com TEST", want: ":host.domain.com TEST"},
-		{in: ":host.domain.com TEST\r\n", want: ":host.domain.com TEST"},
-		{in: ":host.domain.com TEST arg1 arg2", want: ":host.domain.com TEST arg1 arg2"},
-		{in: ":host.domain.com TEST :", want: ":host.domain.com TEST :"},
-		{in: ":host.domain.com TEST ::", want: ":host.domain.com TEST ::"},
-		{in: ":host.domain.com TEST :test1", want: ":host.domain.com TEST test1"},
-		{in: ":host.domain.com TEST :test:test", want: ":host.domain.com TEST test:test"},
-		{in: ":host.domain.com TEST :test1 :test", want: ":host.domain.com TEST :test1 :test"},
-		{in: ":host.domain.com TEST :test1 test2", want: ":host.domain.com TEST :test1 test2"},
-		{in: ":host.domain.com TEST arg1 arg2 :test1", want: ":host.domain.com TEST arg1 arg2 test1"},
-		{in: ":host.domain.com TEST arg1 arg=:10 :test1", want: ":host.domain.com TEST arg1 arg=:10 test1"},
-		{in: ":nick!user@host TEST :test1", want: ":nick!user@host TEST test1"},
-		{in: ":nick!user@host TEST :test1 test2", want: ":nick!user@host TEST :test1 test2"},
-		// This should succeeded even though "want" has a colon (even though
-		// there are no spaces in the target). This is because the truncating
-		// happens after the event is encoded, not during.
-		{in: ":nick!user@host TEST :test0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000LONG TEXT TRUNCATED HERE", want: ":nick!user@host TEST :test0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
-		{in: "@aaa=bbb;ccc;example.com/ddd=eee :nick!user@host TEST :test 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000LONG TEXT TRUNCATED HERE", want: "@aaa=bbb;ccc;example.com/ddd=eee :nick!user@host TEST :test 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
-		{in: "@aaa=bbb :nick!user@host TEST :test1", want: "@aaa=bbb :nick!user@host TEST test1"},
-		{in: "@aaa=bbb;+ccc;example.com/ddd=eee :nick!user@host TEST :test1", want: "@aaa=bbb;+ccc;example.com/ddd=eee :nick!user@host TEST test1"},
-		{in: "@bbb=aaa;aaa :nick!user@host TEST :test1 test2", want: "@aaa;bbb=aaa :nick!user@host TEST :test1 test2"},
+var testsParseEvent = []struct {
+	in   string
+	want string
+}{
+	{in: "", want: ""},
+	{in: ":host.domain.com TEST", want: ":host.domain.com TEST"},
+	{in: ":host.domain.com TEST\r\n", want: ":host.domain.com TEST"},
+	{in: ":host.domain.com TEST arg1 arg2", want: ":host.domain.com TEST arg1 arg2"},
+	{in: ":host.domain.com TEST :", want: ":host.domain.com TEST :"},
+	{in: ":host.domain.com TEST ::", want: ":host.domain.com TEST ::"},
+	{in: ":host.domain.com TEST :test1", want: ":host.domain.com TEST test1"},
+	{in: ":host.domain.com TEST :test:test", want: ":host.domain.com TEST test:test"},
+	{in: ":host.domain.com TEST :test1 :test", want: ":host.domain.com TEST :test1 :test"},
+	{in: ":host.domain.com TEST :test1 test2", want: ":host.domain.com TEST :test1 test2"},
+	{in: ":host.domain.com TEST arg1 arg2 :test1", want: ":host.domain.com TEST arg1 arg2 test1"},
+	{in: ":host.domain.com TEST arg1 arg=:10 :test1", want: ":host.domain.com TEST arg1 arg=:10 test1"},
+	{in: ":nick!user@host TEST :test1", want: ":nick!user@host TEST test1"},
+	{in: ":nick!user@host TEST :test1 test2", want: ":nick!user@host TEST :test1 test2"},
+	// This should succeeded even though "want" has a colon (even though
+	// there are no spaces in the target). This is because the truncating
+	// happens after the event is encoded, not during.
+	{in: ":nick!user@host TEST :test0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000LONG TEXT TRUNCATED HERE", want: ":nick!user@host TEST :test0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
+	{in: "@aaa=bbb;ccc;example.com/ddd=eee :nick!user@host TEST :test 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000LONG TEXT TRUNCATED HERE", want: "@aaa=bbb;ccc;example.com/ddd=eee :nick!user@host TEST :test 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"},
+	{in: "@aaa=bbb :nick!user@host TEST :test1", want: "@aaa=bbb :nick!user@host TEST test1"},
+	{in: "@aaa=bbb;+ccc;example.com/ddd=eee :nick!user@host TEST :test1", want: "@aaa=bbb;+ccc;example.com/ddd=eee :nick!user@host TEST test1"},
+	{in: "@bbb=aaa;aaa :nick!user@host TEST :test1 test2", want: "@aaa;bbb=aaa :nick!user@host TEST :test1 test2"},
+}
+
+func FuzzParseEvent(f *testing.F) {
+	for _, tc := range testsParseEvent {
+		f.Add(tc.in)
 	}
 
-	for _, tt := range tests {
+	for _, tc := range testsIRCDocs {
+		f.Add(tc)
+	}
+
+	f.Fuzz(func(t *testing.T, orig string) {
+
+		got := ParseEvent(orig)
+
+		if got == nil {
+			return
+		}
+
+		_ = got.IsAction()
+		_ = got.IsFromChannel()
+		_ = got.IsFromUser()
+		_ = got.Len()
+		_, _ = got.IsCTCP()
+
+		if utf8.ValidString(orig) {
+			if !utf8.ValidString(got.Command) {
+				t.Errorf("produced invalid UTF-8 string %q", got.Command)
+			}
+
+			if !utf8.ValidString(got.Last()) {
+				t.Errorf("produced invalid UTF-8 string %q", got.Last())
+			}
+
+			if !utf8.ValidString(got.String()) {
+				t.Errorf("produced invalid UTF-8 string %q", got.String())
+			}
+
+			if !utf8.ValidString(got.StripAction()) {
+				t.Errorf("produced invalid UTF-8 string %q", got.StripAction())
+			}
+
+			if !utf8.Valid(got.Bytes()) {
+				t.Errorf("produced invalid UTF-8 []byte %q", got.Bytes())
+			}
+		}
+	})
+}
+
+func TestParseEvent(t *testing.T) {
+	for _, tt := range testsParseEvent {
 		got := ParseEvent(tt.in)
 
 		if got == nil && tt.want == "" {
@@ -256,72 +342,71 @@ func TestEventSourceTagEquals(t *testing.T) {
 	}
 }
 
-func TestEventIRCDocsParseTests(t *testing.T) {
-	// Some of these are pulled from https://github.com/ircdocs/parser-tests.
-	// TODO: do result checks in an automated form from parser-tests.
-	cases := []string{
-		"foo bar baz asdf",
-		"foo bar baz :asdf",
-		":src AWAY",
-		":src AWAY :",
-		":coolguy foo bar baz asdf",
-		":coolguy foo bar baz :asdf",
-		"foo bar baz :asdf quux",
-		"foo bar baz :",
-		"foo bar baz ::asdf",
-		":coolguy foo bar baz :asdf quux",
-		":coolguy foo bar baz :  asdf quux ",
-		":coolguy PRIVMSG bar :lol :) ",
-		":coolguy foo bar baz :",
-		":coolguy foo bar baz :  ",
-		":coolguy foo b\tar baz",
-		":coolguy foo b\tar :baz",
-		"@asd :coolguy foo bar baz :  ",
-		"@a=b\\\\and\\nk;d=gh\\:764 foo",
-		"@d=gh\\:764;a=b\\\\and\\nk foo",
-		"@a=b\\\\and\\nk;d=gh\\:764 foo par1 par2",
-		"@a=b\\\\and\\nk;d=gh\\:764 foo par1 :par2",
-		"@d=gh\\:764;a=b\\\\and\\nk foo par1 par2",
-		"@d=gh\\:764;a=b\\\\and\\nk foo par1 :par2",
-		"@foo=\\\\\\\\\\:\\\\s\\s\\r\\n COMMAND",
-		"foo bar baz asdf",
-		":coolguy foo bar baz asdf",
-		"foo bar baz :asdf quux",
-		"foo bar baz :",
-		"foo bar baz ::asdf",
-		":coolguy foo bar baz :asdf quux",
-		":coolguy foo bar baz :  asdf quux ",
-		":coolguy PRIVMSG bar :lol :) ",
-		":coolguy foo bar baz :",
-		":coolguy foo bar baz :  ",
-		"@a=b;c=32;k;rt=ql7 foo",
-		"@a=b\\\\and\\nk;c=72\\s45;d=gh\\:764 foo",
-		"@c;h=;a=b :quux ab cd",
-		":src JOIN #chan",
-		":src JOIN :#chan",
-		":src AWAY",
-		":src AWAY ",
-		":cool\tguy foo bar baz",
-		":coolguy!ag@net\x035w\x03ork.admin PRIVMSG foo :bar baz",
-		":coolguy!~ag@n\x02et\x0305w\x0fork.admin PRIVMSG foo :bar baz",
-		"@tag1=value1;tag2;vendor1/tag3=value2;vendor2/tag4= :irc.example.com COMMAND param1 param2 :param3 param3",
-		":irc.example.com COMMAND param1 param2 :param3 param3",
-		"@tag1=value1;tag2;vendor1/tag3=value2;vendor2/tag4 COMMAND param1 param2 :param3 param3",
-		"COMMAND",
-		"@foo=\\\\\\\\\\:\\\\s\\s\\r\\n COMMAND",
-		":gravel.mozilla.org 432  #momo :Erroneous Nickname: Illegal characters",
-		":gravel.mozilla.org MODE #tckk +n ",
-		":services.esper.net MODE #foo-bar +o foobar  ",
-		"@tag1=value\\\\ntest COMMAND",
-		"@tag1=value\\1 COMMAND",
-		"@tag1=value1\\ COMMAND",
-		"@tag1=1;tag2=3;tag3=4;tag1=5 COMMAND",
-		"@tag1=1;tag2=3;tag3=4;tag1=5;vendor/tag2=8 COMMAND",
-		":SomeOp MODE #channel :+i",
-		":SomeOp MODE #channel +oo SomeUser :AnotherUser",
-	}
+// // Some of these are pulled from https://github.com/ircdocs/parser-tests.
+var testsIRCDocs = []string{
+	"foo bar baz asdf",
+	"foo bar baz :asdf",
+	":src AWAY",
+	":src AWAY :",
+	":coolguy foo bar baz asdf",
+	":coolguy foo bar baz :asdf",
+	"foo bar baz :asdf quux",
+	"foo bar baz :",
+	"foo bar baz ::asdf",
+	":coolguy foo bar baz :asdf quux",
+	":coolguy foo bar baz :  asdf quux ",
+	":coolguy PRIVMSG bar :lol :) ",
+	":coolguy foo bar baz :",
+	":coolguy foo bar baz :  ",
+	":coolguy foo b\tar baz",
+	":coolguy foo b\tar :baz",
+	"@asd :coolguy foo bar baz :  ",
+	"@a=b\\\\and\\nk;d=gh\\:764 foo",
+	"@d=gh\\:764;a=b\\\\and\\nk foo",
+	"@a=b\\\\and\\nk;d=gh\\:764 foo par1 par2",
+	"@a=b\\\\and\\nk;d=gh\\:764 foo par1 :par2",
+	"@d=gh\\:764;a=b\\\\and\\nk foo par1 par2",
+	"@d=gh\\:764;a=b\\\\and\\nk foo par1 :par2",
+	"@foo=\\\\\\\\\\:\\\\s\\s\\r\\n COMMAND",
+	"foo bar baz asdf",
+	":coolguy foo bar baz asdf",
+	"foo bar baz :asdf quux",
+	"foo bar baz :",
+	"foo bar baz ::asdf",
+	":coolguy foo bar baz :asdf quux",
+	":coolguy foo bar baz :  asdf quux ",
+	":coolguy PRIVMSG bar :lol :) ",
+	":coolguy foo bar baz :",
+	":coolguy foo bar baz :  ",
+	"@a=b;c=32;k;rt=ql7 foo",
+	"@a=b\\\\and\\nk;c=72\\s45;d=gh\\:764 foo",
+	"@c;h=;a=b :quux ab cd",
+	":src JOIN #chan",
+	":src JOIN :#chan",
+	":src AWAY",
+	":src AWAY ",
+	":cool\tguy foo bar baz",
+	":coolguy!ag@net\x035w\x03ork.admin PRIVMSG foo :bar baz",
+	":coolguy!~ag@n\x02et\x0305w\x0fork.admin PRIVMSG foo :bar baz",
+	"@tag1=value1;tag2;vendor1/tag3=value2;vendor2/tag4= :irc.example.com COMMAND param1 param2 :param3 param3",
+	":irc.example.com COMMAND param1 param2 :param3 param3",
+	"@tag1=value1;tag2;vendor1/tag3=value2;vendor2/tag4 COMMAND param1 param2 :param3 param3",
+	"COMMAND",
+	"@foo=\\\\\\\\\\:\\\\s\\s\\r\\n COMMAND",
+	":gravel.mozilla.org 432  #momo :Erroneous Nickname: Illegal characters",
+	":gravel.mozilla.org MODE #tckk +n ",
+	":services.esper.net MODE #foo-bar +o foobar  ",
+	"@tag1=value\\\\ntest COMMAND",
+	"@tag1=value\\1 COMMAND",
+	"@tag1=value1\\ COMMAND",
+	"@tag1=1;tag2=3;tag3=4;tag1=5 COMMAND",
+	"@tag1=1;tag2=3;tag3=4;tag1=5;vendor/tag2=8 COMMAND",
+	":SomeOp MODE #channel :+i",
+	":SomeOp MODE #channel +oo SomeUser :AnotherUser",
+}
 
-	for _, tt := range cases {
+func TestEventIRCDocsParseTests(t *testing.T) {
+	for _, tt := range testsIRCDocs {
 		// Basic test to just verify it doesn't panic.
 		_ = ParseEvent(tt)
 	}
