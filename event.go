@@ -52,7 +52,7 @@ func ParseEvent(raw string) (e *Event) {
 		i = 0
 	}
 
-	if raw[0] == messagePrefix {
+	if raw != "" && raw[0] == messagePrefix {
 		// Prefix ends with a space.
 		i = strings.IndexByte(raw, eventSpace)
 
