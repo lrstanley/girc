@@ -110,7 +110,8 @@ func TestCall(t *testing.T) {
 		atomic.AddUint64(&counter, 1)
 	})
 
-	if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); atomic.LoadUint64(&counter) != 1 {
+	ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"})
+	if atomic.LoadUint64(&counter) != 1 {
 		t.Fatal("regular execution: call() didn't increase counter")
 	}
 	ctcp.Clear("TEST")
@@ -120,7 +121,8 @@ func TestCall(t *testing.T) {
 	})
 
 	ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"})
-	if time.Sleep(250 * time.Millisecond); atomic.LoadUint64(&counter) != 2 {
+	time.Sleep(250 * time.Millisecond)
+	if atomic.LoadUint64(&counter) != 2 {
 		t.Fatal("goroutine execution: call() in goroutine didn't increase counter")
 	}
 	ctcp.Clear("TEST")
@@ -129,14 +131,15 @@ func TestCall(t *testing.T) {
 		atomic.AddUint64(&counter, 1)
 	})
 
-	if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); atomic.LoadUint64(&counter) != 3 {
+	ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"})
+	if atomic.LoadUint64(&counter) != 3 {
 		t.Fatal("wildcard execution: call() didn't increase counter")
 	}
 	ctcp.Clear("*")
-
 	ctcp.Clear("TEST")
 
-	if ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"}); atomic.LoadUint64(&counter) != 3 {
+	ctcp.call(New(Config{}), &CTCPEvent{Command: "TEST"})
+	if atomic.LoadUint64(&counter) != 3 {
 		t.Fatal("empty execution: call() with no handler incremented the counter")
 	}
 }

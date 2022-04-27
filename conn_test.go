@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func mockBuffers() (in *bytes.Buffer, out *bytes.Buffer, irc *ircConn) {
+func mockBuffers() (in, out *bytes.Buffer, irc *ircConn) {
 	in = &bytes.Buffer{}
 	out = &bytes.Buffer{}
 	irc = &ircConn{
@@ -86,7 +86,7 @@ func TestRate(t *testing.T) {
 	}
 }
 
-func genMockConn() (client *Client, clientConn net.Conn, serverConn net.Conn) {
+func genMockConn() (client *Client, clientConn, serverConn net.Conn) {
 	client = New(Config{
 		Server: "dummy.int",
 		Port:   6667,
