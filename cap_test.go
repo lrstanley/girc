@@ -33,26 +33,36 @@ func TestCapSupported(t *testing.T) {
 	}
 }
 
-func TestParseCap(t *testing.T) {
-	tests := []struct {
-		in   string
-		want map[string]map[string]string
-	}{
-		{in: "sts=port=6697,duration=1234567890,preload", want: map[string]map[string]string{"sts": {"duration": "1234567890", "preload": "", "port": "6697"}}},
-		{in: "userhost-in-names", want: map[string]map[string]string{"userhost-in-names": nil}},
-		{in: "userhost-in-names test2", want: map[string]map[string]string{"userhost-in-names": nil, "test2": nil}},
-		{in: "example/name=test", want: map[string]map[string]string{"example/name": {"test": ""}}},
-		{
-			in: "userhost-in-names example/name example/name2=test=1,test2=true",
-			want: map[string]map[string]string{
-				"userhost-in-names": nil,
-				"example/name":      nil,
-				"example/name2":     {"test": "1", "test2": "true"},
-			},
+var testsParseCap = []struct {
+	in   string
+	want map[string]map[string]string
+}{
+	{in: "sts=port=6697,duration=1234567890,preload", want: map[string]map[string]string{"sts": {"duration": "1234567890", "preload": "", "port": "6697"}}},
+	{in: "userhost-in-names", want: map[string]map[string]string{"userhost-in-names": nil}},
+	{in: "userhost-in-names test2", want: map[string]map[string]string{"userhost-in-names": nil, "test2": nil}},
+	{in: "example/name=test", want: map[string]map[string]string{"example/name": {"test": ""}}},
+	{
+		in: "userhost-in-names example/name example/name2=test=1,test2=true",
+		want: map[string]map[string]string{
+			"userhost-in-names": nil,
+			"example/name":      nil,
+			"example/name2":     {"test": "1", "test2": "true"},
 		},
+	},
+}
+
+func FuzzParseCap(f *testing.F) {
+	for _, tc := range testsParseCap {
+		f.Add(tc.in)
 	}
 
-	for _, tt := range tests {
+	f.Fuzz(func(t *testing.T, orig string) {
+		_ = parseCap(orig)
+	})
+}
+
+func TestParseCap(t *testing.T) {
+	for _, tt := range testsParseCap {
 		got := parseCap(tt.in)
 
 		if !reflect.DeepEqual(got, tt.want) {
