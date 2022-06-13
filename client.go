@@ -300,6 +300,23 @@ func New(config Config) *Client {
 	return c
 }
 
+// receive is a wrapper for sending to the Client.rx channel. It will timeout if
+// the event can't be sent within 30s.
+func (c *Client) receive(e *Event) {
+	t := time.NewTimer(30 * time.Second)
+	defer func() {
+		if !t.Stop() {
+			<-t.C
+		}
+	}()
+
+	select {
+	case c.rx <- e:
+	case <-t.C:
+		c.debugLogEvent(e, true)
+	}
+}
+
 // String returns a brief description of the current client state.
 func (c *Client) String() string {
 	connected := c.IsConnected()
@@ -380,7 +397,7 @@ func (e *ErrEvent) Error() string {
 	return e.Event.Last()
 }
 
-func (c *Client) execLoop(ctx context.Context, errs chan error, wg *sync.WaitGroup) {
+func (c *Client) execLoop(ctx context.Context) error {
 	c.debug.Print("starting execLoop")
 	defer c.debug.Print("closing execLoop")
 
@@ -403,9 +420,10 @@ func (c *Client) execLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 			}
 
 		done:
-			wg.Done()
-			return
+			return nil
 		case event = <-c.rx:
+			c.RunHandlers(event)
+
 			if event != nil && event.Command == ERROR {
 				// Handles incoming ERROR responses. These are only ever sent
 				// by the server (with the exception that this library may use
@@ -415,13 +433,9 @@ func (c *Client) execLoop(ctx context.Context, errs chan error, wg *sync.WaitGro
 				// some reason the server doesn't disconnect the client, or
 				// if this library is the source of the error, this should
 				// signal back up to the main connect loop, to disconnect.
-				errs <- &ErrEvent{Event: event}
 
-				// Make sure to not actually exit, so we can let any handlers
-				// actually handle the ERROR event.
+				return &ErrEvent{Event: event}
 			}
-
-			c.RunHandlers(event)
 		}
 	}
 }
@@ -773,7 +787,7 @@ func (c *Client) debugLogEvent(e *Event, dropped bool) {
 	var prefix string
 
 	if dropped {
-		prefix = "dropping event (disconnected):"
+		prefix = "dropping event (disconnected or timeout):"
 	} else {
 		prefix = ">"
 	}
