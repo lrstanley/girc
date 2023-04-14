@@ -155,6 +155,10 @@ type Config struct {
 	// and the client. If this is set to -1, the client will not attempt to
 	// send client -> server PING requests.
 	PingDelay time.Duration
+	// PingTimeout specifies the duration at which girc will assume
+	// that the connection to the server has been lost if no PONG
+	// message has been received in reply to an outstanding PING.
+	PingTimeout time.Duration
 
 	// disableTracking disables all channel and user-level tracking. Useful
 	// for highly embedded scripts with single purposes. This has an exported
@@ -260,6 +264,10 @@ func New(config Config) *Client {
 		c.Config.PingDelay = 20 * time.Second
 	} else if c.Config.PingDelay > (600 * time.Second) {
 		c.Config.PingDelay = 600 * time.Second
+	}
+
+	if c.Config.PingTimeout == 0 {
+		c.Config.PingTimeout = 60 * time.Second
 	}
 
 	envDebug, _ := strconv.ParseBool(os.Getenv("GIRC_DEBUG"))
