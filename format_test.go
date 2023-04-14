@@ -66,6 +66,30 @@ var testsFormat = []struct {
 	{name: "just cyan", test: "{cyan}test", want: "\x0311test"},
 }
 
+func FuzzSplit(f *testing.F) {
+	for _, tc := range testsFormat {
+		f.Add(tc.want)
+	}
+
+	maxSize := 128
+
+	f.Fuzz(func(t *testing.T, orig string) {
+		got := splitMessage(orig, maxSize)
+
+		if utf8.ValidString(orig) {
+			if !utf8.ValidString(strings.Join(got, "")) {
+				t.Errorf("produced invalid UTF-8 string %q", got)
+			}
+		}
+
+		for _, s := range got {
+			if utf8.RuneCountInString(s) > maxSize {
+				t.Errorf("splitMessage(%q, %d) = got %q, %d runes, want <= %d for %q", orig, maxSize, got, utf8.RuneCountInString(s), maxSize, s)
+			}
+		}
+	})
+}
+
 func FuzzFormat(f *testing.F) {
 	for _, tc := range testsFormat {
 		f.Add(tc.test)

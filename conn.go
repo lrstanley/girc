@@ -446,35 +446,41 @@ func (c *Client) readLoop(ctx context.Context) error {
 	}
 }
 
-// Send sends an event to the server. Use Client.RunHandlers() if you are
-// simply looking to trigger handlers with an event.
+// Send sends an event to the server. Send will split events if the event is longer
+// than what the server supports, and is an event that supports splitting. Use
+// Client.RunHandlers() if you are simply looking to trigger handlers with an event.
 func (c *Client) Send(event *Event) {
 	var delay time.Duration
-
-	if !c.Config.AllowFlood {
-		c.mu.RLock()
-
-		// Drop the event early as we're disconnected, this way we don't have to wait
-		// the (potentially long) rate limit delay before dropping.
-		if c.conn == nil {
-			c.debugLogEvent(event, true)
-			c.mu.RUnlock()
-			return
-		}
-
-		c.conn.mu.Lock()
-		delay = c.conn.rate(event.Len())
-		c.conn.mu.Unlock()
-		c.mu.RUnlock()
-	}
 
 	if c.Config.GlobalFormat && len(event.Params) > 0 && event.Params[len(event.Params)-1] != "" &&
 		(event.Command == PRIVMSG || event.Command == TOPIC || event.Command == NOTICE) {
 		event.Params[len(event.Params)-1] = Fmt(event.Params[len(event.Params)-1])
 	}
 
-	<-time.After(delay)
-	c.write(event)
+	var events []*Event
+	events = event.split(c.MaxEventLength())
+
+	for _, e := range events {
+		if !c.Config.AllowFlood {
+			c.mu.RLock()
+
+			// Drop the event early as we're disconnected, this way we don't have to wait
+			// the (potentially long) rate limit delay before dropping.
+			if c.conn == nil {
+				c.debugLogEvent(e, true)
+				c.mu.RUnlock()
+				return
+			}
+
+			c.conn.mu.Lock()
+			delay = c.conn.rate(e.Len())
+			c.conn.mu.Unlock()
+			c.mu.RUnlock()
+		}
+
+		<-time.After(delay)
+		c.write(e)
+	}
 }
 
 // write is the lower level function to write an event. It does not have a

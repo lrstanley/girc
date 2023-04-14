@@ -179,13 +179,13 @@ type Config struct {
 // server.
 //
 // Client expectations:
-//  - Perform any proxy resolution.
-//  - Check the reverse DNS and forward DNS match.
-//  - Check the IP against suitable access controls (ipaccess, dnsbl, etc).
+//   - Perform any proxy resolution.
+//   - Check the reverse DNS and forward DNS match.
+//   - Check the IP against suitable access controls (ipaccess, dnsbl, etc).
 //
 // More information:
-//  - https://ircv3.net/specs/extensions/webirc.html
-//  - https://kiwiirc.com/docs/webirc
+//   - https://ircv3.net/specs/extensions/webirc.html
+//   - https://kiwiirc.com/docs/webirc
 type WebIRC struct {
 	// Password that authenticates the WEBIRC command from this client.
 	Password string
@@ -683,8 +683,7 @@ func (c *Client) IsInChannel(channel string) (in bool) {
 // during client connection. This is also known as ISUPPORT (or RPL_PROTOCTL).
 // Will panic if used when tracking has been disabled. Examples of usage:
 //
-//   nickLen, success := GetServerOption("MAXNICKLEN")
-//
+//	nickLen, success := GetServerOption("MAXNICKLEN")
 func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	c.panicIfNotTracking()
 
@@ -692,6 +691,42 @@ func (c *Client) GetServerOption(key string) (result string, ok bool) {
 	result, ok = c.state.serverOptions[key]
 	c.state.RUnlock()
 	return result, ok
+}
+
+// GetServerOptionInt retrieves a server capability setting (as an integer) that was
+// retrieved during client connection. This is also known as ISUPPORT (or RPL_PROTOCTL).
+// Will panic if used when tracking has been disabled. Examples of usage:
+//
+//	nickLen, success := GetServerOption("MAXNICKLEN")
+func (c *Client) GetServerOptionInt(key string) (result int, ok bool) {
+	var data string
+	var err error
+
+	data, ok = c.GetServerOption(key)
+	if !ok {
+		return result, ok
+	}
+	result, err = strconv.Atoi(data)
+	if err != nil {
+		ok = false
+	}
+
+	return result, ok
+}
+
+// MaxEventLength returns the maximum supported server length of an event. This is the
+// maximum length of the command and arguments, excluding the source/prefix supported
+// by the protocol. If state tracking is enabled, this will utilize ISUPPORT/IRCv3
+// information to more accurately calculate the maximum supported length (i.e. extended
+// length events).
+func (c *Client) MaxEventLength() (max int) {
+	if !c.Config.disableTracking {
+		c.state.RLock()
+		max = c.state.maxLineLength - c.state.maxPrefixLength
+		c.state.RUnlock()
+		return max
+	}
+	return DefaultMaxLineLength - DefaultMaxPrefixLength
 }
 
 // NetworkName returns the network identifier. E.g. "EsperNet", "ByteIRC".
