@@ -31,20 +31,20 @@ func TestDecode(t *testing.T) {
 	in.Write(e.Bytes())
 	in.Write(endline)
 
-	event, err := c.decode()
-	if err != nil {
-		t.Fatalf("received error during decode: %s", err)
+	de := <-c.decode()
+	if de.err != nil {
+		t.Fatalf("received error during decode: %s", de.err)
 	}
 
-	if event.String() != e.String() {
-		t.Fatalf("event returned from decode not the same as mock event. want %#v, got %#v", e, event)
+	if de.event.String() != e.String() {
+		t.Fatalf("event returned from decode not the same as mock event. want %#v, got %#v", e, de.event)
 	}
 
 	// Test a failure.
 	in.WriteString("::abcd\r\n")
-	event, err = c.decode()
-	if err == nil {
-		t.Fatalf("should have failed to parse decoded event. got: %#v", event)
+	de = <-c.decode()
+	if de.err == nil {
+		t.Fatalf("should have failed to parse decoded event. got: %#v", de.event)
 	}
 }
 

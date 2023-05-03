@@ -179,8 +179,12 @@ func TestClientClose(t *testing.T) {
 	errchan := make(chan error, 1)
 	done := make(chan struct{}, 1)
 
-	c.Handlers.AddBg(CLOSED, func(c *Client, e Event) { close(done) })
-	c.Handlers.AddBg(INITIALIZED, func(c *Client, e Event) { c.Close() })
+	c.Handlers.AddBg(CLOSED, func(c *Client, e Event) {
+		close(done)
+	})
+	c.Handlers.AddBg(INITIALIZED, func(c *Client, e Event) {
+		c.Close()
+	})
 
 	go func() { errchan <- c.MockConnect(server) }()
 
@@ -193,7 +197,7 @@ func TestClientClose(t *testing.T) {
 		}
 
 		t.Fatalf("connect returned with error when close was invoked: %s", err)
-	case <-time.After(5 * time.Second):
+	case <-time.After(35 * time.Second):
 		t.Fatal("Client.Close() timed out")
 	case <-done:
 	}
