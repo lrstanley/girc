@@ -486,11 +486,7 @@ func (c *Client) write(event *Event) {
 	}
 
 	t := time.NewTimer(30 * time.Second)
-	defer func() {
-		if !t.Stop() {
-			<-t.C
-		}
-	}()
+	defer t.Stop()
 
 	select {
 	case c.tx <- event:
