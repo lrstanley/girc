@@ -42,12 +42,13 @@ const mockConnStartState = `:dummy.int NOTICE * :*** Looking up your hostname...
 :dummy.int 354 nick 1 #channel nick2 other.int nick2 nick2 :realname2
 :dummy.int 315 nick #channel :End of /WHO list.
 :nick!~user@local.int JOIN #channel2 * :realname
-:dummy.int 332 nick #channel2 :example topic
+:dummy.int 332 nick #channel2 :example init topic
 :dummy.int 353 nick = #channel2 :nick!~user@local.int @nick2!nick2@other.int
 :dummy.int 366 nick #channel2 :End of /NAMES list.
 :dummy.int 354 nick 1 #channel2 ~user local.int nick 0 :realname
 :dummy.int 354 nick 1 #channel2 nick2 other.int nick2 nick2 :realname2
 :dummy.int 315 nick #channel2 :End of /WHO list.
+:dummy.int TOPIC #channel2 :example topic
 `
 
 const mockConnEndState = `:nick2!nick2@other.int QUIT :example reason
@@ -188,6 +189,10 @@ func TestState(t *testing.T) {
 
 		if !user.InChannel("#channel2") {
 			t.Fatal("User.InChannel() returned false for existing channel")
+		}
+
+		if ch2 := c.LookupChannel("#channel2"); ch2.Topic != "example topic" {
+			t.Fatalf("Channel.Topic == %q, want \"example topic\"", ch2.Topic)
 		}
 
 		finishStart <- true

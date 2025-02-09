@@ -223,14 +223,19 @@ func handlePART(c *Client, e Event) {
 // handleTOPIC handles incoming TOPIC events and keeps channel tracking info
 // updated with the latest channel topic.
 func handleTOPIC(c *Client, e Event) {
-	var name string
+	var name, topic string
 	switch len(e.Params) {
 	case 0:
 		return
-	case 1:
+	case 1: // TOPIC, message format is `TOPIC <channel>`
 		name = e.Params[0]
-	default:
+		topic = ""
+	case 2: // TOPIC, message format is `TOPIC <channel> :<topic>`
+		name = e.Params[0]
+		topic = e.Last()
+	default: // RPL_TOPIC, message format is `332 <client> <channel> :<topic>`
 		name = e.Params[1]
+		topic = e.Last()
 	}
 
 	c.state.Lock()
@@ -240,7 +245,7 @@ func handleTOPIC(c *Client, e Event) {
 		return
 	}
 
-	channel.Topic = e.Last()
+	channel.Topic = topic
 	c.state.Unlock()
 	c.state.notify(c, UPDATE_STATE)
 }
