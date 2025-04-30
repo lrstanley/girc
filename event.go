@@ -331,7 +331,7 @@ func (e *Event) Len() (length int) {
 // supports), which may be useful if you are trying to check and see if a message is
 // too long, to trim it down yourself.
 func (e *Event) LenOpts(includeTags bool) (length int) {
-	if e.Tags != nil {
+	if e.Tags != nil && includeTags {
 		// Include tags and trailing space.
 		length = e.Tags.Len() + 1
 	}
@@ -357,7 +357,7 @@ func (e *Event) LenOpts(includeTags bool) (length int) {
 		}
 	}
 
-	return
+	return length
 }
 
 // Bytes returns a []byte representation of event. Strips all newlines and
@@ -367,7 +367,7 @@ func (e *Event) Bytes() []byte {
 
 	// Tags.
 	if e.Tags != nil {
-		e.Tags.writeTo(buffer)
+		_, _ = e.Tags.writeTo(buffer)
 	}
 
 	// Event prefix.
@@ -416,7 +416,7 @@ func (e *Event) String() string {
 // support prettification, ok is false. Pretty is not just useful to make
 // an event prettier, but also to filter out events that most don't visually
 // see in normal IRC clients. e.g. most clients don't show WHO queries.
-func (e *Event) Pretty() (out string, ok bool) {
+func (e *Event) Pretty() (out string, ok bool) { //nolint:gocognit
 	if e.Sensitive || e.Echo {
 		return "", false
 	}
@@ -448,7 +448,7 @@ func (e *Event) Pretty() (out string, ok bool) {
 	if (e.Command == PRIVMSG || e.Command == NOTICE) && len(e.Params) > 0 {
 		if ctcp := DecodeCTCP(e); ctcp != nil {
 			if ctcp.Reply {
-				return
+				return out, ok
 			}
 
 			if ctcp.Command == CTCP_ACTION {
@@ -678,14 +678,14 @@ func ParseSource(raw string) (src *Source) {
 // Len calculates the length of the string representation of prefix
 func (s *Source) Len() (length int) {
 	length = len(s.Name)
-	if len(s.Ident) > 0 {
+	if s.Ident != "" {
 		length = 1 + length + len(s.Ident)
 	}
-	if len(s.Host) > 0 {
+	if s.Host != "" {
 		length = 1 + length + len(s.Host)
 	}
 
-	return
+	return length
 }
 
 // Bytes returns a []byte representation of source.
@@ -699,19 +699,19 @@ func (s *Source) Bytes() []byte {
 // String returns a string representation of source.
 func (s *Source) String() (out string) {
 	out = s.Name
-	if len(s.Ident) > 0 {
+	if s.Ident != "" {
 		out = out + string(prefixIdent) + s.Ident
 	}
-	if len(s.Host) > 0 {
+	if s.Host != "" {
 		out = out + string(prefixHost) + s.Host
 	}
 
-	return
+	return out
 }
 
 // IsHostmask returns true if source looks like a user hostmask.
 func (s *Source) IsHostmask() bool {
-	return len(s.Ident) > 0 && len(s.Host) > 0
+	return s.Ident != "" && s.Host != ""
 }
 
 // IsServer returns true if this source looks like a server name.
@@ -723,11 +723,11 @@ func (s *Source) IsServer() bool {
 // in Event.String().
 func (s *Source) writeTo(buffer *bytes.Buffer) {
 	buffer.WriteString(s.Name)
-	if len(s.Ident) > 0 {
+	if s.Ident != "" {
 		buffer.WriteByte(prefixIdent)
 		buffer.WriteString(s.Ident)
 	}
-	if len(s.Host) > 0 {
+	if s.Host != "" {
 		buffer.WriteByte(prefixHost)
 		buffer.WriteString(s.Host)
 	}

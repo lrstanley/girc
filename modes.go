@@ -56,15 +56,12 @@ type CModes struct {
 
 // Copy returns a deep copy of CModes.
 func (c *CModes) Copy() (nc CModes) {
-	nc = CModes{}
 	nc = *c
 
 	nc.modes = make([]CMode, len(c.modes))
 
 	// Copy modes.
-	for i := 0; i < len(c.modes); i++ {
-		nc.modes[i] = c.modes[i]
-	}
+	copy(nc.modes, c.modes)
 
 	return nc
 }
@@ -72,8 +69,7 @@ func (c *CModes) Copy() (nc CModes) {
 // String returns a complete set of modes for this given state (change?). For
 // example, "+a-b+cde some-arg".
 func (c *CModes) String() string {
-	var out string
-	var args string
+	var out, args string
 
 	if len(c.modes) > 0 {
 		out += "+"
@@ -82,7 +78,7 @@ func (c *CModes) String() string {
 	for i := 0; i < len(c.modes); i++ {
 		out += string(c.modes[i].name)
 
-		if len(c.modes[i].args) > 0 {
+		if c.modes[i].args != "" {
 			args += " " + c.modes[i].args
 		}
 	}
@@ -445,7 +441,7 @@ func (p *UserPerms) remove(channel string) {
 // Perms contains all channel-based user permissions. The minimum op, and
 // voice should be supported on all networks. This also supports non-rfc
 // Owner, Admin, and HalfOp, if the network has support for it.
-type Perms struct {
+type Perms struct { //nolint:recvcheck
 	// Owner (non-rfc) indicates that the user has full permissions to the
 	// channel. More than one user can have owner permission.
 	Owner bool `json:"owner"`
@@ -547,5 +543,5 @@ func parseUserPrefix(raw string) (modes, nick string, success bool) {
 		return modes, raw[i:], true
 	}
 
-	return
+	return modes, nick, success
 }

@@ -144,7 +144,7 @@ func TestCall(t *testing.T) {
 	var counter uint64
 	ctcp := newCTCP()
 
-	ctcp.Set("TEST", func(client *Client, event CTCPEvent) {
+	ctcp.Set("TEST", func(_ *Client, _ CTCPEvent) {
 		atomic.AddUint64(&counter, 1)
 	})
 
@@ -154,7 +154,7 @@ func TestCall(t *testing.T) {
 	}
 	ctcp.Clear("TEST")
 
-	ctcp.SetBg("TEST", func(client *Client, event CTCPEvent) {
+	ctcp.SetBg("TEST", func(_ *Client, _ CTCPEvent) {
 		atomic.AddUint64(&counter, 1)
 	})
 
@@ -165,7 +165,7 @@ func TestCall(t *testing.T) {
 	}
 	ctcp.Clear("TEST")
 
-	ctcp.Set("*", func(client *Client, event CTCPEvent) {
+	ctcp.Set("*", func(_ *Client, _ CTCPEvent) {
 		atomic.AddUint64(&counter, 1)
 	})
 
@@ -185,12 +185,12 @@ func TestCall(t *testing.T) {
 func TestSet(t *testing.T) {
 	ctcp := newCTCP()
 
-	ctcp.Set("TEST-1", func(client *Client, event CTCPEvent) {})
+	ctcp.Set("TEST-1", func(_ *Client, _ CTCPEvent) {})
 	if _, ok := ctcp.handlers["TEST"]; ok {
 		t.Fatal("Set('TEST') allowed invalid command")
 	}
 
-	ctcp.Set("TEST", func(client *Client, event CTCPEvent) {})
+	ctcp.Set("TEST", func(_ *Client, _ CTCPEvent) {})
 	// Make sure it's there.
 	if _, ok := ctcp.handlers["TEST"]; !ok {
 		t.Fatal("store: Set('TEST') didn't set")
@@ -200,7 +200,7 @@ func TestSet(t *testing.T) {
 func TestClear(t *testing.T) {
 	ctcp := newCTCP()
 
-	ctcp.Set("TEST", func(client *Client, event CTCPEvent) {})
+	ctcp.Set("TEST", func(_ *Client, _ CTCPEvent) {})
 	ctcp.Clear("TEST")
 
 	if _, ok := ctcp.handlers["TEST"]; ok {
@@ -211,8 +211,8 @@ func TestClear(t *testing.T) {
 func TestClearAll(t *testing.T) {
 	ctcp := newCTCP()
 
-	ctcp.Set("TEST1", func(client *Client, event CTCPEvent) {})
-	ctcp.Set("TEST2", func(client *Client, event CTCPEvent) {})
+	ctcp.Set("TEST1", func(_ *Client, _ CTCPEvent) {})
+	ctcp.Set("TEST2", func(_ *Client, _ CTCPEvent) {})
 	ctcp.ClearAll()
 
 	_, first := ctcp.handlers["TEST1"]

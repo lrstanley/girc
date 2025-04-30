@@ -44,7 +44,7 @@ type Command struct {
 func (c *Command) genHelp(prefix string) string {
 	out := "{b}" + prefix + c.Name + "{b}"
 
-	if c.Aliases != nil && len(c.Aliases) > 0 {
+	if len(c.Aliases) > 0 {
 		out += " ({b}" + prefix + strings.Join(c.Aliases, "{b}, {b}"+prefix) + "{b})"
 	}
 

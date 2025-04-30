@@ -130,7 +130,7 @@ type User struct {
 // Channels returns a reference of *Channels that the client knows the user
 // is in. If you're just looking for the namme of the channels, use
 // User.ChannelList.
-func (u User) Channels(c *Client) []*Channel {
+func (u *User) Channels(c *Client) []*Channel {
 	if c == nil {
 		panic("nil Client provided")
 	}
@@ -244,7 +244,7 @@ type Channel struct {
 
 // Users returns a reference of *Users that the client knows the channel has
 // If you're just looking for just the name of the users, use Channnel.UserList.
-func (ch Channel) Users(c *Client) []*User {
+func (ch *Channel) Users(c *Client) []*User {
 	if c == nil {
 		panic("nil Client provided")
 	}
@@ -265,7 +265,7 @@ func (ch Channel) Users(c *Client) []*User {
 
 // Trusted returns a list of users which have voice or greater in the given
 // channel. See Perms.IsTrusted() for more information.
-func (ch Channel) Trusted(c *Client) []*User {
+func (ch *Channel) Trusted(c *Client) []*User {
 	if c == nil {
 		panic("nil Client provided")
 	}
@@ -292,7 +292,7 @@ func (ch Channel) Trusted(c *Client) []*User {
 // Admins returns a list of users which have half-op (if supported), or
 // greater permissions (op, admin, owner, etc) in the given channel. See
 // Perms.IsAdmin() for more information.
-func (ch Channel) Admins(c *Client) []*User {
+func (ch *Channel) Admins(c *Client) []*User {
 	if c == nil {
 		panic("nil Client provided")
 	}
@@ -389,7 +389,7 @@ func (s *state) createChannel(name string) (ok bool) {
 	supported := s.chanModes()
 	prefixes, _ := parsePrefixes(s.userPrefixes())
 
-	if _, ok := s.channels[ToRFC1459(name)]; ok {
+	if _, sok := s.channels[ToRFC1459(name)]; sok {
 		return false
 	}
 
@@ -440,7 +440,7 @@ func (s *state) lookupUser(name string) *User {
 
 // createUser creates the user in state, if not already done.
 func (s *state) createUser(src *Source) (ok bool) {
-	if _, ok := s.users[src.ID()]; ok {
+	if _, sok := s.users[src.ID()]; sok {
 		// User already exists.
 		return false
 	}
@@ -544,15 +544,20 @@ func (s *strictTransport) enabled() bool {
 	return s.upgradePort > 0
 }
 
-// ErrSTSUpgradeFailed is an error that occurs when a connection that was attempted
+// ErrSTSUpgradeFailed is an alias to STSUpgradeError.
+//
+// Deprecated: use STSUpgradeError instead.
+type ErrSTSUpgradeFailed = STSUpgradeError //nolint:errname
+
+// STSUpgradeError is an error that occurs when a connection that was attempted
 // to be upgraded via a strict transport policy, failed. This does not necessarily
 // indicate that STS was to blame, but the underlying connection failed for some
 // reason.
-type ErrSTSUpgradeFailed struct {
+type STSUpgradeError struct {
 	Err error
 }
 
-func (e ErrSTSUpgradeFailed) Error() string {
+func (e STSUpgradeError) Error() string {
 	return fmt.Sprintf("fail to upgrade to secure (sts) connection: %v", e.Err)
 }
 

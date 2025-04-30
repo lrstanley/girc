@@ -56,7 +56,7 @@ func FuzzParseCap(f *testing.F) {
 		f.Add(tc.in)
 	}
 
-	f.Fuzz(func(t *testing.T, orig string) {
+	f.Fuzz(func(_ *testing.T, orig string) {
 		_ = parseCap(orig)
 	})
 }

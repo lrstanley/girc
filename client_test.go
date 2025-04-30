@@ -101,9 +101,9 @@ func TestClientUptime(t *testing.T) {
 	go mockReadBuffer(conn)
 
 	done := make(chan struct{}, 1)
-	c.Handlers.Add(INITIALIZED, func(c *Client, e Event) { close(done) })
+	c.Handlers.Add(INITIALIZED, func(_ *Client, _ Event) { close(done) })
 
-	go c.MockConnect(server)
+	go c.MockConnect(server) //nolint:errcheck
 	defer c.Close()
 
 	select {
@@ -146,9 +146,9 @@ func TestClientGet(t *testing.T) {
 	go mockReadBuffer(conn)
 
 	done := make(chan struct{}, 1)
-	c.Handlers.Add(INITIALIZED, func(c *Client, e Event) { close(done) })
+	c.Handlers.Add(INITIALIZED, func(_ *Client, _ Event) { close(done) })
 
-	go c.MockConnect(server)
+	go c.MockConnect(server) //nolint:errcheck
 	defer c.Close()
 
 	select {
@@ -179,12 +179,8 @@ func TestClientClose(t *testing.T) {
 	errchan := make(chan error, 1)
 	done := make(chan struct{}, 1)
 
-	c.Handlers.AddBg(CLOSED, func(c *Client, e Event) {
-		close(done)
-	})
-	c.Handlers.AddBg(INITIALIZED, func(c *Client, e Event) {
-		c.Close()
-	})
+	c.Handlers.AddBg(CLOSED, func(_ *Client, _ Event) { close(done) })
+	c.Handlers.AddBg(INITIALIZED, func(c *Client, _ Event) { c.Close() })
 
 	go func() { errchan <- c.MockConnect(server) }()
 
