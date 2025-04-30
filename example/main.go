@@ -22,13 +22,6 @@ func main() {
 		Debug:  os.Stdout,
 	})
 
-	// client.Handlers.AddBg(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
-	// 	// c.Cmd.Join("#dev")
-	// 	time.Sleep(30 * time.Second)
-	// 	c.Quit("bye")
-	// 	// c.Cmd.SendRaw("ERROR")
-	// })
-
 	// An example of how you would add reconnect logic.
 	for {
 		if err := client.Connect(); err != nil {

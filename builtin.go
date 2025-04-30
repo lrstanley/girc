@@ -102,7 +102,7 @@ func handleConnect(c *Client, e Event) {
 
 // nickCollisionHandler helps prevent the client from having conflicting
 // nicknames with another bot, user, etc.
-func nickCollisionHandler(c *Client, e Event) {
+func nickCollisionHandler(c *Client, _ Event) {
 	if c.Config.HandleNickCollide == nil {
 		c.Cmd.Nick(c.GetNick() + "_")
 		return
@@ -119,7 +119,7 @@ func handlePING(c *Client, e Event) {
 	c.Cmd.Pong(e.Last())
 }
 
-func handlePONG(c *Client, e Event) {
+func handlePONG(c *Client, _ Event) {
 	c.conn.mu.Lock()
 	c.conn.lastPong = time.Now()
 	c.conn.mu.Unlock()
@@ -513,7 +513,6 @@ func handleNAMES(c *Client, e Event) {
 			if s == nil {
 				continue
 			}
-
 		} else {
 			s = &Source{
 				Name: nick,

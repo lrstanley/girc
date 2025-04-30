@@ -198,11 +198,11 @@ func TestState(t *testing.T) {
 		finishStart <- true
 	})
 
-	cuid := c.Handlers.AddBg(UPDATE_STATE, func(c *Client, e Event) {
+	cuid := c.Handlers.AddBg(UPDATE_STATE, func(_ *Client, _ Event) {
 		bounceStart <- true
 	})
 
-	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
 	_, err := conn.Write([]byte(mockConnStartState))
 	if err != nil {
 		panic(err)
@@ -247,11 +247,11 @@ func TestState(t *testing.T) {
 		finishEnd <- true
 	})
 
-	cuid = c.Handlers.AddBg(UPDATE_STATE, func(c *Client, e Event) {
+	cuid = c.Handlers.AddBg(UPDATE_STATE, func(_ *Client, _ Event) {
 		bounceEnd <- true
 	})
 
-	conn.SetDeadline(time.Now().Add(5 * time.Second))
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
 	_, err = conn.Write([]byte(mockConnEndState))
 	if err != nil {
 		panic(err)

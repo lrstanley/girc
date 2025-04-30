@@ -5,7 +5,7 @@
 package girc_test
 
 import (
-	"log"
+	"log" //nolint:depguard
 	"os"
 	"strings"
 	"time"
@@ -13,7 +13,7 @@ import (
 	"github.com/lrstanley/girc"
 )
 
-func ExampleNew() {
+func ExampleNew() { //nolint:testableexamples
 	client := girc.New(girc.Config{
 		Server: "irc.byteirc.org",
 		Port:   6667,
@@ -29,7 +29,7 @@ func ExampleNew() {
 }
 
 // The bare-minimum needed to get started with girc. Just connects and idles.
-func Example_bare() {
+func Example_bare() { //nolint:testableexamples
 	client := girc.New(girc.Config{
 		Server: "irc.byteirc.org",
 		Port:   6667,
@@ -45,7 +45,7 @@ func Example_bare() {
 
 // Very simple example that connects, joins a channel, and responds to
 // "hello" with "hello world!".
-func Example_simple() {
+func Example_simple() { //nolint:testableexamples
 	client := girc.New(girc.Config{
 		Server: "irc.byteirc.org",
 		Port:   6667,
@@ -55,7 +55,7 @@ func Example_simple() {
 		Debug:  os.Stdout,
 	})
 
-	client.Handlers.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
+	client.Handlers.Add(girc.CONNECTED, func(c *girc.Client, _ girc.Event) {
 		c.Cmd.Join("#dev")
 	})
 
@@ -85,7 +85,7 @@ func Example_simple() {
 
 // Another basic example, however with this, we add simple !<command>
 // responses to things. E.g. "!hello", "!stop", and "!restart".
-func Example_commands() {
+func Example_commands() { //nolint:testableexamples
 	client := girc.New(girc.Config{
 		Server: "irc.byteirc.org",
 		Port:   6667,
@@ -95,7 +95,7 @@ func Example_commands() {
 		Out:    os.Stdout,
 	})
 
-	client.Handlers.Add(girc.CONNECTED, func(c *girc.Client, e girc.Event) {
+	client.Handlers.Add(girc.CONNECTED, func(c *girc.Client, _ girc.Event) {
 		c.Cmd.Join("#channel", "#other-channel")
 	})
 

@@ -26,12 +26,12 @@ func (cmd *Commands) Nick(name string) {
 func (cmd *Commands) Join(channels ...string) {
 	// We can join multiple channels at once, however we need to ensure that
 	// we are not exceeding the line length (see Client.MaxEventLength()).
-	max := cmd.c.MaxEventLength() - len(JOIN) - 1
+	maxLen := cmd.c.MaxEventLength() - len(JOIN) - 1
 
 	var buffer string
 
 	for i := 0; i < len(channels); i++ {
-		if len(buffer+","+channels[i]) > max {
+		if len(buffer+","+channels[i]) > maxLen {
 			cmd.c.Send(&Event{Command: JOIN, Params: []string{buffer}})
 			buffer = ""
 			continue
@@ -330,12 +330,12 @@ func (cmd *Commands) List(channels ...string) {
 
 	// We can LIST multiple channels at once, however we need to ensure that
 	// we are not exceeding the line length (see Client.MaxEventLength()).
-	max := cmd.c.MaxEventLength() - len(JOIN) - 1
+	maxLen := cmd.c.MaxEventLength() - len(JOIN) - 1
 
 	var buffer string
 
 	for i := 0; i < len(channels); i++ {
-		if len(buffer+","+channels[i]) > max {
+		if len(buffer+","+channels[i]) > maxLen {
 			cmd.c.Send(&Event{Command: LIST, Params: []string{buffer}})
 			buffer = ""
 			continue

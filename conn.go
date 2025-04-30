@@ -8,8 +8,9 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"fmt"
+	"errors"
 	"net"
+	"strconv"
 	"sync"
 	"time"
 
@@ -96,21 +97,7 @@ func newConn(conf Config, dialer Dialer, addr string, sts *strictTransport) (*ir
 	}
 
 	if conf.SSL || sts.enabled() {
-		var tlsConn net.Conn
-		tlsConn, err = tlsHandshake(conn, conf.TLSConfig, conf.Server, true)
-		if err != nil {
-			if sts.enabled() {
-				err = &ErrSTSUpgradeFailed{Err: err}
-			}
-
-			if sts.expired() && !conf.DisableSTSFallback {
-				sts.lastFailed = time.Now()
-				sts.reset()
-			}
-			return nil, err
-		}
-
-		conn = tlsConn
+		conn = tlsHandshake(conn, conf.TLSConfig, conf.Server, true)
 	}
 
 	ctime := time.Now()
@@ -137,12 +124,17 @@ func newMockConn(conn net.Conn) *ircConn {
 	return c
 }
 
-// ErrParseEvent is returned when an event cannot be parsed with ParseEvent().
-type ErrParseEvent struct {
+// ErrParseEvent is aliased to ParseEventError.
+//
+// Deprecated: use ParseEventError instead.
+type ErrParseEvent = ParseEventError //nolint:errname
+
+// ParseEventError is returned when an event cannot be parsed with ParseEvent().
+type ParseEventError struct {
 	Line string
 }
 
-func (e ErrParseEvent) Error() string { return "unable to parse event: " + e.Line }
+func (e ParseEventError) Error() string { return "unable to parse event: " + e.Line }
 
 type decodedEvent struct {
 	event *Event
@@ -188,13 +180,13 @@ func (c *ircConn) newReadWriter() {
 	c.io = bufio.NewReadWriter(bufio.NewReader(c.sock), bufio.NewWriter(c.sock))
 }
 
-func tlsHandshake(conn net.Conn, conf *tls.Config, server string, validate bool) (net.Conn, error) {
+func tlsHandshake(conn net.Conn, conf *tls.Config, server string, validate bool) net.Conn {
 	if conf == nil {
-		conf = &tls.Config{ServerName: server, InsecureSkipVerify: !validate}
+		conf = &tls.Config{ServerName: server, InsecureSkipVerify: !validate} //nolint:gosec
 	}
 
 	tlsConn := tls.Client(conn, conf)
-	return net.Conn(tlsConn), nil
+	return net.Conn(tlsConn)
 }
 
 // Close closes the underlying socket.
@@ -296,7 +288,8 @@ startConn:
 		c.debug.Printf("connecting to %s... (sts: %v, config-ssl: %v)", addr, c.state.sts.enabled(), c.Config.SSL)
 		conn, err := newConn(c.Config, dialer, addr, &c.state.sts)
 		if err != nil {
-			if _, ok := err.(*ErrSTSUpgradeFailed); ok {
+			errSTSUpgradeFailed := &ErrSTSUpgradeFailed{}
+			if errors.As(err, &errSTSUpgradeFailed) {
 				if !c.state.sts.enabled() {
 					c.RunHandlers(&Event{Command: STS_ERR_FALLBACK})
 				}
@@ -446,8 +439,7 @@ func (c *Client) Send(event *Event) {
 		event.Params[len(event.Params)-1] = Fmt(event.Params[len(event.Params)-1])
 	}
 
-	var events []*Event
-	events = event.split(c.MaxEventLength())
+	events := event.split(c.MaxEventLength())
 
 	for _, e := range events {
 		if !c.Config.AllowFlood {
@@ -573,9 +565,14 @@ func (c *Client) sendLoop(ctx context.Context) error {
 	}
 }
 
-// ErrTimedOut is returned when we attempt to ping the server, and timed out
+// ErrTimedOut is aliased to TimedOutError.
+//
+// Deprecated: use TimedOutError instead.
+type ErrTimedOut = TimedOutError //nolint:errname
+
+// TimedOutError is returned when we attempt to ping the server, and timed out
 // before receiving a PONG back.
-type ErrTimedOut struct {
+type TimedOutError struct {
 	// TimeSinceSuccess is how long ago we received a successful pong.
 	TimeSinceSuccess time.Duration
 	// LastPong is the time we received our last successful pong.
@@ -586,7 +583,7 @@ type ErrTimedOut struct {
 	Delay time.Duration
 }
 
-func (ErrTimedOut) Error() string { return "timed out waiting for a requested PING response" }
+func (TimedOutError) Error() string { return "timed out waiting for a requested PING response" }
 
 func (c *Client) pingLoop(ctx context.Context) error {
 	// Don't run the pingLoop if they want to disable it.
@@ -641,7 +638,7 @@ func (c *Client) pingLoop(ctx context.Context) error {
 			c.conn.lastPing = time.Now()
 			c.conn.mu.Unlock()
 
-			c.Cmd.Ping(fmt.Sprintf("%d", time.Now().UnixNano()))
+			c.Cmd.Ping(strconv.FormatInt(time.Now().UnixNano(), 10))
 			pingSent = true
 		case <-ctx.Done():
 			return nil

@@ -117,6 +117,8 @@ func parseCap(raw string) map[string]map[string]string {
 // handleCAP attempts to find out what IRCv3 capabilities the server supports.
 // This will lock further registration until we have acknowledged (or denied)
 // the capabilities.
+//
+//nolint:nestif,gocognit
 func handleCAP(c *Client, e Event) {
 	c.state.Lock()
 	defer c.state.Unlock()

@@ -232,7 +232,7 @@ func FuzzValidNick(f *testing.F) {
 		f.Add(tc.test)
 	}
 
-	f.Fuzz(func(t *testing.T, orig string) {
+	f.Fuzz(func(_ *testing.T, orig string) {
 		_ = IsValidNick(orig)
 	})
 }
@@ -271,7 +271,7 @@ func FuzzValidChannel(f *testing.F) {
 		f.Add(tc.test)
 	}
 
-	f.Fuzz(func(t *testing.T, orig string) {
+	f.Fuzz(func(_ *testing.T, orig string) {
 		_ = IsValidChannel(orig)
 	})
 }
@@ -306,7 +306,7 @@ func FuzzValidUser(f *testing.F) {
 		f.Add(tc.test)
 	}
 
-	f.Fuzz(func(t *testing.T, orig string) {
+	f.Fuzz(func(_ *testing.T, orig string) {
 		_ = IsValidUser(orig)
 	})
 }
@@ -442,7 +442,7 @@ func FuzzGlob(f *testing.F) {
 		f.Add(tc, tc)
 	}
 
-	f.Fuzz(func(t *testing.T, orig, orig2 string) {
+	f.Fuzz(func(_ *testing.T, orig, orig2 string) {
 		_ = Glob(orig, orig2)
 	})
 }

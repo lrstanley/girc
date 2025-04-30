@@ -64,7 +64,7 @@ type Tags map[string]string
 func ParseTags(raw string) (t Tags) {
 	t = make(Tags)
 
-	if len(raw) > 0 && raw[0] == prefixTag {
+	if raw != "" && raw[0] == prefixTag {
 		raw = raw[1:]
 	}
 
@@ -143,8 +143,8 @@ func (t Tags) Bytes() []byte {
 		return []byte{}
 	}
 
-	max := len(t)
-	if max == 0 {
+	maxb := len(t)
+	if maxb == 0 {
 		return nil
 	}
 
@@ -170,13 +170,13 @@ func (t Tags) Bytes() []byte {
 		buffer.WriteString(names[i])
 
 		// Write the value as necessary.
-		if len(t[names[i]]) > 0 {
+		if t[names[i]] != "" {
 			buffer.WriteByte(prefixTagValue)
 			buffer.WriteString(t[names[i]])
 		}
 
 		// add the separator ";" between tags.
-		if current < max-1 {
+		if current < maxb-1 {
 			buffer.WriteByte(tagSeparator)
 		}
 
@@ -263,7 +263,7 @@ func (t Tags) Set(key, value string) error {
 
 	value = tagEncoder.Replace(value)
 
-	if len(value) > 0 && !validTagValue(value) {
+	if value != "" && !validTagValue(value) {
 		return fmt.Errorf("tag value %q of key %q is invalid", value, key)
 	}
 

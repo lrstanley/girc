@@ -6,8 +6,8 @@ package girc
 
 import (
 	"fmt"
-	"log"
-	"math/rand"
+	"log"       //nolint:depguard // min go version we support doesn't support slog.
+	"math/rand" //nolint:depguard // min go version we support doesn't support v2.
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -145,7 +145,7 @@ func (c *Caller) cuid(cmd string, n int) (cuid, uid string) {
 	b := make([]byte, n)
 
 	for i := range b {
-		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
+		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))] //nolint:gosec // not used for cryptographic purposes.
 	}
 
 	return cmd + ":" + string(b), string(b)
@@ -264,9 +264,7 @@ func (c *Caller) Clear(cmd string) {
 	cmd = strings.ToUpper(cmd)
 
 	c.mu.Lock()
-	if _, ok := c.external[cmd]; ok {
-		delete(c.external, cmd)
-	}
+	delete(c.external, cmd)
 	c.mu.Unlock()
 
 	c.debug.Printf("cleared external handlers for %s", cmd)
@@ -496,8 +494,8 @@ func (e *HandlerError) String() string {
 // debug log (see Config.Debug), or os.Stdout if Config.Debug is unset.
 func DefaultRecoverHandler(client *Client, err *HandlerError) {
 	if client.Config.Debug == nil {
-		fmt.Println(err.Error())
-		fmt.Println(err.String())
+		fmt.Println(err.Error())  //nolint:forbidigo
+		fmt.Println(err.String()) //nolint:forbidigo
 		return
 	}
 

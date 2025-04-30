@@ -110,7 +110,7 @@ func EncodeCTCPRaw(cmd, text string) (out string) {
 
 	out = string(ctcpDelim) + cmd
 
-	if len(text) > 0 {
+	if text != "" {
 		out += string(eventSpace) + text
 	}
 

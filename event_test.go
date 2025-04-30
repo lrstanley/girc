@@ -399,7 +399,7 @@ var testsIRCDocs = []string{
 	":SomeOp MODE #channel +oo SomeUser :AnotherUser",
 }
 
-func TestEventIRCDocsParseTests(t *testing.T) {
+func TestEventIRCDocsParseTests(_ *testing.T) {
 	for _, tt := range testsIRCDocs {
 		// Basic test to just verify it doesn't panic.
 		_ = ParseEvent(tt)

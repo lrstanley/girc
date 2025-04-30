@@ -83,7 +83,7 @@ func Fmt(text string) string {
 			continue
 		}
 
-		if text[i] == fmtCloseChar && last > -1 {
+		if text[i] == fmtCloseChar && last > -1 { //nolint:nestif
 			code := strings.ToLower(text[last+1 : i])
 
 			// Check to see if they're passing in a second (background) color
@@ -381,7 +381,7 @@ func sliceInsert(input []string, i int, v ...string) []string {
 //     that are above maxWordSplitLength characters, split the word into chunks to fit the
 //
 // maximum width.
-func splitMessage(input string, maxWidth int) (output []string) {
+func splitMessage(input string, maxWidth int) (output []string) { //nolint:gocognit
 	input = strings.ToValidUTF8(input, "?")
 
 	words := strings.FieldsFunc(strings.TrimSpace(input), func(r rune) bool {
