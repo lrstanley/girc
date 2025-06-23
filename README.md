@@ -15,6 +15,8 @@
     <img title="GitHub Workflow Status (test @ master)" src="https://img.shields.io/github/actions/workflow/status/lrstanley/girc/test.yml?branch=master&label=test&style=flat-square">
   </a>
 
+
+
   <a href="https://codecov.io/gh/lrstanley/girc">
     <img title="Code Coverage" src="https://img.shields.io/codecov/c/github/lrstanley/girc/master?style=flat-square">
   </a>
@@ -147,7 +149,7 @@ Working on a project and want to add it to the list? Submit a pull request!
 ```
 MIT License
 
-Copyright (c) 2016 Liam Stanley <me@liamstanley.io>
+Copyright (c) 2016 Liam Stanley <liam@liam.sh>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
