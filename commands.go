@@ -218,6 +218,19 @@ func (cmd *Commands) SendRawf(format string, a ...interface{}) error {
 	return cmd.SendRaw(fmt.Sprintf(format, a...))
 }
 
+// SendRawNoSplit sends a raw string directly to the server without any splitting
+// or length checking. Use with caution - this bypasses all safety checks.
+func (cmd *Commands) SendRawNoSplit(raw string) error {
+	event := ParseEvent(raw)
+	if event == nil {
+		return errors.New("invalid event: " + raw)
+	}
+
+	// Call write directly to bypass Send's splitting logic
+	cmd.c.write(event)
+	return nil
+}
+
 // Topic sets the topic of channel to message. Does not verify the length
 // of the topic.
 func (cmd *Commands) Topic(channel, message string) {
