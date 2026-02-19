@@ -16,7 +16,6 @@
   </a>
 
 
-
   <a href="https://codecov.io/gh/lrstanley/girc">
     <img title="Code Coverage" src="https://img.shields.io/codecov/c/github/lrstanley/girc/master?style=flat-square">
   </a>
