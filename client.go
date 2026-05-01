@@ -107,6 +107,13 @@ type Config struct {
 	// strict transport policy expires and the first attempt to reconnect back to
 	// the tls version fails.
 	DisableSTSFallback bool
+	// DisableAutoWhoOnJoin disables the automatic WHO request sent when this
+	// client joins a channel. Channel/user tracking remains enabled, and can
+	// still be populated by NAMES replies and subsequent channel events.
+	DisableAutoWhoOnJoin bool
+	// DisableAutoModeOnJoin disables the automatic MODE request sent when this
+	// client joins a channel.
+	DisableAutoModeOnJoin bool
 	// TLSConfig is an optional user-supplied tls configuration, used during
 	// socket creation to the server. SSL must be enabled for this to be used.
 	// This only has an affect during the dial process.
