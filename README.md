@@ -94,7 +94,8 @@ usecases/examples/projects which utilize girc:
 | [nagios-check-ircd](https://github.com/lrstanley/nagios-check-ircd) | Nagios utility for monitoring the health of an ircd |
 | [nagios-notify-irc](https://github.com/lrstanley/nagios-notify-irc) | Nagios utility for sending alerts to one or many channels/networks |
 | [matterbridge](https://github.com/42wim/matterbridge) | bridge between mattermost, IRC, slack, discord (and many others) with REST API |
-| [milla](https://github.com/terminaldweller/milla) | An LLM bot with syntax Highlighting |
+| [milla](https://github.com/terminaldweller/milla) | terminaldweller's irc chat bot |
+[ [circ](https://github.com/terminaldweller/circ) | a cli irc client |
 | [hii](https://github.com/nmeum/hii) | A file-based IRC client |
 
 Working on a project and want to add it to the list? Submit a pull request!
