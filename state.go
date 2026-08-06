@@ -387,7 +387,7 @@ func (ch *Channel) Lifetime() time.Duration {
 // createChannel creates the channel in state, if not already done.
 func (s *state) createChannel(name string) (ok bool) {
 	supported := s.chanModes()
-	prefixes, _ := parsePrefixes(s.userPrefixes())
+	prefixModes, prefixes := parsePrefixes(s.userPrefixes())
 
 	if _, sok := s.channels[ToRFC1459(name)]; sok {
 		return false
@@ -397,7 +397,7 @@ func (s *state) createChannel(name string) (ok bool) {
 		Name:     name,
 		UserList: []string{},
 		Joined:   time.Now(),
-		Modes:    NewCModes(supported, prefixes),
+		Modes:    NewCModesWithPrefixModes(supported, prefixModes, prefixes),
 	}
 
 	return true

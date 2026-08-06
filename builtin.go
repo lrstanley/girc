@@ -501,8 +501,9 @@ func handleNAMES(c *Client, e Event) {
 	var s *Source
 
 	c.state.Lock()
+	prefixModes, prefixes := parsePrefixes(c.state.userPrefixes())
 	for i := 0; i < len(parts); i++ {
-		modes, nick, ok = parseUserPrefix(parts[i])
+		modes, nick, ok = parseUserPrefix(parts[i], prefixes)
 		if !ok {
 			continue
 		}
@@ -534,7 +535,7 @@ func handleNAMES(c *Client, e Event) {
 
 		// Don't append modes, overwrite them.
 		perms, _ := user.Perms.Lookup(channel.Name)
-		perms.set(modes, false)
+		perms.setPrefixes(modes, prefixModes, prefixes)
 		user.Perms.set(channel.Name, perms)
 	}
 	c.state.Unlock()

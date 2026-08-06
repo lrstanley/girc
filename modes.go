@@ -50,8 +50,9 @@ type CModes struct {
 	modesSetArgs  string // modes that support args ONLY when set.
 	modesNoArgs   string // modes that do not support args.
 
-	prefixes string  // user permission prefixes. these aren't a CMode.setting.
-	modes    []CMode // the list of modes for this given state.
+	prefixModes string  // user permission modes. these aren't a CMode.setting.
+	prefixes    string  // user permission prefixes. these aren't a CMode.setting.
+	modes       []CMode // the list of modes for this given state.
 }
 
 // Copy returns a deep copy of CModes.
@@ -143,7 +144,8 @@ func (c *CModes) hasArg(set bool, mode byte) (hasArgs, isSetting bool) {
 		return false, true
 	}
 
-	if strings.IndexByte(c.prefixes, mode) > -1 {
+	if strings.IndexByte(c.prefixModes, mode) > -1 ||
+		(len(c.prefixModes) == 0 && strings.IndexByte(c.prefixes, mode) > -1) {
 		return true, false
 	}
 
@@ -235,6 +237,16 @@ func (c *CModes) Parse(flags string, args []string) (out []CMode) {
 // ISUPPORT capability messages (alternatively, fall back to the standard)
 // DefaultPrefixes and ModeDefaults.
 func NewCModes(channelModes, userPrefixes string) CModes {
+	return newCModes(channelModes, "", userPrefixes)
+}
+
+// NewCModesWithPrefixModes returns a new CModes reference using the mode and
+// prefix mappings advertised by the server's PREFIX ISUPPORT parameter.
+func NewCModesWithPrefixModes(channelModes, prefixModes, userPrefixes string) CModes {
+	return newCModes(channelModes, prefixModes, userPrefixes)
+}
+
+func newCModes(channelModes, prefixModes, userPrefixes string) CModes {
 	split := strings.SplitN(channelModes, ",", 4)
 	if len(split) != 4 {
 		for i := len(split); i < 4; i++ {
@@ -249,8 +261,9 @@ func NewCModes(channelModes, userPrefixes string) CModes {
 		modesSetArgs:  split[2],
 		modesNoArgs:   split[3],
 
-		prefixes: userPrefixes,
-		modes:    []CMode{},
+		prefixModes: prefixModes,
+		prefixes:    userPrefixes,
+		modes:       []CMode{},
 	}
 }
 
@@ -355,7 +368,8 @@ func handleMODE(c *Client, e Event) {
 		user := c.state.lookupUser(modes[i].args)
 		if user != nil {
 			perms, _ := user.Perms.Lookup(channel.Name)
-			perms.setFromMode(modes[i])
+			prefixModes, prefixes := parsePrefixes(c.state.userPrefixes())
+			perms.setFromMode(modes[i], prefixModes, prefixes)
 			user.Perms.set(channel.Name, perms)
 		}
 	}
@@ -442,6 +456,10 @@ func (p *UserPerms) remove(channel string) {
 // voice should be supported on all networks. This also supports non-rfc
 // Owner, Admin, and HalfOp, if the network has support for it.
 type Perms struct { //nolint:recvcheck
+	// Prefixes contains the channel membership prefixes advertised by the
+	// server for this user, ordered from highest to lowest privilege. It may
+	// include server-specific prefixes that do not have a dedicated field below.
+	Prefixes string `json:"prefixes"`
 	// Owner (non-rfc) indicates that the user has full permissions to the
 	// channel. More than one user can have owner permission.
 	Owner bool `json:"owner"`
@@ -457,6 +475,9 @@ type Perms struct { //nolint:recvcheck
 	// Voice indicates the user has voice permissions, commonly given to known
 	// users, with very light trust, or to indicate a user is active.
 	Voice bool `json:"voice"`
+
+	// modes holds the channel membership modes represented by Prefixes.
+	modes string
 }
 
 // IsAdmin indicates that the user has banning abilities, and are likely a
@@ -481,6 +502,13 @@ func (m Perms) IsTrusted() bool {
 
 // reset resets the modes of a user.
 func (m *Perms) reset() {
+	m.Prefixes = ""
+	m.modes = ""
+	m.resetKnown()
+}
+
+// resetKnown clears the fixed, commonly-supported permission fields.
+func (m *Perms) resetKnown() {
 	m.Owner = false
 	m.Admin = false
 	m.Op = false
@@ -488,24 +516,46 @@ func (m *Perms) reset() {
 	m.Voice = false
 }
 
-// set translates raw prefix characters into proper permissions. Only
-// use this function when you have a session lock.
-func (m *Perms) set(prefix string, add bool) {
-	if !add {
-		m.reset()
+// setPrefixes replaces permissions from a NAMES reply using the mapping
+// advertised by the server in the PREFIX ISUPPORT parameter. Only use this
+// function when you have a session lock.
+func (m *Perms) setPrefixes(rawPrefixes, prefixModes, prefixes string) {
+	m.reset()
+
+	for i := 0; i < len(rawPrefixes); i++ {
+		j := strings.IndexByte(prefixes, rawPrefixes[i])
+		if j < 0 || j >= len(prefixModes) || strings.IndexByte(m.modes, prefixModes[j]) >= 0 {
+			continue
+		}
+
+		m.modes += string(prefixModes[j])
 	}
 
-	for i := 0; i < len(prefix); i++ {
-		switch string(prefix[i]) {
-		case OwnerPrefix:
+	m.setFromPrefixModes(prefixModes, prefixes)
+}
+
+// setFromPrefixModes rebuilds the advertised prefix list and the fixed
+// permission fields from the currently held membership modes.
+func (m *Perms) setFromPrefixModes(prefixModes, prefixes string) {
+	m.resetKnown()
+	m.Prefixes = ""
+
+	for i := 0; i < len(prefixModes) && i < len(prefixes); i++ {
+		if strings.IndexByte(m.modes, prefixModes[i]) < 0 {
+			continue
+		}
+
+		m.Prefixes += string(prefixes[i])
+		switch string(prefixModes[i]) {
+		case ModeOwner:
 			m.Owner = true
-		case AdminPrefix:
+		case ModeAdmin:
 			m.Admin = true
-		case OperatorPrefix:
+		case ModeOperator:
 			m.Op = true
-		case HalfOperatorPrefix:
+		case ModeHalfOperator:
 			m.HalfOp = true
-		case VoicePrefix:
+		case ModeVoice:
 			m.Voice = true
 		}
 	}
@@ -513,29 +563,26 @@ func (m *Perms) set(prefix string, add bool) {
 
 // setFromMode sets user-permissions based on channel user mode chars. E.g.
 // "o" being oper, "v" being voice, etc.
-func (m *Perms) setFromMode(mode CMode) {
-	switch string(mode.name) {
-	case ModeOwner:
-		m.Owner = mode.add
-	case ModeAdmin:
-		m.Admin = mode.add
-	case ModeOperator:
-		m.Op = mode.add
-	case ModeHalfOperator:
-		m.HalfOp = mode.add
-	case ModeVoice:
-		m.Voice = mode.add
+func (m *Perms) setFromMode(mode CMode, prefixModes, prefixes string) {
+	if strings.IndexByte(prefixModes, mode.name) < 0 {
+		return
 	}
+
+	if mode.add && strings.IndexByte(m.modes, mode.name) < 0 {
+		m.modes += string(mode.name)
+	} else if !mode.add {
+		m.modes = strings.ReplaceAll(m.modes, string(mode.name), "")
+	}
+
+	m.setFromPrefixModes(prefixModes, prefixes)
 }
 
-// parseUserPrefix parses a raw mode line, like "@user" or "@+user".
-func parseUserPrefix(raw string) (modes, nick string, success bool) {
+// parseUserPrefix parses a raw mode line, like "@user" or "@+user", using
+// the prefix symbols advertised by the server via ISUPPORT.
+func parseUserPrefix(raw, prefixes string) (modes, nick string, success bool) {
 	for i := 0; i < len(raw); i++ {
-		char := string(raw[i])
-
-		if char == OwnerPrefix || char == AdminPrefix || char == HalfOperatorPrefix ||
-			char == OperatorPrefix || char == VoicePrefix {
-			modes += char
+		if strings.IndexByte(prefixes, raw[i]) > -1 {
+			modes += string(raw[i])
 			continue
 		}
 
