@@ -390,15 +390,11 @@ func handleMYINFO(c *Client, e Event) {
 // events. These commonly contain the server capabilities and limitations.
 // For example, things like max channel name length, or nickname length.
 func handleISUPPORT(c *Client, e Event) {
-	// Must be a ISUPPORT-based message.
-
-	// Also known as RPL_PROTOCTL.
-	if !strings.HasSuffix(e.Last(), "this server") {
-		return
-	}
-
-	// Must have at least one configuration.
-	if len(e.Params) < 2 {
+	// RPL_BOUNCE (RFC 2812) shares numeric 005 but carries only the nickname
+	// and a trailing text. ISUPPORT always has at least one token between
+	// them. Its trailing text is free-form (soju sends "are supported"), so
+	// it must not be used to tell the two apart.
+	if len(e.Params) < 3 {
 		return
 	}
 
