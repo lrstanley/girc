@@ -25,12 +25,15 @@ func debounce(delay time.Duration, done chan bool, f func()) {
 	}
 }
 
+// The second RPL_ISUPPORT reply uses soju's trailing text. Servers word it
+// freely, so its tokens must be honored regardless.
 const mockConnStartState = `:dummy.int NOTICE * :*** Looking up your hostname...
 :dummy.int NOTICE * :*** Checking Ident
 :dummy.int NOTICE * :*** Found your hostname
 :dummy.int NOTICE * :*** No Ident response
 :dummy.int 001 nick :Welcome to the DUMMY Internet Relay Chat Network nick
-:dummy.int 005 nick NETWORK=DummyIRC NICKLEN=20 PREFIX=(qYaohv)~!&@%+ :are supported by this server
+:dummy.int 005 nick NETWORK=DummyIRC NICKLEN=20 :are supported by this server
+:dummy.int 005 nick PREFIX=(qYaohv)~!&@%+ :are supported
 :dummy.int 375 nick :- dummy.int Message of the Day -
 :dummy.int 372 nick :example motd
 :dummy.int 376 nick :End of /MOTD command.
